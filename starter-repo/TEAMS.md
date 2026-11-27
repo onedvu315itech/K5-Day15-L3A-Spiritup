@@ -4,16 +4,17 @@
 > Giữ nguyên tên file `TEAMS.md` ở thư mục gốc repo, giữ nguyên các dòng `- Tên nhóm:` … và tiêu đề cột của bảng. Chỉ thay chỗ `____`.
 > Kiểm bằng `python run.py check`: phần "Kiểm TEAMS.md" không báo gì là đúng format.
 
-- Tên nhóm: ____
-- Lớp: ____
-- Track: ____
-- Link repo: ____
+- Tên nhóm: Spiritup
+- Lớp: L3A
+- Track: C
+- Link repo: https://github.com/onedvu315itech/K5-Day15-L3A-Spiritup
 
 | STT | Họ và tên | Mã học viên | Vai trò | Phần việc chính |
 |---|---|---|---|---|
-| 1 | ____ | ____ | Đội trưởng | ____ |
-| 2 | ____ | ____ | Thành viên | ____ |
-| 3 | ____ | ____ | Thành viên | ____ |
+| 1 | Vũ Lê Đức | 2A202603683 | Đội trưởng | Hoàn thiện CP, kiểm duyệt kết quả |
+| 2 | Lê Hữu Toàn | 2A202603660 | Thành viên | Luồng AI Agent xử lý |
+| 3 | Mai Đăng Khương | 2A202603627 | Thành viên | Kiến trúc Backend -> Deploy Onrender |
+| 4 | Lê Xuân Phúc | 2A202603655 | Thành viên | Layout & UI -> Deploy Vercel |
 
 **Quy tắc điền**
 - **Lớp:** `L3A` hoặc `L3B`. **Track:** một chữ `A` (EdTech), `B` (Y tế), `C` (Du lịch), `D` (Thương mại điện tử), `E` (Tài chính) hoặc `F` (Làn khác). **Link repo:** link GitHub công khai của nhóm.
