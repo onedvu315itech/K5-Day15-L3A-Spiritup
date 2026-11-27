@@ -8,7 +8,29 @@ Số công cụ, kiểu công cụ do thiết kế của nhóm quyết định �
 Công cụ có tác động ra ngoài: KHÔNG tự làm. Trả về bản nháp chờ người duyệt (guide bước 2.2, "chỗ người duyệt").
 Dữ liệu công cụ đọc (bài mẫu, thông báo mẫu, lịch…): để trong data/ và mô tả ở data/DATA_CARD.md.
 """
+from osm_places import search_places_osm
 from tracing import tool, TOOLS  # noqa: F401  (TOOLS: danh sách công cụ đã đăng ký, dùng khi viết vòng lặp agent)
+
+
+@tool
+def search_places(
+    lat: float,
+    lng: float,
+    category: str = "all",
+    radius_km: float = 2.5,
+    keyword: str = "",
+    limit: int = 30,
+) -> list:
+    """search_places · Input: lat (float), lng (float), category ('restaurant'|'cafe'|'attraction'|'hotel'|'all'), radius_km (float), keyword (str), limit (int) · Output: danh sách dict địa điểm {place_id, name, kind, category, lat, lng, address, opening_hours, sources} (opening_hours=None nếu chưa rõ) · Không tác động ra ngoài."""
+    cats = None if category.strip().lower() in ("", "all", "*") else [c.strip() for c in category.split(",")]
+    return search_places_osm(
+        lat=lat,
+        lng=lng,
+        categories=cats,
+        radius_km=radius_km,
+        keyword=keyword or None,
+        limit=limit,
+    )
 
 
 @tool

@@ -39,3 +39,4 @@ de-bai/data/
 # Zip đóng gói, cài đặt cục bộ của Claude Code
 dist/
 .claude/settings.local.json
+playground/
