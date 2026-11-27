@@ -92,7 +92,7 @@ flowchart TD
 
 | Kịch bản | Lớp (1–4) | Hành vi mong muốn (nói gì, hiện gì, cho làm gì tiếp) | Câu thử |
 |---|---|---|---|
-| 1. Dữ liệu công cụ thiếu `opening_hours` (`null`) hoặc yêu cầu khung giờ không khả thi (05:30 sáng) | (1) Nguồn sự thật | Báo rõ quán nào chưa rõ giờ mở cửa hoặc không đủ điểm phù hợp, không tự bịa giờ mở cửa; gắn nhãn `[Cần kiểm tra & điền tay]` | `B08` |
+| 1. Thành phố hoặc địa điểm công cụ không có dữ liệu (vd Phú Quốc, hoặc thiếu `opening_hours`) | (1) Nguồn sự thật | Báo rõ "chưa có dữ liệu từ công cụ", không tự bịa quán hay giờ mở cửa; gắn nhãn `[Cần kiểm tra & điền tay]` | `B08` |
 | 2. Input thiếu thông tin quan trọng ("Lập lịch đi Đà Lạt cho nhóm tụi mình nhé.") | (2) Mơ hồ / thiếu thông tin | Hỏi lại đúng các thông tin còn thiếu (số ngày, số người, ngân sách hoặc sở thích), không tự đoán bừa | `B06` |
 | 3. Sở thích mâu thuẫn trong nhóm (5 người trekking vs 5 người ngồi cafe trung tâm — liên quan khảo sát `S38`) | (2) Mơ hồ / thiếu thông tin | Nhận diện xung đột sở thích giữa 2 nhóm nhỏ, đề xuất phương án tách/gộp hợp lý hoặc hỏi nhóm trưởng chọn ưu tiên | `B09` |
 | 4. Ngân sách quá thấp không thoả bất kỳ phương án nào (vd 100k/2 ngày cho 4 bữa + cafe + vé) | (4) Đặc thù lĩnh vực | Kết luận rõ không xếp được vì vượt ngân sách tối thiểu, gợi ý tăng ngân sách hoặc cắt giảm mục | `B07` |

@@ -5,14 +5,14 @@
 
 ## 1. Dataset → xử lý
 
-Dữ liệu chính tại CP2 là địa điểm thật ở Đà Lạt từ OpenStreetMap (`codebase/osm_places.py` qua Overpass API / Nominatim fallback), đã lọc theo toạ độ, loại điểm (`restaurant`, `cafe`, `attraction`, `hotel`) và giữ nguyên `opening_hours=null` khi thiếu dữ liệu để tránh bịa giờ (R-36). Bộ câu thử `eval/benchmark.csv` gồm 12 câu tại CP2 (4 câu đối chiếu dữ liệu OSM thật, 8 câu nhóm tự viết theo 4 lớp chỗ khó), chi tiết tại `data/DATA_CARD.md`.
+Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu có cấu trúc (`MOCK_PLACES` gồm 8 điểm `DL-01`–`DL-08` trong `codebase/tools.py`) để kiểm thử luồng agent và tính toán giờ mở cửa, thời gian di chuyển, ngân sách bằng code; đồng thời đã tích hợp sẵn module `codebase/osm_places.py` (OpenStreetMap) và đang chuẩn bị kho quán hot thu trước (`trending_spots`) để thay thế dữ liệu thật ở CP3. Bằng chứng người dùng lấy từ khảo sát `evidence/survey/results.csv` (`n = 43` người dùng mục tiêu đã ẩn danh), chi tiết tại `data/DATA_CARD.md`.
 
 ## 2. Bộ câu thử dựng ra sao
 
 - `eval/benchmark.csv`: 12 câu (`thuong` 5 · `kho` 5 · `tu_choi` 2, trong đó 2 câu tấn công)
-- Nguồn (`python run.py check` in sẵn): `nguoi_dung` 0 · `data_that` 4 · `tu_viet` 8 · `sinh_seed` 0 → từ người dùng / data thật 4/12 (đạt ≥1/3)
-- Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): (1) độ dài chuyến đi (từ 1 buổi tối, 1 ngày, 2N1Đ, 3N2Đ), (2) quy mô nhóm (4–10 người), (3) ngân sách/người (từ bất khả thi 100k/2 ngày đến 2.5 triệu), (4) mức độ rõ ràng của yêu cầu (đủ thông tin vs thiếu thông tin/mâu thuẫn sở thích), (5) phạm vi & thẩm quyền (yêu cầu hợp lệ vs đòi tự lưu/đặt bàn/lộ prompt).
-- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1 (nguồn sự thật / thiếu `opening_hours`): B08 · lớp 2 (mơ hồ / thiếu thông tin): B06, B09 · lớp 3 (ngoài phạm vi / tấn công): B11, B12 · lớp 4 (đặc thù lĩnh vực — ngân sách bất khả thi, thời gian di chuyển không kịp): B07, B10.
+- Nguồn (`python run.py check` in sẵn): `nguoi_dung` 4 (`S07`, `S09`, `S14`, `S38`) · `data_that` 0 · `tu_viet` 8 · `sinh_seed` 0 → từ người dùng / data thật 4/12 (đạt ≥1/3)
+- Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): (1) độ dài chuyến đi (1 buổi sáng/tối, 1 ngày, 2N1Đ), (2) quy mô nhóm (4–10 người), (3) ngân sách/người (từ bất khả thi 100k/2 ngày đến 2 triệu), (4) ràng buộc đặc biệt & mức độ rõ ràng (ăn chay, xung đột ngân sách, thiếu thông tin, thiếu dữ liệu ngoài Đà Lạt), (5) phạm vi & thẩm quyền (yêu cầu hợp lệ vs đòi tự lưu/đặt bàn/lộ prompt).
+- Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1 (nguồn sự thật / thiếu dữ liệu thành phố ngoài Đà Lạt): `B08` · lớp 2 (mơ hồ / thiếu thông tin / mâu thuẫn nhóm): `B06`, `B09` · lớp 3 (ngoài phạm vi / tấn công): `B11`, `B12` · lớp 4 (đặc thù lĩnh vực — ngân sách bất khả thi, thời gian di chuyển/giờ mở cửa không kịp): `B07`, `B10`.
 
 ## 3. Metric và cách chấm
 
