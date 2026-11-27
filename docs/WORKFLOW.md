@@ -56,11 +56,11 @@ Ai làm gì, theo thứ tự nào, đồng bộ lúc nào, từ giờ tới hạ
 
 ### Giai đoạn 0 — đến CP1 (17:00 thứ Sáu 27/11)
 
-**BTC kiểm (Form 2 → CP1):** `TEAMS.md` đủ 4 thành viên, đội trưởng dòng 1, `python run.py check` báo OK · track C + bài toán 1–2 câu (không có chữ AI) · lát cắt 1 câu · `canvas.md` 7 dòng · repo công khai mở được bằng cửa sổ ẩn danh.
+**BTC kiểm (Form 2 → CP1):** `TEAMS.md` đủ 4 thành viên, đội trưởng dòng 1, `python run.py check` không báo gì ở phần "Kiểm TEAMS.md" · track C + bài toán 1–2 câu (không có chữ AI) · lát cắt 1 câu · `canvas.md` 7 dòng · repo công khai mở được bằng cửa sổ ẩn danh.
 
 | Người | Việc | Xong khi |
 |---|---|---|
-| Đức | Form 1 trước 16:30; `TEAMS.md`, repo công khai; duyệt `canvas.md` 7 dòng (bản nháp đã có); xác nhận các OQ đã chốt; chốt OQ-09 | `python run.py check` báo OK; nộp Form 2 → CP1 |
+| Đức | Form 1 trước 16:30; `TEAMS.md`, repo công khai; duyệt `canvas.md` 7 dòng (bản nháp đã có); xác nhận các OQ đã chốt; chốt OQ-09 | Phần "Kiểm TEAMS.md" của `python run.py check` không báo gì; `main` có khung của nhóm; nộp Form 2 → CP1 |
 | Cả nhóm | `spec.md` §1 (ai, việc gì, đang giải bằng gì, hỏng ở đâu); `evidence/hypothesis.md`; mỗi người nhận một phần đào review công khai + gửi form khảo sát cho người ngoài nhóm (OQ-21) | Mỗi người có nguồn review + cách chọn mẫu; form đã gửi đi |
 | Cả nhóm | Đọc `AGENTS.md`, ADR 0001, ADR 0002, ADR 0004, spec đề xuất | Ai cũng nói lại được: phiếu chỉ ghi nhận, nhóm trưởng quyết |
 | Toàn | Chọn 2–3 model ứng viên (OQ-01); thử gọi công cụ, tiếng Việt, JSON | Bảng so sánh ngắn trong OQ-01 |
@@ -165,4 +165,4 @@ Thứ tự cắt (cắt từ dưới lên): bình chọn tự do → bản đồ
 |---|---|---|---|---|
 | 0.1 | 2026-11-27 | Đức | Bản đầu: vai trò, lịch theo CP1–CP4, đồng bộ, thứ tự cắt | Họp nhóm 27/11 |
 | 0.2 | 2026-11-27 | Khương | Bỏ nhật ký buổi; thêm "BTC kiểm" mỗi mốc, việc của cả nhóm (bằng chứng, đọc câu trượt), chấm thử 5 output, video 30 giây, lượt 2, chi phí, slide, reflection; đi lại câu chuyện trước mỗi CP | Đối chiếu `README.md`, `02-guide.md`, `03-rubric.md` của BTC |
-| 0.3 | 2026-11-27 | Khương | Nộp qua Form 1 (trước 16:30) và Form 2 (một link, chọn nhánh CP1–CP4); 4 điều kiện cứng tick ở CP4; `demo-slides.pdf` ở gốc repo + video mở được ẩn danh; lát cắt AI trước (OQ-20); bằng chứng: review công khai + form khảo sát (OQ-21); bỏ các việc chốt OQ đã xong; `proposal_service` theo ADR 0004; giờ demo, video khi lỗi >30 giây | Slide kickoff, OQ-20, OQ-21, ADR 0004 |
+| 0.3 | 2026-11-27 | Khương | Nộp qua Form 1 (trước 16:30) và Form 2 (một link, chọn nhánh CP1–CP4); 4 điều kiện cứng tick ở CP4; `demo-slides.pdf` ở gốc repo + video mở được ẩn danh; lát cắt AI trước (OQ-20); bằng chứng: review công khai + form khảo sát (OQ-21); bỏ các việc chốt OQ đã xong; `proposal_service` theo ADR 0004; giờ demo, video khi lỗi >30 giây; CP1 chỉ cần phần "Kiểm TEAMS.md" của `check` không báo gì | Slide kickoff, OQ-20, OQ-21, ADR 0004 |
