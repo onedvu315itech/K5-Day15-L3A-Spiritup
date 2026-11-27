@@ -14,7 +14,7 @@ Repo nộp bài hackathon AI20K của nhóm **Spiritup** (L3A, track C — Du l�
   - **Roa:** trả lời câu hỏi; soạn đề xuất khi nhóm trưởng nhờ. Roa không bao giờ tự áp dụng thay đổi.
   - **Lịch sử phiên bản:** mỗi lần áp dụng tạo phiên bản mới (v1, v2…), không ghi đè. Khôi phục bản cũ cũng là một đề xuất. Plan v1: Roa soạn bản nháp, nhóm trưởng duyệt, không qua bỏ phiếu.
 - **Lát cắt AI nộp BTC (OQ-19):** `generate` — Roa xếp lịch trình theo ngày thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được. `answer(text)` gọi `generate`; bộ câu thử đo chế độ này. Ưu tiên `codebase/` + eval trước CP3, web app sau (OQ-20).
-- **Demo web app:** tạo chuyến đi → Roa soạn bản nháp → nhóm trưởng duyệt v1 → sửa → đề xuất → bỏ phiếu → nhóm trưởng áp dụng → v2 → thành viên hỏi Roa. Thành phố demo: Đà Lạt (OQ-09).
+- **Demo web app:** tạo chuyến đi → Roa soạn bản nháp → nhóm trưởng duyệt v1 → sửa → đề xuất → bỏ phiếu → nhóm trưởng áp dụng → v2 → thành viên hỏi Roa. Điểm đến: bất kỳ đâu trong Việt Nam, không giới hạn một thành phố, demo cũng vậy (OQ-09).
 - **Hiện trạng (27/11):** khung tài liệu xong, chưa có code `backend/`, `frontend/`. `codebase/` còn là ví dụ của BTC.
 
 ## 2. Tài liệu phải đọc
@@ -94,6 +94,7 @@ Không đề xuất lại. Muốn đổi thì nêu thành câu hỏi, đi qua CR
 | Chỉ nhóm trưởng sửa plan; mọi lần sửa là đề xuất | ADR 0002 |
 | Phiếu chỉ ghi nhận (công khai tên, ngưỡng tham khảo `floor(n/2)+1`); nhóm trưởng áp dụng hoặc đóng; hạn đề xuất tuỳ chọn; v1 do nhóm trưởng duyệt | ADR 0004 |
 | Lát cắt nộp BTC là `generate`; `answer(text)` gọi `generate` | OQ-19, ADR 0003 |
+| Điểm đến bất kỳ trong Việt Nam, không giới hạn một thành phố (cả demo và bộ câu thử) | OQ-09 |
 | Xác thực: link mời + tên hiển thị + token; hội thoại với Roa chung cả nhóm | OQ-06, OQ-14 |
 | Thành viên: góp ý qua form, bỏ phiếu, hỏi Roa (chỉ đọc) | ADR 0002 |
 | Lịch sử phiên bản bất biến; khôi phục = đề xuất mới | ADR 0002, `docs/DATABASE.md` I1 |
