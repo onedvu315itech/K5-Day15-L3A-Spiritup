@@ -1,0 +1,16 @@
+# Canvas — Spiritup · Track C
+
+> Điền ở guide bước 1.4. CP1 17:00 Thứ Sáu 27/11: nộp bản đầu, đủ 7 dòng (dòng 4 được ghi giả thuyết + nguồn sẽ kiểm).
+> CP2 19:30 Thứ Sáu 27/11: cập nhật (số bằng chứng đầu, lát cắt đã chốt) và điền dòng "Đã đổi gì so với CP1".
+> Track F: chép thêm thẻ đề của nhóm (khung trong file track F) xuống dưới bảng này.
+
+| # | Dòng | Nhóm điền |
+|---|---|---|
+| 1 | Track + lát cắt dự kiến | Track C — Du lịch. Sản phẩm Partaway, trợ lý Roa. Lát cắt dự kiến: xếp lịch trình theo ngày cho một chuyến đi nhóm ở Việt Nam (demo: Đà Lạt), thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được. |
+| 2 | Người dùng chính (một vai cụ thể — không phải "học viên nói chung") | Nhóm trưởng của một nhóm bạn đông người, là người đứng ra lên lịch trình cho chuyến đi chơi vài ngày ở Việt Nam. |
+| 3 | Pain một câu: ai — đang làm gì — vướng đâu — hậu quả | Nhóm trưởng của nhóm bạn đông người đang tự gom sở thích, ngân sách của từng người trong chat nhóm và tự tra giờ mở cửa, quán đang hot để xếp lịch, nhưng ý kiến rối, giờ mở cửa rời rạc hay sai, nên mất nhiều thời gian chốt lịch và đến nơi vẫn gặp quán đóng cửa hoặc chi vượt ngân sách. |
+| 4 | Bằng chứng đầu — CP1: giả thuyết + nguồn sẽ kiểm · CP2: số đầu tiên + 1 trích dẫn | **Giả thuyết:** nhóm đông người mất nhiều thời gian và nhiều vòng bàn bạc để chốt lịch trình; lịch tự xếp hay sai giờ mở cửa hoặc vượt ngân sách. **Nguồn sẽ kiểm:** (1) nguồn chính — review công khai (Google Play / App Store của các app lập lịch trình du lịch, đi chơi nhóm), mỗi thành viên đào một phần, ghi link + ngày xem, ẩn tên người viết; (2) nguồn kiểm lại — form khảo sát nhóm đã tạo, gửi cho người ngoài nhóm điền. Kết quả lưu ở `evidence/`. Số đầu tiên: điền ở CP2. |
+| 5 | **Lát cắt MỘT CÂU** (1 người dùng · 1 việc · 1 quyết định AI · 1 kết quả) | Một nhóm trưởng · nhập số ngày, ngân sách, sở thích của cả nhóm cho chuyến đi ở Việt Nam (demo: Đà Lạt) · Roa chọn điểm đến và xếp thứ tự theo ngày, giờ thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được và vì sao · nhóm trưởng nhận lịch trình theo ngày kèm giờ, tổng tiền ước tính và lý do chọn, để duyệt rồi chia sẻ cho cả nhóm. |
+| 6 | AI tự làm đến đâu + 1 dòng lý do: sai thì ai chịu gì | **AI gợi ý, người quyết.** Roa tự chọn điểm và xếp lịch (giờ mở cửa, tiền, thời gian đi lấy từ công cụ và tính bằng code); Roa không tự lưu lịch thành bản chung, không đặt chỗ hay thanh toán: nhóm trưởng xem bản nháp, tạo lại hoặc chỉnh, rồi duyệt. Lý do: lịch sai thì cả nhóm đến quán đóng cửa hoặc chi vượt ngân sách, và nhóm trưởng là người chịu với cả nhóm, nên nhóm trưởng phải duyệt trước khi lịch đến tay mọi người. |
+| 7 | Phân công có tên | **Đức** (đội trưởng): phạm vi, nộp CP, `canvas.md`, `spec.md` §0–§3, tổng hợp `evidence/`, slide, kịch bản demo. **Toàn**: lõi Roa trong `codebase/` (chế độ `generate`), bộ câu thử, eval, chi phí. **Khương**: backend FastAPI, DB Supabase, deploy Render. **Phúc**: giao diện Next.js, deploy Vercel. Cả nhóm: đào review, gửi form khảo sát, thu kho quán hot Đà Lạt. |
+| — | *(CP2)* Đã đổi gì so với CP1 | *(điền ở CP2)* |
