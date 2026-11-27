@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.2 |
+| Phiên bản | 0.3 |
 | Trạng thái | Nháp |
 | Người phụ trách | Đức (đội trưởng) |
 | Cập nhật | 2026-11-27 |
@@ -18,16 +18,16 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 | Lát cắt AI: Roa xếp lịch theo ngày (`generate`) thoả giờ mở cửa, ngân sách, hoặc nói rõ không xếp được; `answer(text)` gọi `generate` | P0 | Trước CP3 | Toàn | `spec.md` (gốc repo) | Chưa làm |
 | Bộ câu thử + eval cho `generate` (`eval/benchmark.csv`, `run.py eval`) | P0 | Trước CP3 | Toàn, cả nhóm | `spec.md` §5–§7 | Chưa làm |
 | Bằng chứng pain: đào review công khai + form khảo sát người ngoài nhóm | P0 | Trước CP3 | Cả nhóm | `evidence/` | Đang làm |
-| Tạo chuyến đi + link mời + tham gia bằng tên | P0 | Sau CP3 | Khương, Phúc | — | Chưa làm |
+| Tạo chuyến đi + link mời + tham gia bằng tên | P0 | Sau CP3 | Khương, Phúc | [frontend-screens.md](features/frontend-screens.md) | Nháp |
 | Nhóm trưởng xem bản nháp `generate`, duyệt thành v1 | P0 | Sau CP3 | Khương, Phúc | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
-| Xem plan theo ngày (timeline, chi phí, cảnh báo) | P0 | Sau CP3 | Phúc | — | Chưa làm |
+| Xem plan theo ngày (timeline, chi phí, cảnh báo) | P0 | Sau CP3 | Phúc | [frontend-screens.md](features/frontend-screens.md) | Nháp |
 | Đề xuất sửa plan, bỏ phiếu (ghi nhận), nhóm trưởng áp dụng / đóng | P0 | Sau CP3 | Khương, Phúc | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
 | Lịch sử phiên bản, so sánh, khôi phục | P0 | Sau CP3 | Khương, Phúc | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
-| Hỏi Roa về plan (`ask`, chỉ đọc), hội thoại chung cả nhóm | P0 | Sau CP3 | Toàn, Phúc | — | Chưa làm |
+| Hỏi Roa về plan (`ask`, chỉ đọc), hội thoại chung cả nhóm | P0 | Sau CP3 | Toàn, Phúc | [frontend-screens.md](features/frontend-screens.md) | Nháp |
 | Form góp ý của thành viên, hộp góp ý của nhóm trưởng | P0 | Sau CP3 | Khương, Phúc | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
 | Nhờ Roa soạn đề xuất (`draft`) | P1 | Sau CP3 | Toàn | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
 | Kho quán hot Đà Lạt (thu trước, làm sạch) | P0 | Trước CP3 nếu `generate` dùng | Cả nhóm | — | Chưa làm |
-| Cập nhật gần thời gian thực (polling) | P1 | Sau CP3 | Phúc, Khương | — | Chưa làm |
+| Cập nhật gần thời gian thực (polling) | P1 | Sau CP3 | Phúc, Khương | [frontend-screens.md](features/frontend-screens.md) | Nháp |
 | Bản đồ các điểm trong ngày | P1 | Sau CP3 | Phúc | — | Chưa làm |
 | Bình chọn tự do giữa nhiều phương án | P2 | — | — | — | Chờ OQ-05 |
 | Đăng nhập tài khoản | P2 | — | — | — | Không làm ở MVP: đã chốt link mời + token (OQ-06) |
@@ -39,3 +39,4 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 |---|---|---|---|---|
 | 0.1 | 2026-11-27 | Đức | Bản đầu | ADR 0002 |
 | 0.2 | 2026-11-27 | Khương | Thêm cột Giai đoạn; thêm lát cắt AI, eval, bằng chứng, duyệt v1 | OQ-19, OQ-20, ADR 0004 |
+| 0.3 | 2026-11-27 | Phúc | Gắn spec `docs/features/frontend-screens.md` cho các màn hình giao diện MVP | `docs/features/frontend-screens.md` |
