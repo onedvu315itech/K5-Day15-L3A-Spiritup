@@ -35,7 +35,7 @@ Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu c
 
 | Lượt | Run ID | Model | Cấu hình (prompt / công cụ / thay đổi) | Đạt / tổng | % | Đạt chuẩn? |
 |---|---|---|---|---|---|---|
-| 1 | | | | __/__ | | |
+| 1 | `run-1@20261128-033425` | `gemini-3.5-flash` | 24 câu, 8 công cụ, vòng lặp `MAX_STEPS=5` + chặn `check_itinerary` | `4/24` | `17%` | chưa *(20 câu lỗi `HTTP 429`)* |
 | 2 | | | | __/__ | | |
 
 Lượt chạy lại vì lỗi kỹ thuật, lượt sau CP4: ghi thêm dòng, không sửa dòng cũ.

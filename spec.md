@@ -69,11 +69,14 @@ flowchart TD
 
   | Công cụ | Input | Output | Tác động ra ngoài? |
   |---|---|---|---|
-  | `search_places` | thành phố, sở thích/loại hình | danh sách địa điểm kèm mã, tên, khu vực, giá ước tính/người | Không (chỉ đọc) |
+  | `search_places` | thành phố, sở thích/loại hình | địa điểm trong kho sạch hoặc từ bản đồ, kèm nguồn | Có thể gọi Google/VIETMAP và ghi cache cục bộ |
   | `get_trending_spots` | thành phố | danh sách quán hot từ kho thu trước | Không (chỉ đọc) |
   | `get_opening_hours` | danh sách mã địa điểm | giờ mở cửa, giờ đóng cửa của từng điểm | Không (chỉ đọc) |
-  | `get_travel_time` | khu vực A, khu vực B | thời gian di chuyển ước tính (phút) | Không (chỉ đọc) |
-  | `check_itinerary` | danh sách điểm theo khung giờ, ngân sách/người | danh sách vi phạm (đóng cửa, chồng giờ, vượt ngân sách) + tổng tiền tính bằng code | Không (chỉ đọc) |
+  | `get_travel_time` | hai tọa độ hoặc khu vực | số phút ước tính bằng Haversine × 1,7 với tốc độ 30 km/h *(tự ước tính)* hoặc bảng khu vực cũ | Chỉ tính toán |
+  | `lookup_place_details` | tên, thành phố | giờ mở/đóng, giá/người và URL nguồn. Số chưa rõ giữ `None` | Có thể gọi Tavily và ghi cache cục bộ |
+  | `analyze_plan_gaps` | các mục trong plan gốc | khoảng trống cùng ngày sau di chuyển và loại hoạt động phù hợp theo mốc 45, 90 phút | Chỉ đọc |
+  | `search_nearby` | mã điểm hoặc tọa độ, thành phố, loại, số phút tối đa | các điểm gần kèm thời gian đi một chiều, mặc định trong 15 phút | Dùng nguồn và cache của `search_places` |
+  | `check_itinerary` | các mục theo ngày, ngân sách/người toàn chuyến | vi phạm giờ, đệm di chuyển, ngân sách, tổng giá đã biết và `missing_data` cho nhãn `[Cần kiểm tra & điền tay]` | Chỉ đọc |
 
 - **Mức tự động:** [x] AI gợi ý, người quyết · [ ] AI tự làm khi chắc, chuyển người khi không · [ ] AI tự làm — Lý do: nếu lịch sai giờ mở cửa hoặc vượt ngân sách, cả nhóm đi cùng sẽ bị mất thời gian, hụt quán và nhóm trưởng là người chịu trách nhiệm với bạn bè; do đó Roa chỉ tạo bản nháp, nhóm trưởng luôn là người duyệt cuối.
 - **Chỗ chặn rủi ro:** Rủi ro lớn nhất là **bịa địa điểm/giờ mở cửa/giá tiền** và **tính nhầm tổng tiền/lệch giờ**. Chặn bằng cách: (1) mọi địa điểm, giờ mở cửa, giá tiền đều lấy từ công cụ; nếu công cụ không tìm thấy thì báo rõ **"không biết / chưa có dữ liệu"** và gắn nhãn `[Cần kiểm tra & điền tay]` để người dùng tự kiểm tra và điền sau, (2) `check_itinerary` tính tổng tiền và kiểm tra giờ mở cửa/chồng giờ bằng **code Python**, không để model tự nhẩm.
@@ -109,8 +112,8 @@ flowchart TD
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 12 câu ở CP2 (thuong 5 · kho 5 · tu_choi 2; sẽ mở rộng lên 20–30 câu trước CP3) · metric: `eval/metric_spec.yaml` (4 metric)
-- **Chuẩn "đạt"** (chốt **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
-- Kết quả: lượt 1 __/__ (__%) · lượt 2 __/__ (__%) — run ID: __ / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
+- Kết quả: lượt 1 `4/24` (`17%` — 4/4 câu không lỗi 429 đều đạt, 20 câu lỗi `HTTP 429`) · lượt 2 __/__ (__%) — run ID: `run-1@20261128-033425` / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
 - Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
@@ -132,7 +135,8 @@ flowchart TD
 
 | Thời điểm | Đổi gì | Vì sao (trỏ về câu thử / lỗi / bằng chứng nào) |
 |---|---|---|
-|  |  |  |
+| 28/11/2026 | Thêm tra cứu hai tầng, phân tích khoảng trống và tìm điểm gần vào bộ công cụ | B08 cần xử lý dữ liệu thiếu, B10 cần trừ thời gian đi trước khi xếp thêm điểm |
+| 28/11/2026 | Nối Gemini & OpenRouter vào `codebase/ai.py`, nâng cấp vòng lặp 8 công cụ trong `codebase/agent.py`, mở rộng `eval/benchmark.csv` lên 24 câu và chạy `eval/run-1.csv` | Hoàn thành lõi AI thật CP3, vá lỗi bỏ qua kiểm tra `check_itinerary` khi `valid=False` phát hiện ở `B01` |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 

@@ -1,0 +1,182 @@
+[
+  {
+    "id": 1,
+    "city": "Đà Lạt",
+    "name": "Quán Cà Phê Happy Hill",
+    "category": "cafe",
+    "place_id": "DL-15",
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7617339150563429639",
+    "engagement": {
+      "views": 6970709,
+      "likes": 222770,
+      "comments": 2585,
+      "shares": 9344,
+      "saves": 18673
+    },
+    "summary": "Quán cà phê ven hồ Tuyền Lâm có không gian ngoài trời thoáng đãng và nhiều tiểu cảnh chụp ảnh cho nhóm bạn.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 2,
+    "city": "Đà Lạt",
+    "name": "Quán Cà Phê Miền Du Mục",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7516799141373021447",
+    "engagement": {
+      "views": 5766813,
+      "likes": 368659,
+      "comments": 6297,
+      "shares": 129986,
+      "saves": 90850
+    },
+    "summary": "Tiệm cà phê phong cách du mục trên sườn đồi, thu hút giới trẻ nhờ lối vào độc đáo và góc chụp ảnh ngoài trời.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 3,
+    "city": "Đà Lạt",
+    "name": "Dốc Mơ Coffee",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7606221588639304980",
+    "engagement": {
+      "views": 181919,
+      "likes": 3611,
+      "comments": 29,
+      "shares": 1991,
+      "saves": 2268
+    },
+    "summary": "Quán cà phê nằm gần con dốc Đống Đa với tầm nhìn hướng ra tháp truyền hình và đồi thông.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 4,
+    "city": "Đà Lạt",
+    "name": "Hidden Land Đà Lạt",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7682650359197666581",
+    "engagement": {
+      "views": 94824,
+      "likes": 1531,
+      "comments": 104,
+      "shares": 1549,
+      "saves": 431
+    },
+    "summary": "Quán cà phê có lối đi dốc xuống tách biệt, không gian yên tĩnh phù hợp để ngồi thư giãn và chụp ảnh.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 5,
+    "city": "Đà Lạt",
+    "name": "Tiệm Cà Phê Chuyện Của Mơ",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7673359025110519048",
+    "engagement": {
+      "views": 38481,
+      "likes": 571,
+      "comments": 18,
+      "shares": 250,
+      "saves": 136
+    },
+    "summary": "Quán cà phê mang không khí nhẹ nhàng, ấm cúng, phù hợp cho nhóm nhỏ ngồi trò chuyện buổi sáng hoặc chiều.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 6,
+    "city": "Đà Lạt",
+    "name": "Hôm Nào Cafe",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7644856489982709012",
+    "engagement": {
+      "views": 7131,
+      "likes": 89,
+      "comments": 10,
+      "shares": 30,
+      "saves": 39
+    },
+    "summary": "Quán cà phê có tầm nhìn thoáng và phục vụ món trà nướng ấm hợp thời tiết se lạnh Đà Lạt.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 7,
+    "city": "Đà Lạt",
+    "name": "Phở Nguyễn Gia",
+    "category": "food",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7511957779142233362",
+    "engagement": null,
+    "summary": "Quán ăn địa phương chuyên các món phở gà và miến trộn gà thập cẩm phù hợp cho bữa sáng hoặc trưa.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 8,
+    "city": "Đà Lạt",
+    "name": "Bún Bò Cô Thúy",
+    "category": "food",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7592603808555928850",
+    "engagement": null,
+    "summary": "Quán bún bò nóng hổi được nhiều du khách tìm ăn vào buổi sáng tại Đà Lạt.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 9,
+    "city": "Đà Lạt",
+    "name": "Langfarm Center",
+    "category": "sightseeing",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7452160374100479240",
+    "engagement": null,
+    "summary": "Tổ hợp tham quan nông trại cổ tích kết hợp khu trải nghiệm và mua sắm đặc sản Đà Lạt.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 10,
+    "city": "Đà Lạt",
+    "name": "Lạc Hư Cổ Trấn",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7498873184784076039",
+    "engagement": null,
+    "summary": "Không gian cà phê kiêm phim trường mang kiến trúc cổ trang, phù hợp cho nhóm thích chụp ảnh theo chủ đề.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 11,
+    "city": "Đà Lạt",
+    "name": "Tiệm Cà Phê Đi Cùng Mưa",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7520396741426957586",
+    "engagement": null,
+    "summary": "Tiệm cà phê gỗ mộc mạc với sân vườn xanh mát, nhiều góc chụp ảnh nhẹ nhàng.",
+    "collected_at": "2026-11-27"
+  },
+  {
+    "id": 12,
+    "city": "Đà Lạt",
+    "name": "Chuyện Của Nắng",
+    "category": "cafe",
+    "place_id": null,
+    "source": "tiktok",
+    "source_url": "https://www.tiktok.com/video/7548622164606340359",
+    "engagement": null,
+    "summary": "Điểm cà phê trên đồi cao nổi tiếng với khung cảnh săn mây sáng sớm và ngắm hoàng hôn.",
+    "collected_at": "2026-11-27"
+  }
+]
