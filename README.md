@@ -1,5 +1,5 @@
-> Đây là khung repo nộp bài. Điền mọi chỗ `____`, giữ nguyên tên các mục. **Mục 0 xoá đi sau khi tạo repo xong.**
-> Giờ, mốc, luật, rubric: xem `README.md`, `02-guide.md`, `03-rubric.md` trong repo đề (bộ đề BTC phát).
+> Đây là khung repo nộp bài. Điền mọi chỗ `____`, giữ nguyên tên các mục.
+> Giờ, mốc, luật, rubric: xem `README.md`, `02-guide.md`, `03-rubric.md` trong [`de-bai/`](de-bai/README.md) (bộ đề BTC phát).
 
 # Spiritup — Partaway (Roa): Lập lịch trình du lịch nhóm ở Việt Nam
 
