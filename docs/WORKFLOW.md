@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Trạng thái | Nháp |
 | Người phụ trách | Đức (đội trưởng) |
 | Người duyệt | Cả nhóm |
@@ -22,7 +22,7 @@ Ai làm gì, theo thứ tự nào, đồng bộ lúc nào, từ giờ tới hạ
 **Việc của cả nhóm, không giao riêng một người** (BTC yêu cầu, giám khảo hỏi bất kỳ ai):
 
 - **Bằng chứng pain (OQ-21):** nguồn chính là **review công khai** (mỗi người nhận một phần đào: app, nền tảng, cách chọn mẫu, link + ngày xem); nguồn kiểm lại là **form khảo sát** nhóm đã tạo cho người ngoài nhóm điền (mỗi người mời người ngoài nhóm điền, không tự điền). Ngưỡng BTC: ≥1 nguồn đạt ngưỡng (đào review công khai, hoặc ≥20 khảo sát) + ≥5 trích dẫn nguyên văn, ẩn tên. Đức tổng hợp vào `evidence/summary.md`.
-- **Kho quán hot Đà Lạt** (`data/`, `trending_spots`): cả nhóm cùng thu, Toàn tổng hợp, Đức kiểm điều khoản (OQ-11).
+- **Kho quán hot** (`data/`, `trending_spots`): cả nhóm cùng thu, Toàn tổng hợp, Đức kiểm điều khoản (OQ-11).
 - **Đọc câu thử trượt** sau mỗi lượt eval, chọn cải tiến.
 - **Ai cũng chạy được** `python run.py eval`, `python run.py simulate` và giải thích được một câu thử trượt.
 - **Ai cũng kể lại được** câu chuyện Pain → Impact → Giải pháp → Đánh giá → Chi phí và trả lời: vì sao chọn hình dạng này, lỗi nguy hiểm nhất là gì, chi phí / task thành công tính thế nào, phần mình làm là gì.
@@ -101,7 +101,7 @@ Bắt buộc: lời gọi AI thật ở quyết định trung tâm (`generate`).
 | Đức | `evidence/summary.md` (số chính + giả thuyết đúng / sai / phải đổi); `spec.md` §0–§2; video 30 giây (YouTube không công khai hoặc Drive, mở thử bằng cửa sổ ẩn danh) | Đủ theo danh sách BTC kiểm |
 | Khương | Sau khi lát cắt AI chạy: `plan_service` (duyệt v1), `proposal_service` (tạo, ghi phiếu, nhóm trưởng áp dụng / đóng, stale, hạn tuỳ chọn) + test R-60; `agent_service` nối lõi Roa | AC-1 – AC-10 (T) qua |
 | Phúc | UI tab "Đề xuất", chế độ sửa, form góp ý, chat; nối API thật | Lát cắt demo chạy được |
-| Cả nhóm | Thu ~50 quán hot Đà Lạt vào `data/` | `trending_spots` có dữ liệu |
+| Cả nhóm | Thu quán hot vào `data/` (phạm vi điểm đến theo OQ-11) | `trending_spots` có dữ liệu |
 
 ### Giai đoạn 3 — CP3 đến CP4 (14:30 thứ Bảy 28/11)
 
@@ -166,3 +166,4 @@ Thứ tự cắt (cắt từ dưới lên): bình chọn tự do → bản đồ
 | 0.1 | 2026-11-27 | Đức | Bản đầu: vai trò, lịch theo CP1–CP4, đồng bộ, thứ tự cắt | Họp nhóm 27/11 |
 | 0.2 | 2026-11-27 | Khương | Bỏ nhật ký buổi; thêm "BTC kiểm" mỗi mốc, việc của cả nhóm (bằng chứng, đọc câu trượt), chấm thử 5 output, video 30 giây, lượt 2, chi phí, slide, reflection; đi lại câu chuyện trước mỗi CP | Đối chiếu `README.md`, `02-guide.md`, `03-rubric.md` của BTC |
 | 0.3 | 2026-11-27 | Khương | Nộp qua Form 1 (trước 16:30) và Form 2 (một link, chọn nhánh CP1–CP4); 4 điều kiện cứng tick ở CP4; `demo-slides.pdf` ở gốc repo + video mở được ẩn danh; lát cắt AI trước (OQ-20); bằng chứng: review công khai + form khảo sát (OQ-21); bỏ các việc chốt OQ đã xong; `proposal_service` theo ADR 0004; giờ demo, video khi lỗi >30 giây; CP1 chỉ cần phần "Kiểm TEAMS.md" của `check` không báo gì | Slide kickoff, OQ-20, OQ-21, ADR 0004 |
+| 0.4 | 2026-11-27 | Khương | Kho quán hot không gắn Đà Lạt | OQ-09 |

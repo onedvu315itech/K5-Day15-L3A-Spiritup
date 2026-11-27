@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Trạng thái | Đang dùng |
 | Người phụ trách | Đức (đội trưởng) |
 | Cập nhật | 2026-11-27 |
@@ -24,9 +24,8 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | OQ-04 | Đề xuất `reference` có được mở lại / áp dụng sau không? | Không mở lại; nhóm trưởng "tạo đề xuất mới từ đề xuất này" | UI tab "Đề xuất" | Đức | CP3 |
 | OQ-05 | Có cần bình chọn tự do (ví dụ "chọn 1 trong 3 quán") ngoài bỏ phiếu đề xuất? | Chưa làm ở MVP; nhóm trưởng tạo nhiều đề xuất | Phạm vi | Cả nhóm | CP2 |
 | OQ-08 | Lõi Roa đặt trong `codebase/` và backend import, để eval của BTC đo đúng lõi web dùng? | Có (ADR 0003, đề xuất) | Cấu trúc backend, deploy Render | Toàn + Khương | CP2 |
-| OQ-09 | Thành phố demo là Đà Lạt? Thêm thành phố nào? | Chỉ Đà Lạt | Kho quán hot, benchmark | Cả nhóm | CP1 |
 | OQ-10 | Cập nhật thời gian thực: polling 5 giây, SSE hay Supabase Realtime? | Polling `GET /updates` (Render ngủ, ít phụ thuộc) | Frontend, `trip_events` | Phúc + Khương | CP2 |
-| OQ-11 | Kho quán hot: thu từ đâu, bằng cách nào, có hợp điều khoản TikTok/Instagram không? Ai thu? | Tự thu tay ~50 quán Đà Lạt, chỉ thông tin công khai | `trending_spots`, `data/DATA_CARD.md` | Cả nhóm | CP3 |
+| OQ-11 | Kho quán hot: thu từ đâu, bằng cách nào, có hợp điều khoản TikTok/Instagram không? Ai thu? | Tự thu tay, chỉ thông tin công khai. Phạm vi thu (điểm đến nào, bao nhiêu quán) cần quyết lại vì OQ-09 không giới hạn thành phố; điểm đến chưa có trong kho thì Roa chỉ dùng Google Places | `trending_spots`, `data/DATA_CARD.md` | Cả nhóm | CP3 |
 | OQ-12 | Cache Google bao lâu? | Chi tiết, giờ mở cửa 7 ngày; tìm kiếm 1 ngày; đường đi 1 ngày | `places_cache` | Khương | CP3 |
 | OQ-15 | Giới hạn số thành viên tham gia (bằng `group_size` hay tối đa 20)? | Tối đa 20, không theo `group_size` | `POST /join` | Đức | CP3 |
 | OQ-16 | Muốn Roa tạo lại toàn bộ plan sau v1 thì làm sao? | Đề xuất `edit` với `ops` thay toàn bộ ngày; chưa làm ở MVP | `POST /generate`, đề xuất | Toàn | CP3 |
@@ -42,6 +41,7 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | OQ-03 | Đề xuất mở hết hạn sau bao lâu? | Không có hạn mặc định. Đề xuất chỉ hết hạn khi nhóm trưởng đặt hạn lúc tạo; quá hạn mà chưa quyết thì thành `reference` | 2026-11-27 | Khương (chờ Đức xác nhận) | ADR 0004, `docs/DATABASE.md` 2.4 |
 | OQ-06 | Xác thực | Vào bằng link mời, nhập tên hiển thị, backend cấp token (lưu băm). Mất token thì tham gia lại bằng link mời | 2026-11-27 | Khương | `ARCHITECTURE.md` mục 9, `docs/API_SPEC.md` 1.2 |
 | OQ-07 | Để code, tài liệu trong `starter-repo/` hay đưa ra gốc repo? | Đưa nội dung `starter-repo/` ra gốc repo. Tài liệu đề bài của BTC chuyển vào `de-bai/`; data BTC cấp ở `de-bai/data/` chỉ để trên máy, không commit | 2026-11-27 | Khương (chờ Đức xác nhận) | `docs/DEVELOPMENT.md` mục 1 |
+| OQ-09 | Thành phố demo là Đà Lạt? Thêm thành phố nào? | Không giới hạn một thành phố: nhóm trưởng nhập điểm đến bất kỳ trong Việt Nam. Demo, bộ câu thử không gắn với một thành phố | 2026-11-27 | Khương (chờ Đức xác nhận) | `canvas.md` dòng 1, 2, 5, 7; `AGENTS.md` mục 1, 7 |
 | OQ-13 | Plan v1 do Roa tạo có được áp dụng thẳng, không qua bỏ phiếu? | Không qua bỏ phiếu. `generate` trả bản nháp; nhóm trưởng xem rồi duyệt thì mới lưu thành v1 | 2026-11-27 | Khương (chờ Đức xác nhận) | ADR 0004, `docs/API_SPEC.md` mục 3 |
 | OQ-14 | Hội thoại với Roa là chung cả nhóm hay riêng từng người? | Chung cả nhóm: mọi thành viên thấy câu hỏi và câu trả lời của nhau | 2026-11-27 | Khương | `docs/DATABASE.md` 2.7, `docs/API_SPEC.md` mục 6 |
 | OQ-17 | Phiếu công khai tên người bỏ hay ẩn danh? | Công khai tên người bỏ | 2026-11-27 | Khương | `docs/API_SPEC.md` mục 4 |
@@ -62,3 +62,4 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | 0.1 | 2026-11-27 | Đức | Bản đầu: OQ-01 – OQ-18 | Họp nhóm 27/11 |
 | 0.2 | 2026-11-27 | Khương | Thêm OQ-19 (lát cắt, quyết định AI trung tâm), OQ-20 (mức làm web app trước CP3), OQ-21 (nguồn bằng chứng pain) | Đối chiếu yêu cầu BTC |
 | 0.3 | 2026-11-27 | Khương | Chốt OQ-02, 03, 06, 07, 13, 14, 17, 19, 20, 21. OQ-01 để quyết sau. Các OQ còn lại giữ mở với phương án đang nghiêng | Quyết định của Khương, chờ Đức xác nhận |
+| 0.4 | 2026-11-27 | Khương | Chốt OQ-09: không giới hạn một thành phố, điểm đến bất kỳ trong Việt Nam. OQ-11 bỏ "~50 quán Đà Lạt", phạm vi thu cần quyết lại | Quyết định của Khương, chờ Đức xác nhận |

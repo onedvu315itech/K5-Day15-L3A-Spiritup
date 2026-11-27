@@ -1,7 +1,7 @@
 > Đây là khung repo nộp bài. Điền mọi chỗ `____`, giữ nguyên tên các mục.
 > Giờ, mốc, luật, rubric: xem `README.md`, `02-guide.md`, `03-rubric.md` trong [`de-bai/`](de-bai/README.md) (bộ đề BTC phát).
 
-# Spiritup — Roa xếp lịch trình theo ngày cho chuyến đi nhóm ở Đà Lạt
+# Spiritup — Roa xếp lịch chuyến đi nhóm theo giờ mở cửa và ngân sách
 
 **Thành viên, lớp, track:** xem [TEAMS.md](TEAMS.md). **Điền TEAMS.md đúng format**: khi chấm và đánh giá, BTC quét file này để ghép điểm cho từng người.
 
