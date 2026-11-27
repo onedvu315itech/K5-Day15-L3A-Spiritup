@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.2 |
+| Phiên bản | 0.3 |
 | Trạng thái | Nháp |
 | Người phụ trách | Đức (đội trưởng) |
 | Cập nhật | 2026-11-27 |
@@ -26,12 +26,11 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 | Hỏi Roa về plan (`ask`, chỉ đọc), hội thoại chung cả nhóm | P0 | Sau CP3 | Toàn, Phúc | — | Chưa làm |
 | Form góp ý của thành viên, hộp góp ý của nhóm trưởng | P0 | Sau CP3 | Khương, Phúc | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
 | Nhờ Roa soạn đề xuất (`draft`) | P1 | Sau CP3 | Toàn | [de-xuat-va-bo-phieu.md](features/de-xuat-va-bo-phieu.md) | Nháp |
-| Kho quán hot Đà Lạt (thu trước, làm sạch) | P0 | Trước CP3 nếu `generate` dùng | Cả nhóm | — | Chưa làm |
+| Kho quán hot (thu trước, làm sạch; phạm vi điểm đến theo OQ-11) | P0 | Trước CP3 nếu `generate` dùng | Cả nhóm | — | Chưa làm |
 | Cập nhật gần thời gian thực (polling) | P1 | Sau CP3 | Phúc, Khương | — | Chưa làm |
 | Bản đồ các điểm trong ngày | P1 | Sau CP3 | Phúc | — | Chưa làm |
 | Bình chọn tự do giữa nhiều phương án | P2 | — | — | — | Chờ OQ-05 |
 | Đăng nhập tài khoản | P2 | — | — | — | Không làm ở MVP: đã chốt link mời + token (OQ-06) |
-| Nhiều thành phố ngoài Đà Lạt | P2 | — | — | — | Chờ OQ-09 |
 
 ## Lịch sử thay đổi
 
@@ -39,3 +38,4 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 |---|---|---|---|---|
 | 0.1 | 2026-11-27 | Đức | Bản đầu | ADR 0002 |
 | 0.2 | 2026-11-27 | Khương | Thêm cột Giai đoạn; thêm lát cắt AI, eval, bằng chứng, duyệt v1 | OQ-19, OQ-20, ADR 0004 |
+| 0.3 | 2026-11-27 | Khương | Bỏ "Đà Lạt" khỏi kho quán hot; bỏ dòng "Nhiều thành phố ngoài Đà Lạt" vì điểm đến bất kỳ trong Việt Nam đã là mặc định | OQ-09 |

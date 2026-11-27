@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Cả nhóm |
@@ -17,7 +17,7 @@ Tài liệu mô tả hệ thống chạy thế nào và vì sao. Chi tiết bả
 - **Thời gian:** 2 ngày, 4 người. Ưu tiên thứ đơn giản, ít thành phần, dùng gói miễn phí.
 - **Không mất dữ liệu khi nhiều người cùng thao tác:** phiếu không bị đếm trùng, đề xuất không áp dụng lên bản plan đã đổi mà không kiểm.
 - **Giữ khung chấm của BTC chạy được:** `python run.py eval` và `simulate` phải gọi đúng lõi agent mà web app dùng (ADR 0003).
-- **Chi phí API có kiểm soát:** cache Google Places; giới hạn thành phố demo; giới hạn số lần hỏi Roa.
+- **Chi phí API có kiểm soát:** cache Google Places; hạn mức gọi API; giới hạn số lần hỏi Roa.
 
 ## 2. Tổng quan
 
@@ -180,7 +180,7 @@ Nhóm trưởng chọn v9 trong lịch sử → `POST /trips/{id}/proposals` v�
 ## 5. Dữ liệu ngoài
 
 - **Google Places (Text Search, Place Details), Routes/Directions:** chỉ gọi từ backend. Kết quả cache trong `places_cache` theo khoá truy vấn, hết hạn sau 7 ngày (giờ mở cửa) [NEEDS CLARIFICATION: thời hạn cache, OQ-12]. Chỉ xin trường cần dùng (field mask) để giảm chi phí.
-- **Kho quán hot:** thu trước từ TikTok/Instagram cho thành phố demo, làm sạch, lưu `trending_spots`. Không crawl lúc chạy, không lưu thông tin cá nhân người đăng. Nguồn, cách thu và giới hạn ghi ở `data/DATA_CARD.md` (OQ-11).
+- **Kho quán hot:** thu trước từ TikTok/Instagram cho một số điểm đến (phạm vi theo OQ-11), làm sạch, lưu `trending_spots`. Không crawl lúc chạy, không lưu thông tin cá nhân người đăng. Nguồn, cách thu và giới hạn ghi ở `data/DATA_CARD.md` (OQ-11).
 - **Dữ liệu "trong khoảng 2 quý đổ lại":** chỉ dùng mục trong kho có `collected_at` trong 6 tháng gần nhất.
 
 ## 6. Đồng thời và nhất quán
@@ -235,6 +235,7 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
+| `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
 
@@ -258,9 +259,9 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 |---|---|---|
 | Render ngủ, request đầu chậm lúc demo | Demo khựng | Mở trước 5 phút; có video dự phòng |
 | LLM trả JSON sai schema | Không tạo được bản nháp v1 hoặc đề xuất | Kiểm schema, thử lại 1 lần, báo lỗi rõ |
-| Hết quota Google API | Không tra được giờ mở cửa | Cache, giới hạn thành phố demo, dữ liệu mẫu dự phòng |
+| Hết quota Google API | Không tra được giờ mở cửa | Cache, hạn mức gọi API, dữ liệu mẫu dự phòng |
 | Chưa chốt LLM trước tối 27/11 | Trễ CP3 | OQ-01 ưu tiên cao |
-| Kho quán hot ít, cũ | Gợi ý kém | Thu tập nhỏ có chọn lọc cho Đà Lạt |
+| Kho quán hot ít, cũ | Gợi ý kém | Thu tập nhỏ có chọn lọc; điểm đến chưa có trong kho thì Roa chỉ dùng Google Places và nói rõ (OQ-11) |
 
 ## Lịch sử thay đổi
 
@@ -269,3 +270,4 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.1 | 2026-11-27 | Khương | Bản đầu: thành phần, luồng đề xuất và bỏ phiếu, đồng thời, deploy | ADR 0001, 0002, 0003 |
 | 0.2 | 2026-11-27 | Khương | Đánh dấu chế độ `answer(text)` gọi là chỗ chờ OQ-19 | Đối chiếu yêu cầu BTC |
 | 0.3 | 2026-11-27 | Khương | `answer(text)` gọi `generate` (lát cắt nộp BTC); `generate` trả bản nháp, nhóm trưởng duyệt v1; phiếu chỉ ghi nhận, nhóm trưởng áp dụng / đóng; hạn tuỳ chọn; bỏ `PROPOSAL_TTL_HOURS`; chốt xác thực | OQ-19, ADR 0004, OQ-06 |
+| 0.4 | 2026-11-27 | Khương | Bỏ giới hạn thành phố demo: điểm đến bất kỳ trong Việt Nam; kho quán hot chỉ phủ một số điểm đến | OQ-09 |
