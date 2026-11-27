@@ -6,16 +6,16 @@
 
 ## 1. Cách đếm — viết TRƯỚC khi chạy
 
-- Data dùng: __ (file nào, từ ngày nào đến ngày nào)
-- Đếm gì: __ · trên tập nào: __ · lọc gì: __
-- **Mẫu số là gì:** __ *(lỗi hay gặp nhất là mẫu số sai)*
-- Script / công thức: __
+- Data dùng: Review công khai trên Google Play / App Store của các app lập lịch trình du lịch, đi chơi nhóm (ví dụ: Wanderlog, TripIt, Polarsteps, Google Maps/Travel apps), lấy N review gần nhất (mọi mức sao hoặc ghi rõ bộ lọc) từ ngày __ đến ngày __. Link nguồn & ngày xem: __
+- Đếm gì: Số review phản ánh các nhóm vấn đề: (1) `sai_gio_mo_cua` (giờ mở cửa/trạng thái quán sai thực tế), (2) `kho_dung_nhom` (khó gom ý kiến, phân quyền hoặc chia sẻ lịch cho nhóm đông), (3) `thong_tin_roi_rac_ngan_sach` (thiếu gợi ý thực tế, khó tính ngân sách/tuyến đi) · trên tập: toàn bộ N review đã đọc và gắn nhãn (không chép tên người viết, mỗi review trích tối đa 2 câu) · lọc gì: ghi rõ nếu lọc theo ngôn ngữ hoặc mức sao.
+- **Mẫu số là gì:** Tổng số review N đã đọc và gắn nhãn (bao gồm cả review không liên quan hoặc khen).
+- Script / công thức: Bảng CSV/Sheets gắn nhãn + công thức `=COUNTIF(nhan, "...") / COUNTA(nhan)` (hoặc script Python đếm lại được).
 
 ## 2. Đọc trước, đếm sau
 
-Đã đọc __ dòng đầu và từ điển cột. Các *kiểu* hành vi thấy được (trước khi định nghĩa thứ cần đếm):
-- __
-- __
+Đã đọc __ dòng đầu (tối thiểu 30 review). Các *kiểu* vấn đề thấy được (trước khi chốt nhãn):
+- *(Điền sau khi đọc 30 review đầu)*
+- *(Điền sau khi đọc 30 review đầu)*
 
 ## 3. Kết quả
 
