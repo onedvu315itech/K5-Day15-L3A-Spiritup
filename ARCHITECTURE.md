@@ -235,6 +235,7 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
+| `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
 

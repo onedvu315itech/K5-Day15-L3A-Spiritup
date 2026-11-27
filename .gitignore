@@ -39,3 +39,5 @@ de-bai/data/
 # Zip đóng gói, cài đặt cục bộ của Claude Code
 dist/
 .claude/settings.local.json
+# Dữ liệu thô thu thử (caption, URL có handle người đăng): chỉ để trên máy
+data/raw/
