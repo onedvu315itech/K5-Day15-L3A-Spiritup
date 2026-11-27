@@ -76,7 +76,7 @@ def call_gemini(system: str, user: str) -> dict:
     url = GEMINI_URL.format(model=model)
     body = {
         "contents": [{"role": "user", "parts": [{"text": user}]}],
-        "generationConfig": {"temperature": 0.2},
+        "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
     }
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
@@ -104,7 +104,12 @@ def call_openrouter(system: str, user: str) -> dict:
     data = post_json(
         OPENROUTER_URL,
         {"Authorization": "Bearer " + API_KEY},
-        {"model": MODEL_NAME, "messages": messages, "temperature": 0.2},
+        {
+            "model": MODEL_NAME,
+            "messages": messages,
+            "temperature": 0.2,
+            "response_format": {"type": "json_object"},
+        },
         timeout=120,
     )
     choices = data.get("choices") or []

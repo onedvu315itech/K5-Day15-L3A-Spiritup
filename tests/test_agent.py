@@ -204,3 +204,20 @@ class RoaAgentGapFillTest(unittest.TestCase):
 
         self.assertEqual(len(prompts_seen), 4)
         self.assertIn("350.000đ/người", res["output"])
+
+    def test_malformed_action_json_retries_instead_of_leaking_raw_json(self):
+        prompts_seen = []
+
+        def fake_call_model(system, user):
+            prompts_seen.append(user)
+            if len(prompts_seen) == 1:
+                bad_json = '{"action": "call_tools", "mode": "generate", "calls": [{"tool": "search_places", "args": {"city": "Đà Lạt"}}}}]}'
+                return {"text": bad_json, "model": "mock", "tokens_in": 10, "tokens_out": 10}
+            good = {"action": "final", "mode": "ask_missing", "thought": "OK", "answer": "Vui lòng cho biết số ngày."}
+            return {"text": json.dumps(good, ensure_ascii=False), "model": "mock", "tokens_in": 10, "tokens_out": 10}
+
+        with patch.object(agent, "call_model", side_effect=fake_call_model):
+            res = agent.answer("Lập lịch đi Đà Lạt.")
+
+        self.assertEqual(len(prompts_seen), 2)
+        self.assertIn("Vui lòng cho biết số ngày", res["output"])

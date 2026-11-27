@@ -113,7 +113,7 @@ flowchart TD
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 12 câu ở CP2 (thuong 5 · kho 5 · tu_choi 2; sẽ mở rộng lên 20–30 câu trước CP3) · metric: `eval/metric_spec.yaml` (4 metric)
 - **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
-- Kết quả: lượt 1 `4/24` (`17%` — 4/4 câu không lỗi 429 đều đạt, 20 câu lỗi `HTTP 429`) · lượt 2 __/__ (__%) — run ID: `run-1@20261128-033425` / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
 - Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
@@ -137,6 +137,7 @@ flowchart TD
 |---|---|---|
 | 28/11/2026 | Thêm tra cứu hai tầng, phân tích khoảng trống và tìm điểm gần vào bộ công cụ | B08 cần xử lý dữ liệu thiếu, B10 cần trừ thời gian đi trước khi xếp thêm điểm |
 | 28/11/2026 | Nối Gemini & OpenRouter vào `codebase/ai.py`, nâng cấp vòng lặp 8 công cụ trong `codebase/agent.py`, mở rộng `eval/benchmark.csv` lên 24 câu và chạy `eval/run-1.csv` | Hoàn thành lõi AI thật CP3, vá lỗi bỏ qua kiểm tra `check_itinerary` khi `valid=False` phát hiện ở `B01` |
+| 28/11/2026 | Chạy `eval/run-2.csv` (`openai/gpt-4o-mini`, `11/24`) & `simulate --try` (`10/10`); bật JSON mode trong `ai.py`, vá retry JSON lỗi + đệm di chuyển `fill_gaps` trong `agent.py` | Khắc phục lỗi thừa dấu `}` khi gọi `get_travel_time` ở 8/24 câu và lỗi 0 phút đệm di chuyển ở `B17`, `B18` |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 
