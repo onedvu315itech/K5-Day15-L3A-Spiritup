@@ -1,550 +1,354 @@
-"""Công cụ dữ liệu và kiểm lịch của Roa. Mọi giá và giờ chưa biết giữ là None."""
+"""Công cụ của Roa — chỉ đọc, không tác động ra ngoài.
+
+Mỗi công cụ là một hàm Python có @tool. Docstring ghi đúng 4 ý như sơ đồ ở spec.md §4:
+    tên · input · output · có tác động ra ngoài không (gửi tin, sửa dữ liệu, chấm điểm…)
+
+Dữ liệu chỉ đọc từ kho file đã thu trước, không gọi mạng lúc chạy:
+  - `data/places/<slug>.json`: kho một thành phố, dựng bằng scripts/build_place_store.py (OSM qua Geoapify).
+  - `data/places_vn.json`: kho sạch đa thành phố (Đà Lạt, Hà Nội, Đà Nẵng, TP.HCM, Huế); trùng mã thì
+    bản ghi ở đây thắng vì có toạ độ.
+  - `data/trending_spots.json`: quán hot thu trước từ TikTok (có bản ghi chưa khớp được địa điểm).
+Giờ tính theo phút từ 0h (`open_min`, `close_min`; thiếu dữ liệu thì None); đóng qua nửa đêm thì > 1440.
+Mọi giờ, tiền, thời gian đi do code ở đây tính, model không tự nhẩm.
+"""
 import json
 import math
 import os
-from pathlib import Path
 import re
-import tempfile
-from threading import RLock
 import unicodedata
-from urllib.parse import quote, urlencode
-from urllib.request import Request, urlopen
 
 if __package__:
-    from .tracing import note, tool, TOOLS
+    from .tracing import tool, TOOLS  # noqa: F401
 else:
-    from tracing import note, tool, TOOLS
+    from tracing import tool, TOOLS  # noqa: F401
 
-DATA = Path(__file__).resolve().parents[1] / "data"
-MAPS = "cache_maps.json"
-LOOKUP = "cache_lookup.json"
-_LOCK = RLock()
-# Bản chi tiết Google phục vụ các bước liên tiếp của lượt chạy, chỉ ID ghi ra đĩa.
-_google_places = {}
-DRIVING_KMH = 30  # tự ước tính cho đường đô thị
-CATEGORIES = {
-    "cafe": ("cafe", "ca phe", "coffee", "coffee shop"),
-    "snack": ("snack", "an vat", "dac san", "specialty", "bakery", "dessert"),
-    "sightseeing": ("sightseeing", "tham quan", "tourist attraction", "museum", "park", "bao tang"),
-    "activity": ("activity", "vui choi", "giai tri", "amusement park"),
-    "food": ("food", "am thuc", "quan an", "nha hang", "restaurant"),
-}
-DETAIL_FIELDS = ("open_hour", "close_hour", "avg_price_vnd")
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATA_DIR = os.path.join(ROOT, "data")
+STORE_DIR = os.path.join(DATA_DIR, "places")
+MULTI_CITY_FILE = "places_vn.json"
+TRENDING_FILE = "trending_spots.json"
 
-MOCK_PLACES = [
-    {"id": "DL-01", "name": "Tiệm Cà Phê Túi Mơ To", "city": "Đà Lạt", "category": "cafe", "area": "Trại Mát", "open_hour": 7, "close_hour": 21, "avg_price_vnd": 65000, "vegetarian_friendly": True, "is_hot": True},
-    {"id": "DL-02", "name": "Bánh Căn Lệ", "city": "Đà Lạt", "category": "food", "area": "Trung tâm", "open_hour": 7, "close_hour": 10, "avg_price_vnd": 50000, "vegetarian_friendly": False, "is_hot": True},
-    {"id": "DL-03", "name": "Lẩu Gà Lá É Tao Ngộ", "city": "Đà Lạt", "category": "food", "area": "Trung tâm", "open_hour": 10, "close_hour": 22, "avg_price_vnd": 150000, "vegetarian_friendly": False, "is_hot": True},
-    {"id": "DL-04", "name": "Nhà Hàng Chay Hoa Sen", "city": "Đà Lạt", "category": "food", "area": "Trung tâm", "open_hour": 9, "close_hour": 21, "avg_price_vnd": 90000, "vegetarian_friendly": True, "is_hot": False},
-    {"id": "DL-05", "name": "Quán Nướng Ngói Cu Đức", "city": "Đà Lạt", "category": "food", "area": "Trung tâm", "open_hour": 11, "close_hour": 22, "avg_price_vnd": 200000, "vegetarian_friendly": True, "is_hot": True},
-    {"id": "DL-06", "name": "Đồi Chè Cầu Đất", "city": "Đà Lạt", "category": "sightseeing", "area": "Cầu Đất", "open_hour": 5, "close_hour": 17, "avg_price_vnd": 0, "vegetarian_friendly": True, "is_hot": True},
-    {"id": "DL-07", "name": "Vườn Hoa Thành Phố", "city": "Đà Lạt", "category": "sightseeing", "area": "Hồ Xuân Hương", "open_hour": 7, "close_hour": 18, "avg_price_vnd": 100000, "vegetarian_friendly": True, "is_hot": False},
-    {"id": "DL-08", "name": "Still Cafe", "city": "Đà Lạt", "category": "cafe", "area": "Trung tâm", "open_hour": 8, "close_hour": 22, "avg_price_vnd": 60000, "vegetarian_friendly": True, "is_hot": True},
-]
+CATEGORIES = ("food", "snack", "cafe", "sightseeing", "activity")
+# Tên gọi khác nhau của cùng một thành phố → khoá chung (slug).
+CITY_ALIASES = {"tp-hcm": "tp-hcm", "tphcm": "tp-hcm", "hcm": "tp-hcm", "ho-chi-minh": "tp-hcm",
+                "thanh-pho-ho-chi-minh": "tp-hcm", "tp-ho-chi-minh": "tp-hcm", "sai-gon": "tp-hcm",
+                "saigon": "tp-hcm"}
 
-def _norm(value):
-    value = unicodedata.normalize("NFKD", str(value or "").casefold().replace("đ", "d"))
-    return " ".join(re.findall(r"[a-z0-9]+", "".join(c for c in value if not unicodedata.combining(c))))
+# Thời gian đi xe máy khi thiếu toạ độ (bộ mẫu CP2 chỉ có khu vực). Số nhóm tự đặt ở CP2.
+AREA_MINUTES = {"Cầu Đất": 45, "Trại Mát": 25}
+SAME_AREA_MIN = 10
+DEFAULT_MIN = 15
+# Có toạ độ: đường thật ≈ 1,7 × đường chim bay (đo trên 2 chặng Routing, docs/roa-agent-design.md 2.1),
+# xe máy 25 km/h trong phố, cộng 5 phút gửi xe *(tự ước tính)*.
+ROAD_FACTOR, SCOOTER_KMH, PARKING_MIN = 1.7, 25, 5
+# Ngưỡng khoảng trống sau khi trừ thời gian đi (docs/features/cong-cu-lich-trinh.md BR-04).
+GAP_SHORT_MAX, GAP_MEDIUM_MAX = 45, 90
 
 
-def _city(value):
-    name = re.sub(r"^(?:thanh pho|tp) ", "", _norm(value))
-    return "ho chi minh" if name in {"hcm", "tphcm", "sai gon", "saigon"} else name
+def slug(text: str) -> str:
+    t = unicodedata.normalize("NFD", (text or "").lower()).replace("đ", "d")
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
 
 
-def _contains(text, phrase):
-    return bool(phrase) and f" {phrase} " in f" {text} "
+def city_key(city: str) -> str:
+    key = slug(city)
+    return CITY_ALIASES.get(key, key)
 
 
-def _categories(text):
-    return {cat for cat, words in CATEGORIES.items() if any(_contains(text, w) for w in words)}
-
-
-def _read(path, default):
-    try:
-        with path.open(encoding="utf-8-sig") as stream:
-            value = json.load(stream)
-        return value if isinstance(value, type(default)) else default
-    except (OSError, ValueError):
-        return default
-
-
-def _cache(filename):
-    return _read(DATA / "raw" / filename, {})
-
-
-def _write_cache(filename, key, value):
-    folder = DATA / "raw"
-    # Khóa cả giữa các tiến trình để hai lượt eval không ghi mất khóa của nhau.
-    folder.mkdir(parents=True, exist_ok=True)
-    with _LOCK, (folder / (filename + ".lock")).open("a+b") as lock:
-        if os.name == "nt":
-            import msvcrt
-            lock.seek(0)
-            msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(lock, fcntl.LOCK_EX)
-        entries = _cache(filename)
-        entries[key] = value
-        tmp = tempfile.NamedTemporaryFile(dir=folder, delete=False, mode="w", encoding="utf-8")
-        try:
-            with tmp:
-                json.dump(entries, tmp, ensure_ascii=False)
-            os.replace(tmp.name, folder / filename)
-        finally:
-            Path(tmp.name).unlink(missing_ok=True)
-
-
-def _save(filename, key, value):
-    try:
-        _write_cache(filename, key, value)
-    except OSError:
-        note(f"Không ghi được {filename}. Dùng kết quả API cho lượt hiện tại.")
-
-
-def _request(url, *, headers=None, body=None):
-    data = json.dumps(body).encode() if body is not None else None
-    req = Request(url, data=data, headers={"Content-Type": "application/json", **(headers or {})})
-    with urlopen(req, timeout=8) as response:
-        return json.load(response)
-
-
-def _key(*parts):
-    return json.dumps(parts, ensure_ascii=False)
-
-
-def _filter(rows, preference):
-    text = _norm(preference)
-    exact = [p for p in rows if text and _norm(p["name"]) == text]
-    if exact:
-        return exact
-    cats = _categories(text)
-    veg = _contains(text, "chay") or _contains(text, "vegetarian")
-    hot = _contains(text, "hot") or _contains(text, "trending")
-    if text and not (cats or veg or hot or _is_trip_request(text)):
-        return [p for p in rows if _contains(_norm(p["name"]), text)]
-    return [p for p in rows if (not cats or p.get("category") in cats)
-            and (not veg or p.get("vegetarian_friendly")) and (not hot or p.get("is_hot"))]
-
-
-def _is_trip_request(text):
-    # answer(text) cũng truyền nguyên câu mô tả chuyến đi vào preference.
-    return any(_contains(text, w) for w in ("lich", "nhom", "nguoi", "di", "ngay", "buoi"))
-
-
-def _city_rows(rows, city):
-    return [p for p in rows if _city(p["city"]) == _city(city)]
-
-
-def _daily_hours(periods):
-    # Plan chưa có thứ trong tuần. Chỉ nhận một khung giờ giống nhau cả bảy ngày.
-    if (len(periods) == 1 and "close" not in periods[0] and
-            periods[0].get("open", {}).get("day") == 0 and
-            periods[0]["open"].get("hour", 0) == periods[0]["open"].get("minute", 0) == 0):
-        return 0, 24
-    windows = {}
-    for period in periods:
-        start, end = period.get("open", {}), period.get("close", {})
-        day = start.get("day")
-        if day in windows or day is None or start.get("hour") is None or end.get("hour") is None:
-            return None, None
-        a = start["hour"] + start.get("minute", 0) / 60
-        b = end["hour"] + end.get("minute", 0) / 60
-        if b == 0 and end.get("day") == (day + 1) % 7:
-            b = 24
-        elif end.get("day") != day:
-            return None, None
-        if a >= b:
-            return None, None
-        windows[day] = (a, b)
-    if len(windows) == 7 and len(set(windows.values())) == 1:
-        return windows[0]
-    return None, None
-
-
-GOOGLE_URL = "https://places.googleapis.com/v1/places"
-GOOGLE_FIELDS = ("id", "displayName", "formattedAddress", "location", "types", "regularOpeningHours",
-                 "servesVegetarianFood")
-
-
-def _map_row(pid, name, city, area, lat, lon, kinds, source):
-    cats = _categories(_norm(kinds)) | _categories(_norm(name))
-    return {"id": pid, "name": name, "city": city, "area": area, "lat": lat, "lon": lon,
-            "category": next((c for c in CATEGORIES if c in cats), None),
-            "source": source, "open_hour": None, "close_hour": None,
-            "avg_price_vnd": None, "vegetarian_friendly": None, "is_hot": None}
-
-
-def _google_row(raw, city):
-    pid, name = raw.get("id"), raw.get("displayName", {}).get("text")
-    if not pid or not name:
+def _read(path):
+    if not os.path.exists(path):
         return None
-    loc = raw.get("location", {})
-    row = _map_row(pid, name, city, raw.get("formattedAddress"), loc.get("latitude"),
-                   loc.get("longitude"), " ".join(raw.get("types", [])), "Google Maps")
-    periods = raw.get("regularOpeningHours", {}).get("periods", [])
-    row["open_hour"], row["close_hour"] = _daily_hours(periods)
-    row["vegetarian_friendly"] = raw.get("servesVegetarianFood")
-    _google_places[pid] = row
-    return row
+    with open(path, encoding="utf-8-sig") as f:
+        return json.load(f)
 
 
-def _google(city, query, token, cached):
-    headers = {"X-Goog-Api-Key": token}
-    if cached is not None:
-        rows = []
-        for pid in cached:
-            row = _google_places.get(pid)
-            if row is None:
-                raw = _request(GOOGLE_URL + "/" + quote(pid, safe=""),
-                               headers={**headers, "X-Goog-FieldMask": ",".join(GOOGLE_FIELDS)})
-                row = _google_row(raw, city)
-            if row:
-                rows.append(row)
-        return rows
-    fields = ",".join("places." + f for f in GOOGLE_FIELDS)
-    raw = _request(GOOGLE_URL + ":searchText", headers={**headers, "X-Goog-FieldMask": fields},
-                   body={"textQuery": query, "languageCode": "vi", "regionCode": "VN", "pageSize": 10})
-    return [row for p in raw.get("places", [])
-            if _contains(_norm(p.get("formattedAddress")), _city(city)) and (row := _google_row(p, city))]
+def _minutes(hour):
+    return None if hour is None else int(round(float(hour) * 60))
 
 
-def _vietmap(city, query, token):
-    base = "https://maps.vietmap.vn/api/"
-    params = {"apikey": token, "text": query, "layers": "POI"}
-    hits = _request(base + "autocomplete/v4?" + urlencode(params))
-    rows = []
-    for hit in hits[:10]:
-        ref = hit.get("ref_id")
-        if not ref:
-            continue
-        p = _request(base + "place/v4?" + urlencode({"apikey": token, "refid": ref}))
-        name = p.get("name") or hit.get("name")
-        if name and _contains(_norm(p.get("display") or hit.get("display")), _city(city)):
-            rows.append(_map_row("vietmap:" + ref, name, city, p.get("ward"), p.get("lat"),
-                                 p.get("lng"), name, "VIETMAP"))
-    return rows
+_CATALOG = {}
+
+
+def _catalog() -> dict:
+    """Mọi địa điểm theo mã, nạp một lần. Kho một thành phố trước, kho đa thành phố đè lên khi trùng mã."""
+    if _CATALOG:
+        return _CATALOG
+    if os.path.isdir(STORE_DIR):
+        for name in sorted(os.listdir(STORE_DIR)):
+            if name.endswith(".json"):
+                for p in (_read(os.path.join(STORE_DIR, name)) or {}).get("places", []):
+                    _CATALOG[p["id"]] = dict(p)
+    for p in _read(os.path.join(DATA_DIR, MULTI_CITY_FILE)) or []:
+        row = dict(p)
+        row["open_min"], row["close_min"] = _minutes(p.get("open_hour")), _minutes(p.get("close_hour"))
+        if row["close_min"] is not None and row["open_min"] is not None and row["close_min"] <= row["open_min"]:
+            row["close_min"] += 24 * 60
+        old = _CATALOG.get(row["id"], {})
+        row.setdefault("address", old.get("address"))
+        _CATALOG[row["id"]] = row
+    return _CATALOG
+
+
+def _all_places() -> dict:
+    return _catalog()
+
+
+def _store(city: str) -> list:
+    key = city_key(city)
+    if not key:
+        return []
+    return [p for p in _catalog().values() if city_key(p["city"]) == key]
+
+
+def supported_cities() -> list:
+    """Các thành phố đã có kho (tên hiển thị)."""
+    seen = {}
+    for p in _catalog().values():
+        seen.setdefault(city_key(p["city"]), p["city"])
+    return sorted(seen.values(), key=slug)
+
+
+def city_name(city: str):
+    """Tên hiển thị trong kho của một thành phố (gộp tên gọi khác); None nếu chưa có kho."""
+    key = city_key(city)
+    for c in supported_cities():
+        if city_key(c) == key:
+            return c
+    return None
+
+
+def hhmm(minutes) -> str:
+    if minutes is None:
+        return "?"
+    minutes = int(minutes) % (24 * 60) if minutes != 24 * 60 else 24 * 60
+    return f"{minutes // 60:02d}:{minutes % 60:02d}"
+
+
+def has_hours(p: dict) -> bool:
+    return p.get("open_min") is not None and p.get("close_min") is not None
+
+
+def is_sample(p: dict) -> bool:
+    """Giờ, giá thuộc bộ mẫu CP2 nhóm tự đặt, chưa có nguồn."""
+    src = str(p.get("source") or "")
+    return src == "mau_cp2" or (src.startswith("mock_cp2") and "curated" not in src)
+
+
+def _public(p: dict) -> dict:
+    return {
+        "id": p["id"], "name": p["name"], "city": p.get("city"), "category": p["category"], "area": p.get("area"),
+        "open": hhmm(p["open_min"]) if has_hours(p) else None,
+        "close": hhmm(p["close_min"]) if has_hours(p) else None,
+        "avg_price_vnd": p.get("avg_price_vnd"),
+        "vegetarian_friendly": p.get("vegetarian_friendly"),
+        "is_hot": bool(p.get("is_hot")), "source": p.get("source"),
+    }
+
+
+def _wanted_categories(category) -> set:
+    if not category:
+        return set()
+    text = category if isinstance(category, str) else " ".join(category)
+    return {c for c in CATEGORIES if c in text.lower()}
 
 
 @tool
-def search_places(city: str, preference: str = "") -> list:
-    """Tên: search_places — tìm địa điểm theo thành phố và sở thích.
-    Input: city, preference (loại, chay, hot hoặc tên).
-    Output: danh sách địa điểm kèm mã, nguồn và dữ liệu đã biết.
-    Tác động ra ngoài: đọc kho, có thể gọi bản đồ và ghi cache cục bộ.
-    """
-    local = _city_rows(_read(DATA / "places_vn.json", []), city)
-    if local:
-        return _filter(local, preference)
-    if not _city(city) or _city(city) == "khac":
-        return []
-    cache = _cache(MAPS)
-    cats = _categories(_norm(preference))
-    labels = {"cafe": "cà phê", "snack": "ăn vặt", "activity": "vui chơi",
-              "food": "quán ăn", "sightseeing": "tham quan"}
-    terms = [label for c, label in labels.items() if c in cats]
-    subject = ", ".join(terms) or ("" if _is_trip_request(_norm(preference)) else preference.strip())
-    subject = subject or "địa điểm du lịch"
-    if _contains(_norm(preference), "chay"):
-        subject += " chay"
-    query = f"{subject} tại {city}, Việt Nam"
-    for provider, env in (("google", "GOOGLE_MAPS_API_KEY"), ("vietmap", "VIETMAP_API_KEY")):
-        key = _key(provider, _city(city), subject)
-        cached = cache.get(key)
-        token = os.getenv(env)
-        if cached == []:
-            continue
-        if provider == "vietmap" and cached is not None:
-            return _filter(cached, preference)
-        if not token and not (provider == "google" and cached and all(p in _google_places for p in cached)):
-            continue
-        try:
-            if provider == "google":
-                rows = _google(city, query, token, cached)
-                cache_value = [p["id"] for p in rows]
-            else:
-                rows = _vietmap(city, query, token)
-                cache_value = rows
-            if cached is None:
-                _save(MAPS, key, cache_value)
-            if rows:
-                return _filter(rows, preference)
-        except (OSError, ValueError):
-            continue
-    return _filter([dict(p, source="mock_cp2") for p in _city_rows(MOCK_PLACES, city)], preference)
+def search_places(city: str, preference: str = "", category: str = "") -> list:
+    """Tra địa điểm trong kho theo thành phố, sở thích và loại.
+    Input: city (str; "TP.HCM", "Sài Gòn", "Hồ Chí Minh" là một), preference (str, vd "chay"),
+    category ("food" | "snack" | "cafe" | "sightseeing" | "activity", có thể nhiều loại cách nhau dấu phẩy; "" = mọi loại).
+    Output: danh sách dict {id, name, city, category, area, open, close, avg_price_vnd, vegetarian_friendly, is_hot, source};
+    open/close = None khi kho chưa có giờ; rỗng nếu thành phố chưa có kho. Không tác động ra ngoài."""
+    rows = _store(city)
+    cats = _wanted_categories(category)
+    if cats:
+        rows = [p for p in rows if p["category"] in cats]
+    if "chay" in (preference or "").lower():
+        rows = [p for p in rows if p.get("vegetarian_friendly")]
+    return [_public(p) for p in sorted(rows, key=lambda p: p["id"])]
+
+
+def _trending_records(city: str) -> list:
+    key = city_key(city)
+    return [r for r in _read(os.path.join(DATA_DIR, TRENDING_FILE)) or [] if city_key(r.get("city")) == key]
 
 
 @tool
 def get_trending_spots(city: str) -> list:
-    """Tên: get_trending_spots — tìm điểm đang được quan tâm.
-    Input: city.
-    Output: danh sách bản ghi thu trước của thành phố, có thể rỗng.
-    Tác động ra ngoài: chỉ đọc kho cục bộ.
-    """
-    return _city_rows(_read(DATA / "trending_spots.json", []), city)
-
-
-def _catalog():
-    local = _read(DATA / "places_vn.json", [])
-    cities = {_city(p["city"]) for p in local}
-    places = {p["id"]: dict(p, source="mock_cp2") for p in MOCK_PLACES if _city(p["city"]) not in cities}
-    for rows in _cache(MAPS).values():
-        for p in rows:
-            if isinstance(p, dict):
-                places[p["id"]] = p
-    places.update(_google_places)
-    places.update((p["id"], p) for p in local)
-    details = _cache(LOOKUP)
-    for pid, p in places.items():
-        extra = details.get(_key(_city(p["city"]), _norm(p["name"]))) or {}
-        places[pid] = {**p, **{k: extra[k] for k in DETAIL_FIELDS if p.get(k) is None and k in extra}}
-    return places
+    """Lấy danh sách quán đang hot từ kho thu trước (TikTok, không crawl lúc chạy) theo thành phố.
+    Input: city (str). Output: danh sách dict cùng dạng search_places, thêm source_url nếu có;
+    quán TikTok chưa khớp được địa điểm trong kho có id = None và giờ, giá = None. Không tác động ra ngoài."""
+    by_id = _catalog()
+    out, seen = [], set()
+    for r in _trending_records(city):
+        pid = r.get("place_id")
+        if pid in by_id:
+            row = _public(by_id[pid])
+        else:
+            row = {"id": None, "name": r["name"], "city": r.get("city"), "category": r.get("category"), "area": None,
+                   "open": None, "close": None, "avg_price_vnd": None, "vegetarian_friendly": None,
+                   "is_hot": True, "source": "tiktok_chua_khop_kho"}
+        row["source_url"] = r.get("source_url")
+        out.append(row)
+        seen.add(pid or slug(r["name"]))
+    out += [_public(p) for p in sorted(_store(city), key=lambda p: p["id"]) if p.get("is_hot") and p["id"] not in seen]
+    return out
 
 
 @tool
 def get_opening_hours(place_ids: list) -> dict:
-    """Tên: get_opening_hours — tra giờ theo mã địa điểm.
-    Input: danh sách place_ids.
-    Output: dict theo mã với name, open_hour, close_hour. Mã lạ trả None.
-    Tác động ra ngoài: chỉ đọc kho và cache.
-    """
-    catalog = _catalog()
-    return {pid: {k: catalog[pid].get(k) for k in ("name", "open_hour", "close_hour")}
-            if pid in catalog else None for pid in place_ids}
+    """Tra giờ mở cửa và đóng cửa của các địa điểm theo mã.
+    Input: place_ids (list[str]). Output: dict {id: {name, open, close}}; open/close = None khi kho chưa có giờ;
+    mã không có trong kho thì bỏ qua. Không tác động ra ngoài."""
+    by_id = _catalog()
+    out = {}
+    for pid in place_ids:
+        if pid in by_id:
+            p = by_id[pid]
+            out[pid] = {"name": p["name"], "open": hhmm(p["open_min"]) if has_hours(p) else None,
+                        "close": hhmm(p["close_min"]) if has_hours(p) else None}
+    return out
 
 
-def _coords(value):
-    if isinstance(value, dict):
-        value = value.get("coords") or (value.get("lat"), value.get("lon", value.get("lng")))
-    if isinstance(value, (list, tuple)) and len(value) == 2:
-        lat, lon = value
-        if all(isinstance(n, (int, float)) for n in value) and abs(lat) <= 90 and abs(lon) <= 180:
-            return lat, lon
-    return None
-
-
-@tool
-def get_travel_time(origin=None, destination=None, *, area_a=None, area_b=None) -> int | None:
-    """Tên: get_travel_time — ước tính thời gian đi.
-    Input: hai cặp (lat, lon), hai địa điểm hoặc hai tên khu vực.
-    Output: số phút làm tròn lên, None khi thiếu vị trí.
-    Tác động ra ngoài: không.
-    """
-    origin = origin if origin is not None else area_a
-    destination = destination if destination is not None else area_b
-    a, b = _coords(origin), _coords(destination)
-    if a and b:
-        lat1, lon1, lat2, lon2 = map(math.radians, (*a, *b))
-        h = (math.sin((lat2 - lat1) / 2) ** 2
-             + math.cos(lat1) * math.cos(lat2) * math.sin((lon2 - lon1) / 2) ** 2)
-        km = 2 * 6371 * math.asin(math.sqrt(min(1, h)))
-        return math.ceil(km * 1.7 / DRIVING_KMH * 60)
-    areas = [v.get("area") if isinstance(v, dict) else v for v in (origin, destination)]
-    if not all(isinstance(v, str) and v.strip() for v in areas):
-        return None
-    first, second = map(_norm, areas)
-    if first == second:
-        return 10
-    if "cau dat" in (first, second):
-        return 45
-    if "trai mat" in (first, second):
-        return 25
-    return 15
-
-
-# Mẫu đòi đơn vị tiền và mẫu số "người". Không chuyển giá món, giá phòng hay khoảng giá thành giá/người.
-_CLOCK = r"(\d{1,2})(?:[:h](\d{2})|h)?"
-_HOURS = re.compile(r"(?:giờ (?:mở cửa|hoạt động)|mở cửa)\s*[:：]?\s*(?:từ\s+)?"
-                    + _CLOCK + r"\s*(?:[-–—]|đến|tới)\s*" + _CLOCK + r"(?![\d:h])", re.I)
-_PRICE = re.compile(r"(?<![\w.,])(\d{1,3}(?:[., ]\d{3})+|\d+)\s*"
-                    r"(vnd|vnđ|đồng|đ|₫|k|nghìn|ngàn)\s*(?:/|mỗi|một)\s*(?:người|khách)\b", re.I)
-_RANGE_END = re.compile(r"(?:[-–—]|đến|tới|từ|khoảng|tối đa|tối thiểu)\s*$", re.I)
-_VARIABLE_HOURS = re.compile(r"thứ\s+[2-7a-zà-ỹ]+|chủ nhật|cuối tuần|ngày lễ|[Tt][2-7]\b", re.I)
-
-
-def _extract_details(results, name, city):
-    prices, hours = {}, {}
-    for hit in results:
-        url = hit.get("url") or ""
-        snippet = hit.get("content") or ""
-        title = hit.get("title") or ""
-        identity = _norm(title + " " + snippet)
-        # Chỉ dùng trang về chính địa điểm; bài tổng hợp dễ gán nhầm giá của quán khác.
-        heading = _norm(title or snippet.split(".", 1)[0])
-        if not (url.startswith(("https://", "http://")) and _contains(heading, _norm(name))
-                and (_contains(identity, _city(city)) or _contains(identity, _norm(city)))):
-            continue
-        if any(_contains(_norm(title), w) for w in ("top", "danh sach", "tong hop")):
-            continue
-        for m in _PRICE.finditer(snippet):
-            if not _RANGE_END.search(snippet[:m.start()]):
-                amount = int(re.sub(r"[., ]", "", m[1]))
-                if m[2].lower() in {"k", "nghìn", "ngàn"}:
-                    amount *= 1000
-                prices[amount] = url
-        if not _VARIABLE_HOURS.search(snippet):
-            for m in _HOURS.finditer(snippet):
-                a, am, b, bm = (int(v or 0) for v in m.groups())
-                start, end = a + am / 60, b + bm / 60
-                if am < 60 and bm < 60 and 0 <= start < end <= 24:
-                    hours[(start, end)] = url
-    result = dict.fromkeys(DETAIL_FIELDS)
-    sources = {}
-    if len(prices) == 1:
-        result["avg_price_vnd"], sources["avg_price_vnd"] = next(iter(prices.items()))
-    if len(hours) == 1:
-        window, sources["opening_hours"] = next(iter(hours.items()))
-        result["open_hour"], result["close_hour"] = window
-    return {**result, "sources": sources} if sources else None
+def _travel(a: dict, b: dict) -> int:
+    if a.get("lat") is not None and b.get("lat") is not None:
+        r = 6371.0
+        p1, p2 = math.radians(a["lat"]), math.radians(b["lat"])
+        dp, dl = p2 - p1, math.radians(b["lon"] - a["lon"])
+        h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+        km = 2 * r * math.asin(math.sqrt(h)) * ROAD_FACTOR
+        return max(SAME_AREA_MIN, round(km / SCOOTER_KMH * 60) + PARKING_MIN)
+    areas = (a.get("area"), b.get("area"))
+    for name, minutes in AREA_MINUTES.items():
+        if name in areas and areas[0] != areas[1]:
+            return minutes
+    if areas[0] and areas[0] == areas[1]:
+        return SAME_AREA_MIN
+    return DEFAULT_MIN
 
 
 @tool
-def lookup_place_details(name: str, city: str) -> dict | None:
-    """Tên: lookup_place_details — tra bổ sung giờ và giá/người của một điểm.
-    Input: tên địa điểm và thành phố.
-    Output: open_hour, close_hour, avg_price_vnd cùng nguồn. Thiếu từng trường hoặc cả kết quả trả None.
-    Tác động ra ngoài: đọc/ghi cache cục bộ và có thể gửi tên, thành phố đến Tavily.
-    """
-    key = _key(_city(city), _norm(name))
-    if not _norm(name) or not _city(city):
-        return None
-    cache = _cache(LOOKUP)
-    if key in cache:
-        return cache[key]
-    token = os.getenv("TAVILY_API_KEY")
-    if not token:
-        return None
-    try:
-        data = _request("https://api.tavily.com/search", headers={"Authorization": "Bearer " + token},
-                        body={"query": f'"{name}" "{city}" giờ mở cửa và giá vé hoặc giá trung bình/người',
-                              "max_results": 4, "include_answer": False})
-        if not isinstance(data.get("results"), list):
-            return None
-        result = _extract_details(data["results"], name, city)
-        _save(LOOKUP, key, result)
-        return result
-    except (OSError, ValueError):
-        return None
+def get_travel_time(place_a: str, place_b: str) -> int:
+    """Ước tính thời gian đi xe máy (phút) giữa hai địa điểm.
+    Input: place_a, place_b (mã địa điểm). Output: số phút (int); dùng toạ độ nếu có, không thì theo khu vực.
+    Là ước tính bằng code, không gọi dịch vụ chỉ đường. Không tác động ra ngoài."""
+    by_id = _catalog()
+    if place_a not in by_id or place_b not in by_id:
+        return DEFAULT_MIN
+    return _travel(by_id[place_a], by_id[place_b])
 
 
-def _plan_items(items):
-    catalog = _catalog()
-    for item in sorted(items, key=lambda i: (i.get("day", 1), i.get("start_hour", 0))):
-        pid = item.get("place_id") or item.get("id")
-        place = catalog.get(pid, {})
-        # ID của mục lịch có thể khác mã địa điểm. Ưu tiên trường đã biết trong kho.
-        merged = {**item, **{k: v for k, v in place.items() if v is not None}}
-        merged.update(day=item.get("day", 1), place_id=pid, id=item.get("id", pid),
-                      start_hour=item.get("start_hour", 0), known=bool(place))
-        merged.setdefault("end_hour", merged["start_hour"] + 1)
-        yield merged
-
-
-def _leg(previous, current):
-    if previous is None or previous["day"] != current["day"]:
-        return None, None
-    elapsed = round((current["start_hour"] - previous["end_hour"]) * 60, 8)
-    return elapsed, get_travel_time(previous, current)
+def to_min(value) -> int:
+    """"08:30" hoặc 8 (giờ) → phút."""
+    if isinstance(value, (int, float)):
+        return int(value * 60)
+    m = re.match(r"^\s*(\d{1,2})[:h](\d{2})?\s*$", str(value))
+    if not m:
+        raise ValueError(f"giờ không đọc được: {value!r}")
+    return int(m.group(1)) * 60 + int(m.group(2) or 0)
 
 
 @tool
 def analyze_plan_gaps(items: list) -> list:
-    """Tên: analyze_plan_gaps — phân loại khoảng trống giữa hai mục liên tiếp trong ngày.
-    Input: items có day, start_hour, end_hour và mã hoặc vị trí.
-    Output: từng cặp mục, travel_min, gap_min sau di chuyển, loại và categories đề nghị.
-    Tác động ra ngoài: chỉ đọc kho và cache. Giữ nguyên plan gốc.
-    """
+    """Phân loại khoảng trống giữa hai mục liên tiếp trong cùng ngày, sau khi trừ thời gian đi.
+    Input: items (list[{day, id, start "HH:MM", end "HH:MM"}]).
+    Output: list[{day, from_id, to_id, free_from, free_to, travel_min, gap_min, kind, categories}];
+    kind: "short" (< 45 phút, không chèn), "medium" (45–90: snack, cafe), "long" (> 90: activity, sightseeing, snack).
+    Không sửa plan gốc. Không tác động ra ngoài."""
+    by_id = _catalog()
+    days = {}
+    for it in items:
+        days.setdefault(int(it.get("day", 1)), []).append(it)
     gaps = []
-    previous = None
-    for current in _plan_items(items):
-        elapsed, travel = _leg(previous, current)
-        if elapsed is not None:
-            gap = elapsed - travel if travel is not None else None
-            if gap is None:
-                kind, cats = "unknown", []
-            elif gap < 45:
+    for day in sorted(days):
+        ordered = sorted(days[day], key=lambda x: to_min(x["start"]))
+        for a, b in zip(ordered, ordered[1:]):
+            pa, pb = by_id.get(a.get("id")), by_id.get(b.get("id"))
+            travel = _travel(pa, pb) if pa and pb else DEFAULT_MIN
+            gap = to_min(b["start"]) - to_min(a["end"]) - travel
+            if gap < GAP_SHORT_MAX:
                 kind, cats = "short", []
-            elif gap <= 90:
+            elif gap <= GAP_MEDIUM_MAX:
                 kind, cats = "medium", ["snack", "cafe"]
             else:
                 kind, cats = "long", ["activity", "sightseeing", "snack"]
-            gaps.append({"day": current["day"], "from_id": previous["id"], "to_id": current["id"],
-                         "origin_place_id": previous["place_id"], "travel_min": travel,
-                         "gap_min": gap, "kind": kind, "categories": cats})
-        previous = current
+            gaps.append({"day": day, "from_id": a.get("id"), "to_id": b.get("id"), "free_from": a["end"],
+                         "free_to": b["start"], "travel_min": travel, "gap_min": gap, "kind": kind, "categories": cats})
     return gaps
 
 
 @tool
-def search_nearby(place_id_or_coords, city: str, categories, max_travel_min: int = 15) -> list:
-    """Tên: search_nearby — tìm điểm trong giới hạn di chuyển.
-    Input: mã điểm gốc hoặc (lat, lon), city, categories, max_travel_min.
-    Output: danh sách địa điểm kèm travel_min, xếp từ gần đến xa.
-    Tác động ra ngoài: đọc kho, có thể gọi bản đồ và ghi cache khi tra ứng viên.
-    """
-    cats = _categories(_norm(categories if isinstance(categories, str) else " ".join(categories)))
-    if not cats:
+def search_nearby(place_id: str, categories, max_travel_min: int = 15) -> list:
+    """Tìm địa điểm cùng thành phố, đúng loại, trong giới hạn phút đi từ một điểm gốc.
+    Input: place_id (mã điểm gốc), categories (list[str] hoặc chuỗi), max_travel_min (int, mặc định 15).
+    Output: list dict cùng dạng search_places, thêm travel_min, xếp gần → xa; mã không có trong kho thì rỗng.
+    Không tác động ra ngoài."""
+    by_id = _catalog()
+    origin = by_id.get(place_id)
+    cats = _wanted_categories(categories)
+    if not origin or not cats:
         return []
-    origin = place_id_or_coords
-    if isinstance(origin, str):
-        origin = _catalog().get(origin)
-        if not origin or _city(origin["city"]) != _city(city):
-            return []
-    if not _coords(origin) and not (isinstance(origin, dict) and origin.get("area")):
-        return []
-    candidates = {p["id"]: p for p in search_places(city, " ".join(sorted(cats)))}
-    # Tận dụng cả ứng viên đã lưu từ truy vấn khác trong cùng thành phố.
-    for p in _city_rows(_catalog().values(), city):
-        if p.get("source") != "mock_cp2" or p["id"] in candidates:
-            candidates[p["id"]] = p
-    nearby = []
-    for p in candidates.values():
-        if p.get("category") not in cats or (isinstance(origin, dict) and p["id"] == origin.get("id")):
+    out = []
+    for p in _store(origin["city"]):
+        if p["id"] == place_id or p["category"] not in cats:
             continue
-        if not isinstance(origin, dict) and _coords(origin) == _coords(p) and _coords(p) is not None:
-            continue
-        minutes = get_travel_time(origin, p)
-        if minutes is not None and minutes <= max_travel_min:
-            nearby.append({**p, "travel_min": minutes})
-    return sorted(nearby, key=lambda p: (p["travel_min"], p["id"]))
+        minutes = _travel(origin, p)
+        if minutes <= max_travel_min:
+            out.append(dict(_public(p), travel_min=minutes))
+    return sorted(out, key=lambda p: (p["travel_min"], p["id"]))
 
 
 @tool
-def check_itinerary(items: list, budget_per_person_vnd: int) -> dict:
-    """Tên: check_itinerary — kiểm lịch từng ngày và tổng chi phí đã biết.
-    Input: danh sách mục có mã, ngày, giờ bắt đầu/kết thúc và ngân sách/người toàn chuyến.
-    Output: valid (không có vi phạm đã biết), violations, total_per_person_vnd và missing_data.
-    Tác động ra ngoài: chỉ đọc kho và cache.
-    """
+def check_itinerary(items: list, budget_per_person_vnd: int, window_start: str = "", window_end: str = "") -> dict:
+    """Kiểm lịch trình bằng code: giờ mở cửa, chồng giờ, đủ thời gian di chuyển, khung giờ, ngân sách/người.
+    Input: items (list[{day, id, start "HH:MM", end "HH:MM"}]), budget_per_person_vnd (int, 0 = không kiểm),
+    window_start/window_end ("HH:MM", tuỳ chọn).
+    Output: dict {valid, total_per_person_vnd, unpriced, missing_data, violations, warnings};
+    tổng chỉ cộng mục có giá; missing_data liệt kê trường kho chưa có (giờ, giá). Không tác động ra ngoài."""
+    by_id = _catalog()
+    violations, warnings, unpriced, missing = [], [], [], []
     total = 0
-    violations, missing = [], []
-    previous = None
-    for p in _plan_items(items):
-        start, end = p["start_hour"], p["end_hour"]
-        name = p.get("name") or p["place_id"]
-        absent = [k for k in DETAIL_FIELDS if p.get(k) is None]
-        if not p["known"] and not p.get("name") and len(absent) == len(DETAIL_FIELDS):
-            violations.append(f"Không tìm thấy mã địa điểm {p['place_id']} trong dữ liệu.")
-        if not 0 <= start < end <= 24:
-            violations.append(f"Khung giờ không hợp lệ tại {name} ({start}h–{end}h).")
-        if p.get("open_hour") is not None and p.get("close_hour") is not None:
-            if start < p["open_hour"] or end > p["close_hour"]:
-                violations.append(f"{name} chỉ mở {p['open_hour']}h–{p['close_hour']}h (lịch {start}h–{end}h).")
-        elapsed, travel = _leg(previous, p)
-        if elapsed is not None:
-            if elapsed < 0:
-                violations.append(f"Bị chồng giờ tại {name} ({start}h).")
-            elif travel is None:
-                absent.append("travel_min")
-            elif elapsed < travel:
-                violations.append(f"Chưa đủ thời gian di chuyển tới {name} (cần {travel} phút, có {elapsed:g} phút).")
-        if absent:
-            missing.append({"id": p["id"], "place_id": p["place_id"], "day": p["day"], "fields": absent})
-        if p.get("avg_price_vnd") is not None:
-            total += p["avg_price_vnd"]
-        previous = p
-    if budget_per_person_vnd > 0 and total > budget_per_person_vnd:
-        violations.append(f"Tổng chi phí {total:,}đ/người vượt ngân sách {budget_per_person_vnd:,}đ/người.")
-    return {"valid": not violations, "total_per_person_vnd": total, "violations": violations,
-            "missing_data": missing}
+    ws = to_min(window_start) if window_start else None
+    we = to_min(window_end) if window_end else None
+    days = {}
+    for it in items:
+        days.setdefault(int(it.get("day", 1)), []).append(it)
+    for day in sorted(days):
+        prev = None
+        for it in sorted(days[day], key=lambda x: to_min(x["start"])):
+            place = by_id.get(it.get("id"))
+            if not place:
+                violations.append(f"Ngày {day}: mã {it.get('id')} không có trong dữ liệu công cụ.")
+                continue
+            s, e = to_min(it["start"]), to_min(it["end"])
+            if e <= s:
+                violations.append(f"Ngày {day}: {place['name']} có giờ kết thúc không sau giờ bắt đầu.")
+            if not has_hours(place):
+                missing.append(f"{place['name']}: giờ mở cửa")
+            elif s < place["open_min"] or e > place["close_min"]:
+                violations.append(f"Ngày {day}: {place['name']} chỉ mở {hhmm(place['open_min'])}–{hhmm(place['close_min'])}, "
+                                  f"lịch đang xếp {hhmm(s)}–{hhmm(e)}.")
+            if ws is not None and s < ws or we is not None and e > we:
+                violations.append(f"Ngày {day}: {place['name']} ({hhmm(s)}–{hhmm(e)}) nằm ngoài khung {window_start}–{window_end}.")
+            if prev:
+                need = _travel(prev[0], place)
+                if s < prev[1]:
+                    violations.append(f"Ngày {day}: chồng giờ giữa {prev[0]['name']} và {place['name']}.")
+                elif s - prev[1] < need:
+                    violations.append(f"Ngày {day}: từ {prev[0]['name']} đến {place['name']} cần khoảng {need} phút, "
+                                      f"lịch chỉ chừa {s - prev[1]} phút.")
+            prev = (place, e)
+            if place.get("avg_price_vnd") is None:
+                unpriced.append(place["name"])
+                missing.append(f"{place['name']}: giá/người")
+            else:
+                total += place["avg_price_vnd"]
+            if is_sample(place):
+                warnings.append(f"{place['name']}: giờ và giá thuộc bộ mẫu CP2, chưa xác minh.")
+    if unpriced:
+        warnings.append("Chưa có giá: " + ", ".join(sorted(set(unpriced))) + " (không tính vào tổng).")
+    if budget_per_person_vnd and total > budget_per_person_vnd:
+        violations.append(f"Tổng chi phí {total:,}đ/người vượt ngân sách {budget_per_person_vnd:,}đ/người.".replace(",", "."))
+    return {"valid": not violations, "total_per_person_vnd": total, "unpriced": sorted(set(unpriced)),
+            "missing_data": sorted(set(missing)), "violations": violations, "warnings": sorted(set(warnings))}

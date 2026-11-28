@@ -16,7 +16,19 @@
 | Nhãn | thật |
 | Giới hạn | Mẫu thiên về sinh viên/người trẻ hay đi du lịch tự túc; đang bổ sung nguồn đào review công khai (`evidence/data-mining.md`) để kiểm chéo trước CP3. |
 
-## Dataset 2 · Kho địa điểm sạch Tầng 1 đa thành phố Việt Nam (`data/places_vn.json`)
+## Dataset 2a · Kho địa điểm Đà Lạt cho bản chạy thử (`data/places/da-lat.json`)
+
+| | |
+|---|---|
+| Dùng để làm gì | Nguồn cho các công cụ tra cứu của Roa trong `codebase/tools.py` (`search_places`, `get_trending_spots`, `get_opening_hours`, `get_travel_time`, `check_itinerary`). |
+| Từ đâu | (1) Bộ mẫu CP2 `DL-01`–`DL-08` (nhóm tự đặt giờ, giá; nhãn `mau_cp2`), giữ nguyên vì bộ câu thử B01–B10 viết theo nó. (2) Danh mục OpenStreetMap qua Geoapify Places, tải ngày 2026-11-27 cho Đà Lạt (cafe, ăn uống, tham quan; nhãn `osm_geoapify`). File tải thô để ở `data/raw/` (không commit); kho dựng bằng `scripts/build_place_store.py`, không gọi mạng. |
+| Xử lý những bước gì | Chuẩn hoá về `id`, `name`, `city`, `category`, `area`, `open_min`, `close_min` (phút từ 0h), `avg_price_vnd`, `vegetarian_friendly`, `is_hot`, `lat`, `lon`, `source`, `source_note`, `fetched_at`. Với OSM chỉ giữ nơi có tên, không có dấu hiệu đóng cửa và giờ mở cửa dạng một khung cho mọi ngày (`07:00-22:00`, `Mo-Su …`, `24/7`); dạng chia ca hay theo thứ bị bỏ để không đọc sai giờ. Không đoán giá: nơi OSM có `avg_price_vnd = null`; khu lấy từ "Phường …" trong địa chỉ. |
+| Số dòng / số đoạn | 94 nơi: 8 mẫu CP2 (cafe 2, ăn 4, tham quan 2) + 86 từ OSM (cafe 39, ăn 43, tham quan 4). |
+| Phiên bản / ngày lấy | v0.2 (CP3) — OSM tải 2026-11-27, kho dựng 2026-11-28. |
+| Nhãn | `mau_cp2`: tự đặt *(không có nguồn; Roa ghi "chưa xác minh" khi dùng)* · `osm_geoapify`: thật, © OpenStreetMap contributors (ODbL), Powered by Geoapify — ghi công ở khoá `attribution` của file kho. |
+| Giới hạn | Kho này chỉ có Đà Lạt (Hà Nội, Đà Nẵng, TP.HCM, Huế lấy từ Dataset 2b); thành phố ngoài hai kho Roa báo chưa có dữ liệu và trả khung `[Cần kiểm tra & điền tay]` (OQ-22). Nơi OSM chưa có giá nên khi nhóm nêu ngân sách Roa chỉ xếp nơi có giá; giờ OSM do người đóng góp, có thể cũ. Chưa có cột độ hot thật (đang chỉ từ bộ mẫu). Giá, giờ tra theo đợt bằng Tavily để sau CP3 (`docs/roa-agent-design.md` §3.1). |
+
+## Dataset 2b · Kho địa điểm sạch Tầng 1 đa thành phố Việt Nam (`data/places_vn.json`)
 
 | | |
 |---|---|
@@ -26,7 +38,8 @@
 | Số dòng / số đoạn | 66 địa điểm tại 5 thành phố: Đà Lạt (15), Hà Nội (13), Đà Nẵng (13), TP.HCM (13), Huế (12); mỗi thành phố đều phủ đủ 5 nhóm gồm cả `snack` (2–3 điểm/thành phố) và lựa chọn ăn chay. |
 | Phiên bản / ngày lấy | v1.0 (CP3) — 2026-11-28. |
 | Nhãn | thật *(địa điểm, toạ độ, giá vé/thực đơn đối chiếu công khai; giữ `null` nơi chưa xác minh chắc chắn)* |
-| Giới hạn | Mỗi thành phố tuyển chọn 12–15 điểm tiêu biểu; chủ đích để các điểm đến khác (như Phú Quốc ở câu thử `B08`) ngoài kho Tầng 1 để kiểm chứng nhánh tra cứu Tầng 2 (OSM) hoặc cảnh báo `[Cần kiểm tra & điền tay]` khi thiếu dữ liệu. |
+| Cách dùng cùng 2a | Công cụ nạp cả hai kho; trùng mã (`DL-01`–`DL-08`) thì bản ghi ở 2b thắng vì có toạ độ. Giờ `open_hour`/`close_hour` đổi sang phút khi nạp. |
+| Giới hạn | Mỗi thành phố tuyển chọn 12–15 điểm tiêu biểu; chủ đích để các điểm đến khác (như Phú Quốc ở câu thử `B08`) ngoài kho Tầng 1 để kiểm chứng nhánh cảnh báo `[Cần kiểm tra & điền tay]` khi thiếu dữ liệu. |
 
 ## Dataset 3 · Kho quán hot đã làm sạch (`data/trending_spots.json`)
 

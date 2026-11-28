@@ -41,8 +41,8 @@ flowchart LR
   SVC --> DB
   SVC --> ROA
   ROA --> LLM
-  ROA -- công cụ, có cache --> G
-  ROA -- đọc kho quán hot --> DB
+  ROA -- sau này, có cache --> G
+  ROA -- đọc kho địa điểm --> ST[(data/places/*.json<br/>kho dựng theo đợt)]
 ```
 
 - Frontend chỉ nói chuyện với backend. Không gọi thẳng Supabase, Google hay LLM từ trình duyệt (không lộ key).
@@ -98,15 +98,17 @@ Ba chế độ, cùng bộ công cụ:
 
 **Lát cắt nộp BTC là `generate` (OQ-19).** Quyết định AI trung tâm: Roa xếp lịch trình theo ngày thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được và vì sao. `answer(text)` của khung BTC nhận yêu cầu chuyến đi bằng tiếng Việt, gọi `generate` và trả lịch trình (hoặc lý do không xếp được) dạng văn bản trong `{"output": ...}`, để `eval` đo đúng lõi mà web dùng. `ask`, `draft` là phần phụ cho web app, không nằm trong bộ câu thử chính.
 
-Công cụ (mỗi hàm một `@tool` trong `codebase/tools.py`):
+Công cụ (mỗi hàm một `@tool` trong `codebase/tools.py`, tên khớp `spec.md` §4). Bản hiện tại đọc kho file `data/places/<thanh-pho>.json`, không gọi mạng:
 
 | Công cụ | Việc | Tác động ra ngoài |
 |---|---|---|
-| `search_places` | Tìm địa điểm theo từ khoá, loại, khu vực | Không (đọc Google, có cache) |
-| `get_place_details` | Giờ mở cửa, đánh giá, mức giá, vị trí | Không (có cache) |
-| `get_travel_time` | Thời gian, quãng đường giữa hai điểm | Không (có cache) |
-| `get_trending_spots` | Quán hot theo thành phố, loại | Không (đọc kho thu trước) |
-| `check_plan` | Kiểm giờ mở cửa, chồng giờ, thời gian di chuyển, ngân sách | Không |
+| `search_places` | Tìm địa điểm theo thành phố, loại, sở thích (chay) | Không (đọc kho) |
+| `get_trending_spots` | Quán hot theo thành phố | Không (đọc kho thu trước) |
+| `get_opening_hours` | Giờ mở, đóng cửa theo mã | Không |
+| `get_travel_time` | Thời gian đi xe máy giữa hai mã địa điểm (ước tính bằng code) | Không |
+| `check_itinerary` | Kiểm giờ mở cửa, chồng giờ, thời gian di chuyển, khung giờ, ngân sách | Không |
+
+**Luồng `generate` chi tiết** (sơ đồ B1–B10, ai gọi ai, khung giờ, nhánh trả lời ↔ câu thử, giới hạn): xem [`docs/roa-agent-flow.md`](docs/roa-agent-flow.md). Tóm tắt: code chặn sớm các trường hợp từ chối, thiếu thông tin, chưa có dữ liệu, mâu thuẫn ngân sách, không khả thi bằng mẫu câu trả lời; còn lại code dựng bản nháp, model chọn lại theo mã ứng viên, `check_itinerary` kiểm, model sửa tối đa một lần, code in kết quả. Model không tính giờ, tiền hay thời gian đi.
 
 Không có công cụ ghi plan. Ghi plan chỉ xảy ra khi nhóm trưởng duyệt v1 (`plan_service`) hoặc áp dụng đề xuất (`proposal_service`) (R-31).
 
@@ -180,6 +182,7 @@ Nhóm trưởng chọn v9 trong lịch sử → `POST /trips/{id}/proposals` v�
 ## 5. Dữ liệu ngoài
 
 - **Google Places (Text Search, Place Details), Routes/Directions:** chỉ gọi từ backend. Kết quả cache trong `places_cache` theo khoá truy vấn, hết hạn sau 7 ngày (giờ mở cửa) [NEEDS CLARIFICATION: thời hạn cache, OQ-12]. Chỉ xin trường cần dùng (field mask) để giảm chi phí.
+- **Kho địa điểm (đang dùng):** `data/places/<thanh-pho>.json`, dựng theo đợt bằng `scripts/build_place_store.py` từ danh mục OpenStreetMap (qua Geoapify) và bộ mẫu CP2. Hiện có Đà Lạt (94 nơi). Thành phố chưa có kho thì Roa báo chưa có dữ liệu (OQ-22). Chi tiết: `data/DATA_CARD.md` Dataset 2, `docs/roa-agent-flow.md` §5.
 - **Kho quán hot:** thu trước từ TikTok/Instagram cho một số điểm đến (phạm vi theo OQ-11), làm sạch, lưu `trending_spots`. Không crawl lúc chạy, không lưu thông tin cá nhân người đăng. Nguồn, cách thu và giới hạn ghi ở `data/DATA_CARD.md` (OQ-11).
 - **Dữ liệu "trong khoảng 2 quý đổ lại":** chỉ dùng mục trong kho có `collected_at` trong 6 tháng gần nhất.
 
@@ -215,7 +218,7 @@ Ngưỡng tham khảo là **quá bán số thành viên** (`floor(n/2) + 1`; 4 n
 
 - **Một chỗ gọi model:** `codebase/ai.py` `call_model()`. Backend không gọi SDK LLM ở chỗ khác (R-30).
 - **Ra `ops` có cấu trúc:** `draft` và `generate` phải trả JSON đúng schema ở `docs/DATABASE.md` mục 3; backend kiểm bằng Pydantic, lỗi thì thử lại một lần rồi báo `llm_invalid_output` (R-33).
-- **Kiểm sau model:** chạy `check_plan` trên kết quả; mục đóng cửa, chồng giờ, vượt ngân sách được ghi thành cảnh báo đi kèm đề xuất, không tự sửa.
+- **Kiểm sau model:** chạy `check_itinerary` trên kết quả (`generate`: sai thì nhờ model sửa một lần, vẫn sai thì giữ bản nháp của code — `docs/roa-agent-flow.md` §2); mục đóng cửa, chồng giờ, vượt ngân sách được ghi thành cảnh báo đi kèm đề xuất, không tự sửa.
 - **Dữ liệu người dùng là dữ liệu:** ghi chú, góp ý, tên địa điểm có thể chứa câu lệnh; đưa vào prompt trong khối dữ liệu có đánh dấu, không phải chỉ dẫn (R-34).
 - **Giới hạn:** mỗi lượt agent tối đa `MAX_STEPS` lần gọi công cụ; mỗi thành viên tối đa N câu hỏi/phút (R-35, API_SPEC mục 1.5).
 - **Model:** chưa chốt (OQ-01). Tiêu chí chọn: gọi công cụ ổn định, tiếng Việt tốt, trả JSON đúng schema, độ trễ, gói miễn phí hoặc chi phí theo `cost/`.
@@ -234,9 +237,10 @@ Biến môi trường (giá trị giả trong `.env.example`):
 |---|---|---|
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
+| `GWAI_API_KEY` | Backend | Key riêng khi dùng `MODEL_PROVIDER=gwai`. `MODEL_NAME` bắt đầu bằng `gemini` thì gọi `generateContent` của GWAI, model khác gọi Chat Completions |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
-| `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4 |
-| `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố |
+| `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
+| `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
 | `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
@@ -273,4 +277,7 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.2 | 2026-11-27 | Khương | Đánh dấu chế độ `answer(text)` gọi là chỗ chờ OQ-19 | Đối chiếu yêu cầu BTC |
 | 0.3 | 2026-11-27 | Khương | `answer(text)` gọi `generate` (lát cắt nộp BTC); `generate` trả bản nháp, nhóm trưởng duyệt v1; phiếu chỉ ghi nhận, nhóm trưởng áp dụng / đóng; hạn tuỳ chọn; bỏ `PROPOSAL_TTL_HOURS`; chốt xác thực | OQ-19, ADR 0004, OQ-06 |
 | 0.4 | 2026-11-27 | Khương | Bỏ giới hạn thành phố demo: điểm đến bất kỳ trong Việt Nam; kho quán hot chỉ phủ một số điểm đến | OQ-09 |
-| 0.5 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
+| 0.5 | 2026-11-28 | Khương | Bảng công cụ §3.3 khớp tên trong code và `spec.md` §4; Roa đọc kho file `data/places/`; luồng `generate` chi tiết tách sang `docs/roa-agent-flow.md` | Code nhánh `feat/kho-du-lieu-va-agent-roa` |
+| 0.6 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
+| 0.7 | 2026-11-28 | Khương | Gộp nhánh agent: lõi Roa đọc cả `data/places/` và `data/places_vn.json` (5 thành phố); bản chạy thử không gọi VIETMAP, Tavily, Google lúc chạy (chờ OQ-22), nên `VIETMAP_API_KEY`, `TAVILY_API_KEY` chưa dùng | Gộp `feat/kho-du-lieu-va-agent-roa` với `docs/cp2-benchmark-datacard` |
+| 0.8 | 2026-11-28 | Khương | `GWAI_API_KEY`: model Gemini đi đường `generateContent` của GWAI | Chạy eval CP3 bằng `gemini-3.8-flash` |
