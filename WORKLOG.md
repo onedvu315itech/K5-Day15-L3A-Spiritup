@@ -11,6 +11,7 @@ Nhật ký việc của nhóm. Mỗi việc xong (hoặc dừng) một dòng, gh
 
 | Thành viên | Việc | Trạng thái | Output | Thời gian |
 |---|---|---|---|---|
+| Khương | Vẽ luồng và kiến trúc agent Roa (sơ đồ lớp, luồng B1–B10, sơ đồ gọi, khung giờ, nhánh ↔ câu thử, giới hạn); ARCHITECTURE v0.5 khớp tên công cụ trong code | ✅ | `docs/roa-agent-flow.md`, `ARCHITECTURE.md` | ~ |
 | Khương | Kho địa điểm Đà Lạt (94 nơi: 8 mẫu CP2 + 86 OSM qua Geoapify); `tools.py` đọc kho; `agent.py` luồng nhiều bước (tách yêu cầu, mẫu từ chối/hỏi lại/chưa có dữ liệu/mâu thuẫn ngân sách, kiểm khả thi, bản nháp bằng code, model chọn, kiểm, sửa một lần); DATA_CARD, spec §10. Chạy bằng model giả: `check` OK (cảnh báo 12/20 câu), `eval --try` 3/3 chạy hết; chưa có lượt model thật (chờ OQ-01) | 🔄 | `scripts/build_place_store.py`, `data/places/da-lat.json`, `codebase/tools.py`, `codebase/agent.py`, `data/DATA_CARD.md`, `spec.md` | ~1h |
 | Khương | Thiết kế agent Roa v0.4: tra giá, giờ bằng Tavily theo đợt (không tra web lúc chạy), ba lớp kho/cache/DB, khách sạn chỉ gợi ý khu + link kiểm tra phòng; thêm OQ-22 | 🟡 | `docs/roa-agent-design.md`, `docs/OPEN-QUESTIONS.md` | ~ |
 
