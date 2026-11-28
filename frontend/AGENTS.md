@@ -1,3 +1,26 @@
+# Frontend Agent Guide (`frontend/`)
+
+Hướng dẫn dành riêng cho coding agent làm việc trong `frontend/` (Next.js App Router, TypeScript, Tailwind CSS).
+
+## Tài liệu Frontend (đọc trước khi sửa UI)
+
+| Mục đích | File |
+|---|---|
+| Hệ thống thiết kế (màu sắc, Do's & Don'ts) | [`DESIGN.md`](DESIGN.md) |
+| Quy tắc Frontend (`R-40` – `R-44`) | [`RULES.md`](RULES.md) |
+| Đặc tả màn hình, route, wireframe, `BR-FE-*`, `AC-FE-*` | [`docs/frontend-screens.md`](docs/frontend-screens.md) |
+| Contract API & dữ liệu dùng chung | [`../docs/API_SPEC.md`](../docs/API_SPEC.md), [`../docs/DATABASE.md`](../docs/DATABASE.md) |
+| Quy tắc chung toàn dự án | [`../AGENTS.md`](../AGENTS.md) |
+
+## Lệnh kiểm tra trong `frontend/`
+
+```bash
+npm run dev
+npx tsc --noEmit
+npm run lint
+npm run build
+```
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useRef, useState } from "react";
 import { StatusBanner } from "@/components/status-banner";
 import { api } from "@/lib/api";
 import { formatDate, formatDurationMinutes, formatVnd } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import { saveTripSession } from "@/lib/storage";
+import { getTripTemplateById, TRIP_TEMPLATES } from "@/lib/trip-templates";
 import type { GenerateDraftResponse } from "@/lib/types";
 
 const INTEREST_OPTIONS = [
@@ -30,23 +32,48 @@ const TRANSPORT_OPTIONS = [
   { value: "đi bộ + xe công nghệ", label: "Đi bộ quanh trung tâm + xe công nghệ" },
 ];
 
-export default function NewTripPage() {
+function addDaysIso(baseIso: string, days: number): string {
+  const d = new Date(`${baseIso}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function NewTripContent() {
   const router = useRouter();
+  const { t } = useLocale();
+  const searchParams = useSearchParams();
+  const initialTemplate = getTripTemplateById(searchParams.get("template"));
   const formRef = useRef<HTMLFormElement>(null);
 
-  const [title, setTitle] = useState("Đà Lạt 3N2Đ");
-  const [destination, setDestination] = useState("Đà Lạt");
-  const [startDate, setStartDate] = useState("2026-12-18");
-  const [endDate, setEndDate] = useState("2026-12-20");
-  const [groupSize, setGroupSize] = useState("4");
-  const [budget, setBudget] = useState("2500000");
-  const [transport, setTransport] = useState("xe máy thuê");
-  const [interests, setInterests] = useState<string[]>([
-    "Cà phê đồi",
-    "Săn mây sáng sớm",
-  ]);
-  const [constraints, setConstraints] = useState<string[]>(["Có người ăn chay"]);
-  const [extraNote, setExtraNote] = useState("");
+  const defaultStart = "2026-12-18";
+  const [title, setTitle] = useState(
+    initialTemplate?.title ?? "Đà Lạt 3N2Đ",
+  );
+  const [destination, setDestination] = useState(
+    initialTemplate?.destination ?? "Đà Lạt",
+  );
+  const [startDate, setStartDate] = useState(defaultStart);
+  const [endDate, setEndDate] = useState(
+    addDaysIso(defaultStart, (initialTemplate?.daysCount ?? 3) - 1),
+  );
+  const [groupSize, setGroupSize] = useState(
+    String(initialTemplate?.groupSize ?? 4),
+  );
+  const [budget, setBudget] = useState(
+    String(initialTemplate?.budgetPerPerson ?? 2500000),
+  );
+  const [transport, setTransport] = useState(
+    initialTemplate?.transport ?? "xe máy thuê",
+  );
+  const [interests, setInterests] = useState<string[]>(
+    initialTemplate?.interests ?? ["Cà phê đồi", "Săn mây sáng sớm"],
+  );
+  const [constraints, setConstraints] = useState<string[]>(
+    initialTemplate?.constraints ?? ["Có người ăn chay"],
+  );
+  const [extraNote, setExtraNote] = useState(
+    initialTemplate?.extraNote ?? "",
+  );
   const [leaderName, setLeaderName] = useState("");
 
   const [createdTrip, setCreatedTrip] = useState<{
@@ -209,22 +236,25 @@ export default function NewTripPage() {
       <div className="space-y-3">
         <Link
           href="/"
-          className="inline-block text-[14px] font-medium text-primary hover:underline"
+          className="inline-block text-[14px] font-medium text-secondary hover:underline"
         >
-          Quay lại danh sách chuyến đi
+          ← {t("Quay lại danh sách chuyến đi", "Back to trips")}
         </Link>
         <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-3 py-1 type-eyebrow text-primary">
-            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent-purple" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-3 py-1 type-eyebrow text-secondary">
+            <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-secondary" />
             {draftResult?.status === "ok"
-              ? "Bước 2 · Xem trước bản nháp v1"
-              : "Bước 1 · Nhập yêu cầu chuyến đi"}
+              ? t("Bước 2 · Xem trước bản nháp v1", "Step 2 · Preview v1 draft")
+              : t("Bước 1 · Nhập yêu cầu chuyến đi", "Step 1 · Enter trip details")}
           </span>
           <h1 className="mt-2 type-heading-1 text-ink">
-            Tạo chuyến đi mới cùng Roa
+            {t("Tạo chuyến đi mới cùng Roa", "Create a new trip with Roa")}
           </h1>
           <p className="mt-2 text-[16px] text-ink-muted max-w-[65ch]">
-            Roa sẽ soạn một bản nháp lịch trình dựa trên giờ mở cửa và ngân sách nhóm. Bạn xem và duyệt trước khi trở thành bản chính thức v1.
+            {t(
+              "Roa sẽ soạn một bản nháp lịch trình dựa trên giờ mở cửa và ngân sách nhóm. Bạn xem và duyệt trước khi trở thành bản chính thức v1.",
+              "Roa will draft an itinerary based on real opening hours and group budget. Review and approve before it becomes v1.",
+            )}
           </p>
         </div>
       </div>
@@ -243,13 +273,15 @@ export default function NewTripPage() {
             <div
               role="status"
               aria-live="polite"
-              className="rounded-[12px] border border-hairline bg-surface p-6 shadow-notion-1 space-y-2"
+              className="rounded-[12px] border border-error/30 bg-surface p-6 shadow-card space-y-2"
             >
               <div className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
-                  className="h-2.5 w-2.5 rounded-full bg-accent-orange"
-                />
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-error text-[11px] font-bold text-white"
+                >
+                  !
+                </span>
                 <h2 className="type-heading-3 text-ink">
                   Roa không xếp được lịch trình thoả mọi ràng buộc
                 </h2>
@@ -257,7 +289,7 @@ export default function NewTripPage() {
               <p className="text-[15px] text-ink-secondary">
                 Thay vì tự bịa địa điểm hoặc vượt ngân sách, hệ thống dừng lại với các lý do sau:
               </p>
-              <ul className="list-disc pl-5 text-[14px] text-accent-orange-deep space-y-1">
+              <ul className="list-disc pl-5 text-[14px] text-error space-y-1">
                 {draftResult.reasons.map((r, i) => (
                   <li key={i}>{r}</li>
                 ))}
@@ -268,7 +300,7 @@ export default function NewTripPage() {
           <form
             ref={formRef}
             onSubmit={(e) => void handleCreateAndGenerate(e)}
-            className="rounded-[12px] border border-hairline bg-surface p-6 shadow-notion-1 space-y-6"
+            className="rounded-[12px] border border-hairline bg-surface p-6 shadow-card space-y-6"
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
@@ -286,7 +318,7 @@ export default function NewTripPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Ví dụ: Đà Lạt 3N2Đ…"
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px]"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px]"
                 />
               </div>
 
@@ -297,15 +329,24 @@ export default function NewTripPage() {
                 >
                   Điểm đến *
                 </label>
-                <select
+                <input
                   id="trip-dest"
                   name="destination"
+                  type="text"
+                  required
+                  list="vietnam-destinations"
                   value={destination}
                   onChange={(e) => setDestination(e.target.value)}
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px]"
-                >
-                  <option value="Đà Lạt">Đà Lạt (thành phố demo chính)</option>
-                </select>
+                  placeholder="Ví dụ: Đà Lạt, Phú Quốc, Sa Pa…"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px]"
+                />
+                <datalist id="vietnam-destinations">
+                  {TRIP_TEMPLATES.map((t) => (
+                    <option key={t.id} value={t.destination} />
+                  ))}
+                  <option value="Hà Giang" />
+                  <option value="Nha Trang" />
+                </datalist>
               </div>
 
               <div>
@@ -324,7 +365,7 @@ export default function NewTripPage() {
                   value={leaderName}
                   onChange={(e) => setLeaderName(e.target.value)}
                   placeholder="Tên hiển thị của bạn…"
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px]"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px]"
                 />
               </div>
 
@@ -342,7 +383,7 @@ export default function NewTripPage() {
                   required
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
                 />
               </div>
 
@@ -360,7 +401,7 @@ export default function NewTripPage() {
                   required
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
                 />
               </div>
 
@@ -380,7 +421,7 @@ export default function NewTripPage() {
                   pattern="\d+"
                   value={groupSize}
                   onChange={(e) => setGroupSize(e.target.value)}
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
                 />
               </div>
 
@@ -400,7 +441,7 @@ export default function NewTripPage() {
                   value={budget}
                   onChange={(e) => setBudget(e.target.value)}
                   placeholder="Ví dụ: 2500000…"
-                  className="notion-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
+                  className="nomad-input min-h-11 w-full px-3 py-2 text-[15px] tabular-nums"
                 />
                 <span
                   id="budget-hint"
@@ -447,8 +488,8 @@ export default function NewTripPage() {
                       key={opt}
                       className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[8px] border px-3.5 py-2 text-[13px] font-medium transition-colors ${
                         active
-                          ? "border-primary bg-surface text-primary shadow-notion-1"
-                          : "border-hairline bg-canvas-soft text-ink"
+                          ? "border-primary bg-surface text-ink shadow-card"
+                          : "border-hairline bg-canvas-soft text-ink-secondary"
                       }`}
                     >
                       <input
@@ -478,8 +519,8 @@ export default function NewTripPage() {
                       key={opt}
                       className={`inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[8px] border px-3.5 py-2 text-[13px] font-medium transition-colors ${
                         active
-                          ? "border-primary bg-surface text-primary shadow-notion-1"
-                          : "border-hairline bg-canvas-soft text-ink"
+                          ? "border-primary bg-surface text-ink shadow-card"
+                          : "border-hairline bg-canvas-soft text-ink-secondary"
                       }`}
                     >
                       <input
@@ -511,7 +552,7 @@ export default function NewTripPage() {
                 value={extraNote}
                 onChange={(e) => setExtraNote(e.target.value)}
                 placeholder="Ví dụ: Muốn có một buổi chèo SUP buổi sáng…"
-                className="notion-input min-h-11 w-full px-3 py-2 text-[15px]"
+                className="nomad-input min-h-11 w-full px-3 py-2 text-[15px]"
               />
             </div>
 
@@ -519,7 +560,7 @@ export default function NewTripPage() {
               <button
                 type="submit"
                 disabled={generating}
-                className="min-h-12 rounded-full bg-primary active:bg-primary-active active:scale-[0.97] px-6 py-3 text-[16px] font-medium text-on-primary disabled:opacity-60 transition-[transform,background-color]"
+                className="min-h-12 rounded-[5px] bg-primary active:bg-primary-active active:scale-[0.97] px-6 py-3 text-[16px] font-semibold text-on-primary disabled:opacity-60 transition-[transform,background-color]"
               >
                 {generating
                   ? "Roa đang xếp lịch trình…"
@@ -530,9 +571,9 @@ export default function NewTripPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="rounded-[12px] border border-hairline bg-surface p-6 shadow-notion-1 flex flex-wrap items-center justify-between gap-4">
+          <div className="rounded-[12px] border border-hairline bg-surface p-6 shadow-card flex flex-wrap items-center justify-between gap-4">
             <div>
-              <p className="type-eyebrow text-primary">
+              <p className="type-eyebrow text-secondary">
                 Bản nháp do Roa soạn (chưa lưu thành v1)
               </p>
               <h2 className="mt-1 type-heading-2 text-ink tabular-nums">
@@ -556,7 +597,7 @@ export default function NewTripPage() {
                 type="button"
                 disabled={generating || approving}
                 onClick={() => void handleRegenerate()}
-                className="min-h-11 rounded-[8px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                className="min-h-11 rounded-[5px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
               >
                 {generating ? "Đang soạn lại…" : "Tạo lại bản nháp"}
               </button>
@@ -564,7 +605,7 @@ export default function NewTripPage() {
                 type="button"
                 disabled={approving || generating}
                 onClick={() => void handleApproveV1()}
-                className="min-h-11 rounded-full bg-primary active:bg-primary-active active:scale-[0.97] px-6 py-2 text-[15px] font-medium text-on-primary disabled:opacity-60 transition-[transform,background-color]"
+                className="min-h-11 rounded-[5px] bg-primary active:bg-primary-active active:scale-[0.97] px-6 py-2 text-[15px] font-medium text-on-primary disabled:opacity-60 transition-[transform,background-color]"
               >
                 {approving ? "Đang lưu bản v1…" : "Duyệt thành bản v1"}
               </button>
@@ -585,13 +626,13 @@ export default function NewTripPage() {
                 value={extraRequest}
                 onChange={(e) => setExtraRequest(e.target.value)}
                 placeholder="Ví dụ: Giảm bớt điểm đi chiều ngày 1…"
-                className="notion-input min-h-11 flex-1 px-3 py-1.5 text-[15px]"
+                className="nomad-input min-h-11 flex-1 px-3 py-1.5 text-[15px]"
               />
               <button
                 type="button"
                 disabled={generating}
                 onClick={() => void handleRegenerate()}
-                className="min-h-11 rounded-[8px] border border-hairline bg-surface px-4 py-2 text-[14px] font-medium text-primary hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                className="min-h-11 rounded-[5px] border border-secondary/35 bg-surface px-4 py-2 text-[14px] font-medium text-secondary hover:bg-canvas-soft disabled:opacity-60 transition-colors"
               >
                 Soạn lại theo yêu cầu
               </button>
@@ -633,7 +674,7 @@ export default function NewTripPage() {
                       >
                         <div className="min-w-0 space-y-0.5">
                           <p className="font-semibold text-ink">
-                            <span className="text-primary tabular-nums mr-2">
+                            <span className="text-secondary tabular-nums mr-2">
                               {it.start}–{it.end}
                             </span>
                             {it.name}
@@ -658,5 +699,21 @@ export default function NewTripPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function NewTripPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 space-y-4 animate-pulse">
+          <div className="h-6 w-48 rounded-[6px] bg-canvas-soft" />
+          <div className="h-10 w-80 rounded-[8px] bg-canvas-soft" />
+          <div className="h-96 rounded-[12px] border border-hairline bg-surface" />
+        </div>
+      }
+    >
+      <NewTripContent />
+    </Suspense>
   );
 }

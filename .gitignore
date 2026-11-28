@@ -5,6 +5,7 @@
 *.pem
 *service-account*.json
 credentials*.json
+
 # File sinh ra khi chạy
 __pycache__/
 *.pyc
@@ -16,6 +17,7 @@ node_modules/
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
 # Lượt KHÔNG được tính (không nộp). eval/run-1.csv, run-2.csv…, cost/simulate-N.csv, traces/run-N.jsonl PHẢI commit.
 eval/run-fake.csv
 eval/run-try.csv
@@ -34,18 +36,67 @@ traces/simulate-try.jsonl
 traces/simulate-mock.jsonl
 traces/simulate-error.jsonl
 traces/simulate-stopped.jsonl
+
 # Export khảo sát còn tên / email / SĐT: chỉ commit bản đã ẩn danh
 evidence/**/raw-*
+
 # Nguyên file data BTC cấp (data/preclass, data/training-ops… của repo đề): để ở data-btc/ hoặc de-bai/data/, không commit
 data-btc
 data-btc/
 de-bai/data/
+
 # Zip đóng gói, cài đặt cục bộ của Claude Code
 dist/
 .claude/settings.local.json
+
 # Dữ liệu thô thu thử (caption, URL có handle người đăng): chỉ để trên máy
 data/raw/
 
 # Backend: SQLite chạy thử, cache pytest
 backend/*.db
 .pytest_cache/
+# ================================
+# FE
+# ================================
+pnpm-lock.yaml
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts

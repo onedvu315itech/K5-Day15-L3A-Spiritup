@@ -2,59 +2,80 @@
 
 import { useState } from "react";
 import { formatDateTime, formatSignedVnd } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import type { DiffChange, Proposal, VoteValue } from "@/lib/types";
 import { ConfirmDialog } from "./confirm-dialog";
 import { StatusBanner } from "./status-banner";
 
 const STATUS_BADGES: Record<
   Proposal["status"],
-  { label: string; dot: string; style: string }
+  { label: string; labelEn: string; dot: string; style: string }
 > = {
   open: {
     label: "Đang mở",
-    dot: "bg-primary",
-    style: "bg-canvas-soft text-ink border-hairline",
+    labelEn: "Open",
+    dot: "bg-secondary",
+    style: "bg-canvas-soft text-secondary border-secondary/25",
   },
   applied: {
     label: "Đã áp dụng",
-    dot: "bg-accent-green",
-    style: "bg-canvas-soft text-ink border-hairline",
+    labelEn: "Applied",
+    dot: "bg-success",
+    style: "bg-canvas-soft text-success border-success/25",
   },
   reference: {
     label: "Để tham khảo",
+    labelEn: "Reference",
     dot: "bg-ink-faint",
     style: "bg-canvas-soft text-ink-muted border-hairline",
   },
   stale: {
     label: "Đã cũ (trùng mục)",
-    dot: "bg-accent-orange",
-    style: "bg-canvas-soft text-accent-orange-deep border-hairline",
+    labelEn: "Stale",
+    dot: "bg-warning",
+    style: "bg-canvas-soft text-warning border-warning/30",
   },
   withdrawn: {
     label: "Đã rút",
+    labelEn: "Withdrawn",
     dot: "bg-ink-faint",
     style: "bg-canvas-soft text-ink-muted border-hairline",
   },
 };
 
-const ORIGIN_LABELS: Record<Proposal["origin"], string> = {
-  manual: "Nhóm trưởng sửa",
-  agent: "Roa soạn",
-  suggestion: "Từ góp ý",
+const ORIGIN_LABELS: Record<Proposal["origin"], { vi: string; en: string }> = {
+  manual: { vi: "Nhóm trưởng sửa", en: "Leader edit" },
+  agent: { vi: "Roa soạn", en: "Drafted by Roa" },
+  suggestion: { vi: "Từ góp ý", en: "From feedback" },
 };
 
-function describeChange(change: DiffChange): string {
+function describeChange(
+  change: DiffChange,
+  t: (vi: string, en: string) => string,
+): string {
   if (change.type === "moved") {
-    return `Chuyển "${change.name}": Ngày ${change.from.day} (${change.from.start}) sang Ngày ${change.to.day} (${change.to.start})`;
+    return t(
+      `Chuyển "${change.name}": Ngày ${change.from.day} (${change.from.start}) sang Ngày ${change.to.day} (${change.to.start})`,
+      `Move "${change.name}": Day ${change.from.day} (${change.from.start}) to Day ${change.to.day} (${change.to.start})`,
+    );
   }
   if (change.type === "added") {
-    return `Thêm "${change.name}" vào Ngày ${change.day}`;
+    return t(
+      `Thêm "${change.name}" vào Ngày ${change.day}`,
+      `Add "${change.name}" on Day ${change.day}`,
+    );
   }
   if (change.type === "removed") {
-    return `Xoá "${change.name}" ở Ngày ${change.day}`;
+    return t(
+      `Xoá "${change.name}" ở Ngày ${change.day}`,
+      `Remove "${change.name}" from Day ${change.day}`,
+    );
   }
   const fieldsText = Object.keys(change.fields).join(", ");
-  return `Sửa "${change.name ?? change.item_id}" (${fieldsText || "thông tin"})`;
+  return t(
+    `Sửa "${change.name ?? change.item_id}" (${fieldsText || "thông tin"})`,
+    `Edit "${change.name ?? change.item_id}" (${fieldsText || "details"})`,
+  );
 }
 
 interface ProposalPanelProps {
@@ -74,6 +95,7 @@ export function ProposalPanel({
   onClose,
   onWithdraw,
 }: ProposalPanelProps) {
+  const { locale, t } = useLocale();
   const [filter, setFilter] = useState<"open" | "closed">("open");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -104,11 +126,11 @@ export function ProposalPanel({
   };
 
   return (
-    <section aria-label="Đề xuất và bỏ phiếu" className="space-y-4">
+    <section aria-label={t("Đề xuất và bỏ phiếu", "Proposals and voting")} className="space-y-4">
       <div className="flex items-center justify-between gap-2">
         <div
           role="tablist"
-          aria-label="Lọc đề xuất"
+          aria-label={t("Lọc đề xuất", "Filter proposals")}
           className="inline-flex rounded-[8px] border border-hairline bg-canvas-soft p-1"
         >
           <button
@@ -118,11 +140,11 @@ export function ProposalPanel({
             onClick={() => setFilter("open")}
             className={`min-h-9 rounded-[5px] px-3 py-1 text-[13px] font-medium transition-colors ${
               filter === "open"
-                ? "bg-surface text-ink shadow-notion-1"
+                ? "bg-surface text-ink shadow-card"
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Đang mở ({proposals.filter((p) => p.status === "open").length})
+            {t("Đang mở", "Open")} ({proposals.filter((p) => p.status === "open").length})
           </button>
           <button
             type="button"
@@ -131,11 +153,11 @@ export function ProposalPanel({
             onClick={() => setFilter("closed")}
             className={`min-h-9 rounded-[5px] px-3 py-1 text-[13px] font-medium transition-colors ${
               filter === "closed"
-                ? "bg-surface text-ink shadow-notion-1"
+                ? "bg-surface text-ink shadow-card"
                 : "text-ink-muted hover:text-ink"
             }`}
           >
-            Đã đóng ({proposals.filter((p) => p.status !== "open").length})
+            {t("Đã đóng", "Closed")} ({proposals.filter((p) => p.status !== "open").length})
           </button>
         </div>
       </div>
@@ -151,8 +173,11 @@ export function ProposalPanel({
       {visible.length === 0 ? (
         <div className="rounded-[16px] border border-dashed border-hairline bg-canvas-soft p-8 text-center text-[15px] text-ink-muted">
           {filter === "open"
-            ? "Hiện chưa có đề xuất nào đang chờ biểu quyết."
-            : "Chưa có đề xuất nào đã đóng."}
+            ? t(
+                "Hiện chưa có đề xuất nào đang chờ biểu quyết.",
+                "No open proposals waiting for votes.",
+              )
+            : t("Chưa có đề xuất nào đã đóng.", "No closed proposals yet.")}
         </div>
       ) : (
         <div className="space-y-3">
@@ -175,10 +200,17 @@ export function ProposalPanel({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-ink-muted">
                       <span className="font-semibold text-ink tabular-nums">
-                        Đề xuất #{proposal.number}
+                        {t("Đề xuất", "Proposal")} #{proposal.number}
                       </span>
-                      <span>· {ORIGIN_LABELS[proposal.origin]}</span>
-                      <span className="tabular-nums">· Từ v{proposal.base_version}</span>
+                      <span>
+                        ·{" "}
+                        {locale === "en"
+                          ? ORIGIN_LABELS[proposal.origin].en
+                          : ORIGIN_LABELS[proposal.origin].vi}
+                      </span>
+                      <span className="tabular-nums">
+                        · {t("Từ", "From")} v{proposal.base_version}
+                      </span>
                     </div>
                     <h3 className="mt-1 text-[15px] font-semibold text-ink break-words">
                       {proposal.summary}
@@ -191,7 +223,7 @@ export function ProposalPanel({
                       aria-hidden="true"
                       className={`h-1.5 w-1.5 rounded-full ${badge.dot}`}
                     />
-                    {badge.label}
+                    {locale === "en" ? badge.labelEn : badge.label}
                   </span>
                 </div>
 
@@ -200,8 +232,8 @@ export function ProposalPanel({
                 ) : null}
 
                 {proposal.suggestion ? (
-                  <p className="text-[12px] font-medium text-primary">
-                    Từ góp ý của {proposal.suggestion.author}
+                  <p className="text-[12px] font-medium text-secondary">
+                    {t("Từ góp ý của", "From feedback by")} {proposal.suggestion.author}
                   </p>
                 ) : null}
 
@@ -209,7 +241,7 @@ export function ProposalPanel({
                 <div className="rounded-[8px] border border-hairline bg-canvas-soft p-3 space-y-1">
                   <div className="flex items-center justify-between gap-2 text-[12px]">
                     <span className="font-semibold text-ink">
-                      Thay đổi dự kiến
+                      {t("Thay đổi dự kiến", "Proposed changes")}
                     </span>
                     <span className="font-medium text-ink-muted tabular-nums">
                       {formatSignedVnd(proposal.preview.cost_delta_per_person)}
@@ -217,12 +249,15 @@ export function ProposalPanel({
                   </div>
                   {proposal.preview.changes.length === 0 ? (
                     <p className="text-[12px] text-ink-muted">
-                      Khôi phục nội dung phiên bản v{proposal.target_version}
+                      {t(
+                        `Khôi phục nội dung phiên bản v${proposal.target_version}`,
+                        `Restore version v${proposal.target_version}`,
+                      )}
                     </p>
                   ) : (
                     <ul className="space-y-1 text-[12px] text-ink-secondary">
                       {proposal.preview.changes.map((c, idx) => (
-                        <li key={`${c.item_id}-${idx}`}>• {describeChange(c)}</li>
+                        <li key={`${c.item_id}-${idx}`}>• {describeChange(c, t)}</li>
                       ))}
                     </ul>
                   )}
@@ -233,7 +268,7 @@ export function ProposalPanel({
                     {proposal.warnings.map((w, idx) => (
                       <p
                         key={idx}
-                        className="rounded-[5px] border border-hairline bg-canvas-soft px-2.5 py-1.5 text-[12px] text-accent-orange-deep"
+                        className="rounded-[5px] border border-hairline bg-canvas-soft px-2.5 py-1.5 text-[12px] text-warning"
                       >
                         {w.message}
                       </p>
@@ -245,16 +280,20 @@ export function ProposalPanel({
                 <div className="space-y-2 border-t border-hairline pt-3">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
                     <span className="font-semibold text-ink tabular-nums">
-                      {voteStats.agree} đồng ý · {voteStats.disagree} không đồng ý (cần {voteStats.required})
+                      {voteStats.agree} {t("đồng ý", "agree")} · {voteStats.disagree}{" "}
+                      {t("không đồng ý", "disagree")} ({t("cần", "need")}{" "}
+                      {voteStats.required})
                     </span>
                     <span className="inline-flex items-center gap-1.5 font-semibold text-ink">
                       <span
                         aria-hidden="true"
                         className={`h-2 w-2 rounded-full ${
-                          voteStats.majority ? "bg-accent-green" : "bg-accent-orange"
+                          voteStats.majority ? "bg-success" : "bg-warning"
                         }`}
                       />
-                      {voteStats.majority ? "Đạt đa số" : "Chưa đạt đa số"}
+                      {voteStats.majority
+                        ? t("Đạt đa số", "Majority reached")
+                        : t("Chưa đạt đa số", "Below majority")}
                     </span>
                   </div>
                   <div className="h-1.5 w-full overflow-hidden rounded-full bg-canvas-soft">
@@ -265,12 +304,14 @@ export function ProposalPanel({
                   </div>
                   {proposal.voters && proposal.voters.length > 0 ? (
                     <p className="text-[12px] text-ink-muted">
-                      Đã bỏ phiếu:{" "}
+                      {t("Đã bỏ phiếu:", "Voted:")}{" "}
                       {proposal.voters
                         .map(
                           (v) =>
                             `${v.member.display_name} (${
-                              v.value === "agree" ? "Đồng ý" : "Không"
+                              v.value === "agree"
+                                ? t("Đồng ý", "Agree")
+                                : t("Không", "Disagree")
                             })`,
                         )
                         .join(", ")}
@@ -278,12 +319,12 @@ export function ProposalPanel({
                   ) : null}
                   {voteStats.pending.length > 0 ? (
                     <p className="text-[12px] text-ink-faint">
-                      Chưa bỏ phiếu: {voteStats.pending.join(", ")}
+                      {t("Chưa bỏ phiếu:", "Pending:")} {voteStats.pending.join(", ")}
                     </p>
                   ) : null}
                   {proposal.expires_at ? (
                     <p className="text-[12px] text-ink-muted tabular-nums">
-                      Hạn: {formatDateTime(proposal.expires_at)}
+                      {t("Hạn:", "Deadline:")} {formatDateTime(proposal.expires_at)}
                     </p>
                   ) : null}
                 </div>
@@ -300,13 +341,13 @@ export function ProposalPanel({
                           onVote(proposal.id, "agree"),
                         )
                       }
-                      className={`min-h-10 flex-1 rounded-[8px] border px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-60 ${
+                      className={`min-h-10 flex-1 rounded-[5px] border px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-60 ${
                         proposal.my_vote === "agree"
                           ? "border-primary bg-primary text-on-primary"
                           : "border-hairline bg-surface text-ink hover:bg-canvas-soft"
                       }`}
                     >
-                      Đồng ý
+                      {t("Đồng ý", "Agree")}
                     </button>
                     <button
                       type="button"
@@ -317,13 +358,13 @@ export function ProposalPanel({
                           onVote(proposal.id, "disagree"),
                         )
                       }
-                      className={`min-h-10 flex-1 rounded-[8px] border px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-60 ${
+                      className={`min-h-10 flex-1 rounded-[5px] border px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-60 ${
                         proposal.my_vote === "disagree"
-                          ? "border-ink-secondary bg-ink-secondary text-on-primary"
+                          ? "border-ink-secondary bg-ink-secondary text-white"
                           : "border-hairline bg-surface text-ink hover:bg-canvas-soft"
                       }`}
                     >
-                      Không đồng ý
+                      {t("Không đồng ý", "Disagree")}
                     </button>
                   </div>
                 ) : null}
@@ -335,9 +376,11 @@ export function ProposalPanel({
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleApplyClick(proposal)}
-                      className="min-h-10 rounded-[8px] bg-primary active:bg-primary-active px-3.5 py-1.5 text-[13px] font-medium text-on-primary disabled:opacity-60 transition-colors"
+                      className="min-h-10 rounded-[5px] bg-primary active:bg-primary-active px-3.5 py-1.5 text-[13px] font-semibold text-on-primary disabled:opacity-60 transition-colors"
                     >
-                      {isBusy ? "Đang áp dụng…" : "Áp dụng"}
+                      {isBusy
+                        ? t("Đang áp dụng…", "Applying…")
+                        : t("Áp dụng", "Apply")}
                     </button>
                     <button
                       type="button"
@@ -345,9 +388,9 @@ export function ProposalPanel({
                       onClick={() =>
                         void runAction(proposal.id, () => onClose(proposal.id))
                       }
-                      className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                      className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
                     >
-                      Đóng để tham khảo
+                      {t("Đóng để tham khảo", "Close for reference")}
                     </button>
                     <button
                       type="button"
@@ -357,16 +400,16 @@ export function ProposalPanel({
                           onWithdraw(proposal.id),
                         )
                       }
-                      className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-muted hover:text-accent-orange-deep hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                      className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-muted hover:text-warning hover:bg-canvas-soft disabled:opacity-60 transition-colors"
                     >
-                      Rút đề xuất
+                      {t("Rút đề xuất", "Withdraw")}
                     </button>
                   </div>
                 ) : null}
 
                 {proposal.applied_version ? (
-                  <p className="text-[12px] font-semibold text-primary tabular-nums">
-                    Đã tạo phiên bản v{proposal.applied_version}
+                  <p className="text-[12px] font-semibold text-success tabular-nums">
+                    {t("Đã tạo phiên bản", "Created version")} v{proposal.applied_version}
                   </p>
                 ) : null}
               </article>
@@ -377,14 +420,17 @@ export function ProposalPanel({
 
       <ConfirmDialog
         open={Boolean(confirmTarget)}
-        title="Áp dụng khi chưa đạt đa số?"
+        title={t("Áp dụng khi chưa đạt đa số?", "Apply without majority?")}
         description={
           confirmTarget
-            ? `Đề xuất #${confirmTarget.number} mới có ${confirmTarget.votes.agree}/${confirmTarget.votes.required} phiếu đồng ý cần thiết. Bạn vẫn muốn áp dụng để tạo phiên bản mới chứ?`
+            ? t(
+                `Đề xuất #${confirmTarget.number} mới có ${confirmTarget.votes.agree}/${confirmTarget.votes.required} phiếu đồng ý cần thiết. Bạn vẫn muốn áp dụng để tạo phiên bản mới chứ?`,
+                `Proposal #${confirmTarget.number} currently has ${confirmTarget.votes.agree}/${confirmTarget.votes.required} required votes. Do you still want to apply it as a new version?`,
+              )
             : ""
         }
-        confirmLabel="Áp dụng ngay"
-        cancelLabel="Để nhóm bỏ phiếu thêm"
+        confirmLabel={t("Áp dụng ngay", "Apply anyway")}
+        cancelLabel={t("Để nhóm bỏ phiếu thêm", "Wait for more votes")}
         busy={Boolean(confirmTarget && busyId === confirmTarget.id)}
         onCancel={() => setConfirmTarget(null)}
         onConfirm={() => {
