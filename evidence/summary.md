@@ -7,9 +7,7 @@
 
 | Nguồn | Đạt ngưỡng? | File |
 |---|---|---|
-| Đào data (x/N, %, cách đếm chạy lại được, ≥5 ví dụ) | ☐ *(đang bổ sung để kiểm chéo)* | `evidence/data-mining.md` |
-| Phỏng vấn (≥3 người ngoài nhóm, đúng người dùng) | ☐ *(không dùng chính)* | — |
-| Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☑ *(47 phiếu, 43 đúng người dùng)* | `evidence/survey/questions.md`, `results.csv` |
+| Khảo sát (≥20 người ngoài nhóm, đúng người dùng) | ☑ *(47 phiếu, 43 đúng người dùng)* | `evidence/survey/questions.md`, `evidence/survey/results.csv` |
 
 ## 2. Số chính
 
@@ -17,7 +15,6 @@
   - **Thời gian chuẩn bị:** **26/43 (60,5%)** mất **≥ 1 giờ** để gom ý kiến & chốt lịch (`13/43` mất > 4 giờ, `9/43` mất 2–4 giờ, `4/43` mất 1–2 giờ; `22/43` = `51,2%` mất ≥ 2 giờ).
   - **Vướng mắc lúc chuẩn bị (`n = 43`, chọn nhiều):** **34/43 (79,1%)** gặp ít nhất 1 vướng mắc lớn — thông tin rời rạc trên nhiều nền tảng **22/43 (51,2%)**, ý kiến mỗi người một kiểu / trôi tin nhắn **20/43 (46,5%)**, khó kiểm tra giờ mở cửa / chỗ nhóm đông **14/43 (32,6%)**, khó cân đối ngân sách/ràng buộc **13/43 (30,2%)**, khó sắp xếp tuyến & chồng giờ **12/43 (27,9%)**.
   - **Sự cố khi đi thật (`n = 43`):** **28/43 (65,1%)** gặp sự cố (chỉ `15/43` đi đúng lịch), trong đó **15/43 (34,9%)** đến nơi mới phát hiện **quán đóng cửa / hết bàn / đổi giờ mở cửa** phải tìm chỗ thay gấp; **33/43 (76,7%)** phải sửa lịch ≥1 lần trong chuyến đi.
-- Đào data: *(đang thu thập bổ sung từ review công khai)*
 
 ## 3. ≥5 trích dẫn hoặc ví dụ nguyên văn (có nguồn, bỏ tên)
 
@@ -27,16 +24,7 @@
 4. `"Một người muốn ăn bình dân nhưng không tìm được nên phải vào một quán đắt và người bỏ ăn làm không khí cả nhóm rất nặng nề"` — `S38` (phiếu khảo sát)
 5. `"Mình mất rất nhiều thời gian để tìm kiếm homestay or nhà nghỉ hợp lý để ở trong suốt quá trình đi chơi, lần gần nhất mình phải mất 5 ngày để hỏi hết thông tin giá,hình ảnh phòng của các homestay rồi mới có quyết định cuối"` — `S20` (phiếu khảo sát)
 
-## 4. Các nguồn có khớp nhau không
+## 4. Kết luận
 
-Khảo sát (`n = 43` người dùng du lịch nhóm) đã xác nhận rõ cả 3 nút thắt ban đầu (thông tin rời rạc 51,2%, chat nhóm rối 46,5%, sai giờ mở cửa/hết chỗ khi đi thật 34,9%). *(Sẽ đối chiếu thêm với kết quả đào review công khai trước CP3.)*
-
-## 5. Kết luận
-
-Giả thuyết ở `evidence/hypothesis.md`: **đúng** — vượt ngưỡng ≥50% người trả lời gặp vấn đề (79,1% gặp vướng mắc khi chuẩn bị, 60,5% mất ≥1 giờ chốt lịch, 65,1% gặp sự cố khi đi thật). Điều vẫn cần bổ sung: đào thêm review công khai ở `evidence/data-mining.md` để kiểm chéo.
-
-## Lịch hẹn (dùng cho CP2 — chỉ ghi vai và giờ, không tên)
-
-| Vai | Giờ hẹn | Đã xong? |
-|---|---|---|
-| | | |
+Giả thuyết ở `evidence/hypothesis.md`: **đúng** — vượt ngưỡng ≥50% người trả lời gặp vấn đề (79,1% gặp vướng mắc khi chuẩn bị, 60,5% mất ≥1 giờ chốt lịch, 65,1% gặp sự cố khi đi thật), xác nhận rõ cả 3 nút thắt ban đầu (thông tin rời rạc 51,2%, chat nhóm rối 46,5%, sai giờ mở cửa/hết chỗ khi đi thật 34,9%).
+Nhóm sử dụng **1 nguồn chính là Khảo sát** (`47` phiếu, `43` đúng người dùng) đã đạt ngưỡng R1.

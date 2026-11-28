@@ -111,7 +111,7 @@ flowchart TD
 - Bị đòi ngoài phạm vi (lớp 3): từ chối lịch sự và nêu rõ giới hạn chỉ lập bản nháp · Trường hợp đặc thù lĩnh vực (lớp 4): báo rõ không xếp được nếu không thoả giờ mở cửa/ngân sách và gợi ý hướng nới ràng buộc.
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
-- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 12 câu ở CP2 (thuong 5 · kho 5 · tu_choi 2; sẽ mở rộng lên 20–30 câu trước CP3) · metric: `eval/metric_spec.yaml` (4 metric)
+- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 24 câu ở CP3 (thuong 11 · kho 9 · tu_choi 4) · metric: `eval/metric_spec.yaml` (4 metric)
 - **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
 - Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
