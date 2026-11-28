@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Partaway &amp; Roa — Luồng Hệ Thống, Tầm Nhìn &amp; Chi Phí (Spiritup)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&family=Caveat:wght@600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --terracotta: #C67A4B;
+      --terracotta-dark: #A65E33;
+      --sand: #D4B896;
+      --sand-light: #EFE2CE;
+      --teal: #1A6B6A;
+      --teal-soft: rgba(26, 107, 106, 0.10);
+      --cream: #FFF5E1;
+      --cream-paper: #FDF8EE;
+      --burnt: #CC5500;
+      --mauve: #B08B8B;
+      --olive: #6B7B3A;
+      --ink: #2A2421;
+      --ink-muted: #5E534C;
+      --border: rgba(198, 122, 75, 0.28);
+      --font-serif: 'Lora', Georgia, serif;
+      --font-sans: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-accent: 'Caveat', cursive;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #211C19;
+      color: var(--ink);
+      font-family: var(--font-sans);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .deck-viewport {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 16px;
+    }
+
+    .slide {
+      width: 1280px;
+      height: 720px;
+      background-color: var(--cream-paper);
+      background-image:
+        radial-gradient(circle at 92% 8%, rgba(198, 122, 75, 0.11) 0%, transparent 40%),
+        radial-gradient(circle at 6% 94%, rgba(26, 107, 106, 0.09) 0%, transparent 38%);
+      border-radius: 8px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      position: relative;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      padding: 42px 54px 34px;
+      transform-origin: center center;
+    }
+
+    .slide.active { display: flex; }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, var(--terracotta) 0%, var(--burnt) 35%, var(--teal) 70%, var(--olive) 100%);
+    }
+
+    .slide-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1.5px dashed var(--sand);
+    }
+
+    .kicker {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .slide-title {
+      font-family: var(--font-serif);
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--ink);
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .slide-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 5px;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      color: var(--ink-muted);
+      white-space: nowrap;
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 0;
+    }
+
+    .slide-footer {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(212, 184, 150, 0.55);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--ink-muted);
+      font-family: var(--font-mono);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 18px 20px;
+      box-shadow: 0 2px 12px rgba(42, 36, 33, 0.04);
+    }
+
+    .card-cream {
+      background: var(--cream);
+      border: 1px solid var(--sand);
+      border-radius: 6px;
+      padding: 16px 20px;
+    }
+
+    .card-teal {
+      background: var(--teal-soft);
+      border: 1px solid rgba(26, 107, 106, 0.30);
+      border-radius: 6px;
+      padding: 16px 20px;
+    }
+
+    .card-title {
+      font-family: var(--font-serif);
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--ink);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+    }
+
+    .pill-teal { background: rgba(26, 107, 106, 0.14); color: var(--teal); }
+    .pill-terracotta { background: rgba(198, 122, 75, 0.18); color: var(--terracotta-dark); }
+    .pill-burnt { background: rgba(204, 85, 0, 0.14); color: var(--burnt); }
+    .pill-olive { background: rgba(107, 123, 58, 0.16); color: var(--olive); }
+    .pill-muted { background: var(--sand-light); color: var(--ink-muted); }
+
+    ul.clean-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    ul.clean-list li {
+      position: relative;
+      padding-left: 18px;
+      font-size: 13.8px;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+
+    ul.clean-list li::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 7px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--terracotta);
+    }
+
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.88em;
+      background: var(--sand-light);
+      padding: 1px 5px;
+      border-radius: 4px;
+      color: var(--ink);
+    }
+
+    /* Workflow Nodes */
+    .flow-strip {
+      display: flex;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .flow-node {
+      flex: 1;
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .flow-node.highlight {
+      background: var(--teal-soft);
+      border-color: var(--teal);
+    }
+
+    .flow-node.warn {
+      background: rgba(204, 85, 0, 0.07);
+      border-color: var(--burnt);
+    }
+
+    .flow-step {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--terracotta-dark);
+      margin-bottom: 5px;
+    }
+
+    .flow-node.highlight .flow-step { color: var(--teal); }
+    .flow-node.warn .flow-step { color: var(--burnt); }
+
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--terracotta);
+      font-weight: 700;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    /* Branch box */
+    .branch-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      background: #FFFFFF;
+      border: 1px dashed var(--burnt);
+      font-size: 12px;
+      color: var(--ink);
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13.5px;
+      background: #FFFFFF;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    th {
+      background: var(--cream);
+      color: var(--ink);
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1.5px solid var(--sand);
+      font-size: 12.5px;
+    }
+
+    td {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(212, 184, 150, 0.45);
+      vertical-align: top;
+      line-height: 1.4;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr.row-highlight { background: rgba(26, 107, 106, 0.06); }
+
+    /* Controls Bar */
+    .controls-bar {
+      position: fixed;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(42, 36, 33, 0.90);
+      backdrop-filter: blur(8px);
+      color: var(--cream);
+      padding: 8px 16px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 500;
+      border: 1px solid rgba(212, 184, 150, 0.25);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .ctrl-btn {
+      background: transparent;
+      border: 1px solid rgba(212, 184, 150, 0.35);
+      color: var(--cream);
+      padding: 5px 10px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      transition: background 150ms ease;
+    }
+
+    .ctrl-btn:hover { background: rgba(198, 122, 75, 0.35); }
+
+    .progress-track {
+      width: 120px;
+      height: 5px;
+      background: rgba(255, 245, 225, 0.2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--terracotta);
+      transition: width 220ms ease;
+    }
+
+    .overview-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(33, 28, 25, 0.94);
+      z-index: 600;
+      display: none;
+      padding: 36px;
+      overflow-y: auto;
+    }
+    .overview-overlay.open { display: block; }
+    .overview-grid {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .overview-card {
+      background: var(--cream-paper);
+      border: 2px solid var(--sand);
+      border-radius: 6px;
+      padding: 18px;
+      cursor: pointer;
+    }
+    .overview-card.current {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(26, 107, 106, 0.25);
+    }
+
+    @page { size: 1280px 720px; margin: 0; }
+    @media print {
+      html, body { background: none; overflow: visible; height: auto; }
+      .controls-bar, .overview-overlay { display: none !important; }
+      .deck-viewport { display: block; width: auto; height: auto; padding: 0; }
+      .slide {
+        display: flex !important;
+        transform: none !important;
+        box-shadow: none;
+        border-radius: 0;
+        page-break-after: always;
+        break-after: page;
+        margin: 0;
+      }
+      .slide:last-child { page-break-after: auto; break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="deck-viewport">
+
+  <!-- SLIDE 1: WORKFLOW CỦA LEADER -->
+  <section class="slide active" data-title="1. Luồng xử lý của Leader">
+    <div class="slide-header">
+      <div>
+        <div class="kicker">SLIDE 1 · LUỒNG NGƯỜI DÙNG — VAI TRÒ NHÓM TRƯỞNG (LEADER)</div>
+        <h2 class="slide-title">Luồng khởi tạo &amp; lưu lịch trình của Leader cùng Roa</h2>
+      </div>
+      <div class="slide-badge">Role: Leader (Nhóm trưởng)</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="flow-strip" style="flex: 1; align-items: stretch;">
+        <!-- Step 1 -->
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">BƯỚC 1 · NHẬP LIỆU</div>
+            <div class="card-title" style="font-size: 16px;">Điền Form yêu cầu</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Leader nhập thông tin chuyến đi vào biểu mẫu:
+            </p>
+            <ul class="clean-list" style="margin-top: 8px;">
+              <li>Điểm đến (thành phố VN)</li>
+              <li>Số ngày &amp; khung giờ đi</li>
+              <li>Số lượng thành viên</li>
+              <li>Ngân sách / người</li>
+              <li>Sở thích &amp; ràng buộc (ăn chay...)</li>
+            </ul>
+          </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Frontend Form</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- Step 2 -->
+        <div class="flow-node warn">
+          <div>
+            <div class="flow-step">BƯỚC 2 · ROA KIỂM TRA</div>
+            <div class="card-title" style="font-size: 16px;">Kiểm tra trường bắt buộc</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              <strong>Roa</strong> kiểm tra form xem đã đủ các trường bắt buộc hay chưa.
+            </p>
+            <div class="branch-box">
+              <strong>Nếu thiếu thông tin:</strong><br>
+              Roa dừng tạo lịch và <strong>hỏi lại trực tiếp Leader</strong> đúng phần còn thiếu (không tự đoán bừa).
+            </div>
+          </div>
+          <span class="pill pill-burnt" style="margin-top: 10px; align-self: flex-start;">Validation Gate</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- Step 3 -->
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">BƯỚC 3 · XÁC NHẬN</div>
+            <div class="card-title" style="font-size: 16px;">Leader xác nhận (Confirm)</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Khi form hợp lệ, Roa sinh bản nháp lịch trình kèm giờ mở cửa, tuyến đi và tổng tiền ước tính.
+            </p>
+            <p style="font-size: 13px; color: var(--ink); margin-top: 8px; line-height: 1.45;">
+              <strong>Leader rà soát &amp; bấm Confirm</strong> để chốt bản chính thức <code>v1</code>.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Human-in-the-loop</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- Step 4 -->
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">BƯỚC 4 · LƯU TRỮ</div>
+            <div class="card-title" style="font-size: 16px;">Lưu vào Database</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Hệ thống lưu chuyến đi vào PostgreSQL với phiên bản bất biến (<code>plan_versions</code>):
+            </p>
+            <ul class="clean-list" style="margin-top: 8px;">
+              <li>Sinh <code>plan_id</code></li>
+              <li>Sinh <code>plan_secret_key</code> để chia sẻ cho Member</li>
+            </ul>
+          </div>
+          <span class="pill pill-olive" style="margin-top: 10px; align-self: flex-start;">Store to DB</span>
+        </div>
+      </div>
+
+      <div class="card-cream" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px;">
+        <div style="font-size: 13.8px;">
+          <strong style="color: var(--terracotta-dark);">Điểm chốt kiến trúc:</strong> Roa chỉ tạo bản nháp và kiểm tra điều kiện đầu vào; mọi thao tác ghi chính thức vào Database đều phải qua bước <strong>Confirm</strong> của Leader.
+        </div>
+        <span class="pill pill-terracotta">Input → Check → Confirm → DB</span>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>Partaway &amp; Roa · Luồng khởi tạo chuyến đi</span>
+      <span>Slide 1 / 4</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 2: WORKFLOW CỦA MEMBER (KHÔNG CẦN ĐĂNG NHẬP) -->
+  <section class="slide" data-title="2. Luồng xử lý của Member (Không cần đăng nhập)">
+    <div class="slide-header">
+      <div>
+        <div class="kicker">SLIDE 2 · LUỒNG NGƯỜI DÙNG — VAI TRÒ THÀNH VIÊN (MEMBER)</div>
+        <h2 class="slide-title">Thành viên tham gia không cần đăng nhập: Góp ý, Upvote &amp; Hỏi Roa</h2>
+      </div>
+      <div class="slide-badge">No Auth · Truy cập bằng plan_id + secret_key</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="flow-strip" style="align-items: stretch;">
+        <!-- 1. Access -->
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">1. TRUY CẬP KHÔNG CẦN AUTH</div>
+            <div class="card-title" style="font-size: 15.5px;">Mở Plan bằng mã</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Member không cần tạo tài khoản, chỉ cần nhập:
+            </p>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">
+              <code>plan_id</code>
+              <code>plan_secret_key</code>
+            </div>
+          </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Frictionless Join</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- 2. View & Structured Comment -->
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">2. GÓP Ý CÓ CẤU TRÚC</div>
+            <div class="card-title" style="font-size: 15.5px;">Xem &amp; Đề xuất hoạt động</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Xem lịch trình hiện tại và thêm <strong>comment có cấu trúc</strong> (chọn khung giờ/ngày, địa điểm gợi ý, lý do) để đề xuất hoạt động thay thế.
+            </p>
+          </div>
+          <span class="pill pill-terracotta" style="margin-top: 10px; align-self: flex-start;">Structured Comment</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- 3. Upvote -->
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">3. BỎ PHIẾU TÍN NHIỆM</div>
+            <div class="card-title" style="font-size: 15.5px;">Upvote đề xuất</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Cả nhóm cùng <strong>Upvote</strong> các comment đề xuất hay nhất để thể hiện mức độ đồng thuận của nhóm.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Group Voting</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <!-- 4. Leader Picks -->
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">4. LEADER CHỌN THAY THẾ</div>
+            <div class="card-title" style="font-size: 15.5px;">Thay vào cùng khung giờ</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              <strong>Leader</strong> xem đề xuất có nhiều Upvote nhất và bấm chọn để <strong>thay thế hoạt động ở đúng khung giờ tương ứng</strong> trong timeline.
+            </p>
+          </div>
+          <span class="pill pill-olive" style="margin-top: 10px; align-self: flex-start;">Update Timeline</span>
+        </div>
+      </div>
+
+      <!-- Separate Horizontal Capability: Ask Roa -->
+      <div class="grid-2">
+        <div class="card-teal">
+          <div class="card-title" style="color: var(--teal); margin-bottom: 6px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A6B6A" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Member hỏi Roa về Plan hiện tại (Chỉ đọc)
+          </div>
+          <p style="font-size: 13.5px; line-height: 1.5; color: var(--ink);">
+            Bất kỳ thành viên nào cũng có thể hỏi trực tiếp <strong>Roa</strong> về thông tin trong lịch trình hiện tại (giờ mở cửa, chi phí dự kiến, khoảng cách di chuyển, món chay...) trong hội thoại chung cả nhóm mà không làm thay đổi dữ liệu gốc.
+          </p>
+        </div>
+
+        <div class="card-cream">
+          <div class="card-title" style="margin-bottom: 6px;">Lợi ích của thiết kế không cần đăng nhập</div>
+          <ul class="clean-list">
+            <li><strong>Giảm rào cản tham gia:</strong> Nhóm đông 5–20 người vào xem &amp; vote ngay qua link kèm <code>plan_id</code> + <code>plan_secret_key</code>.</li>
+            <li><strong>Tránh trôi tin nhắn:</strong> Góp ý gắn trực tiếp vào từng khung giờ thay vì tranh luận rời rạc trên Messenger/Zalo.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>Partaway &amp; Roa · Luồng cộng tác của Thành viên</span>
+      <span>Slide 2 / 4</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 3: PRODUCT VISION -->
+  <section class="slide" data-title="3. Tầm nhìn sản phẩm (Product Vision)">
+    <div class="slide-header">
+      <div>
+        <div class="kicker">SLIDE 3 · TẦM NHÌN SẢN PHẨM (PRODUCT VISION)</div>
+        <h2 class="slide-title">AI Agent tự động săn xu hướng 6 tháng gần nhất từ TikTok &amp; Facebook</h2>
+      </div>
+      <div class="slide-badge">Key: Real-time Trend Crawling</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="flow-strip" style="align-items: stretch;">
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">1. KHỞI TẠO YÊU CẦU</div>
+            <div class="card-title" style="font-size: 15.5px;">AI Agent lập Plan</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Nhận yêu cầu chuyến đi (điểm đến, ngân sách, gu ăn chơi, số người) làm tiêu chí lọc đầu vào.
+            </p>
+          </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Agent Orchestrator</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">2. GỌI TOOL BẢN ĐỒ</div>
+            <div class="card-title" style="font-size: 15.5px;">Tìm Places nền tảng</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Gọi công cụ bản đồ để lấy danh sách địa điểm thực tế: <strong>nhà hàng, khách sạn, quán cafe, điểm tham quan</strong> kèm toạ độ &amp; giờ mở cửa.
+            </p>
+          </div>
+          <span class="pill pill-terracotta" style="margin-top: 10px; align-self: flex-start;">Places Tool</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node warn">
+          <div>
+            <div class="flow-step">3. ĐIỂM NHẤN CỐT LÕI</div>
+            <div class="card-title" style="font-size: 15.5px;">Crawl TikTok / Facebook</div>
+            <p style="font-size: 13px; color: var(--ink); line-height: 1.45;">
+              Dựa trên danh sách Places vừa tìm, hệ thống <strong>crawl dữ liệu review từ TikTok &amp; Facebook trong vòng 6 tháng gần nhất</strong> để nắm bắt độ hot, chất lượng thực tế và tình trạng đóng/mở mới nhất.
+            </p>
+          </div>
+          <span class="pill pill-burnt" style="margin-top: 10px; align-self: flex-start;">6-Month Fresh Data</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">4. XẾP HẠNG &amp; CHỐT LỊCH</div>
+            <div class="card-title" style="font-size: 15.5px;">Ranking khớp yêu cầu</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Chấm điểm &amp; <strong>Ranking</strong> những địa điểm phù hợp nhất với ngân sách, sở thích và độ hot 6 tháng gần nhất để đưa vào lịch trình.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Trend-Aware Ranking</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-cream" style="border-left: 4px solid var(--burnt);">
+          <div class="card-title" style="color: var(--burnt); margin-bottom: 6px;">Tại sao Crawl dữ liệu 6 tháng là chìa khoá?</div>
+          <ul class="clean-list">
+            <li><strong>Quán ăn/cafe thay đổi rất nhanh:</strong> Review trên Google Maps thường cũ hoặc ít phản ánh trend; TikTok/Facebook phản ánh ngay quán nào đang thực sự đông, ngon hay đã xuống cấp/đóng cửa.</li>
+            <li><strong>Khớp gu giới trẻ đi nhóm:</strong> Tự động gom tín hiệu mạng xã hội thay cho việc cả nhóm phải tự lướt hàng giờ.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom: 6px;">Lộ trình nâng cấp từ MVP hiện tại</div>
+          <ul class="clean-list">
+            <li><strong>Hiện tại (MVP):</strong> Dùng kho 66 địa điểm sạch + 12 quán hot TikTok thu trước để đảm bảo tốc độ và độ ổn định.</li>
+            <li><strong>Tầm nhìn (Product Vision):</strong> Tự động hoá pipeline crawl &amp; cập nhật định kỳ 6 tháng trượt từ TikTok/Facebook theo từng cụm địa điểm tìm được.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>Partaway &amp; Roa · Tầm nhìn dữ liệu xu hướng thời gian thực</span>
+      <span>Slide 3 / 4</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 4: COST -->
+  <section class="slide" data-title="4. Chi phí vận hành (Cost)">
+    <div class="slide-header">
+      <div>
+        <div class="kicker">SLIDE 4 · CHI PHÍ VẬN HÀNH KHI DÙNG THẬT (COST ESTIMATE)</div>
+        <h2 class="slide-title">Chi phí AI rất thấp (~$0,0046 / phiên) — Khả thi để mở rộng quy mô</h2>
+      </div>
+      <div class="slide-badge">simulate --try: 10/10 phiên (0 lỗi)</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">Số đo Token thực tế (<code>simulate --try</code>)</div>
+          <ul class="clean-list">
+            <li><strong>Mẫu đo:</strong> <code>10/10</code> phiên chạy thành công (<code>0/10</code> lỗi API) trên model <code>openai/gpt-4o-mini</code>.</li>
+            <li><strong>Lượng token trung bình (<code>dung_it</code>):</strong> <code>5.791</code> input tokens và <code>300</code> output tokens mỗi phiên lập lịch.</li>
+            <li><strong>Tỉ lệ đạt tham chiếu:</strong> <code>11/24 (45,8%)</code> ở lượt <code>run-2</code> (tính chi phí/task thành công dựa trên tỉ lệ thực tế, không giả định 100%).</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Quy mô người dùng mục tiêu (<code>cost/personas.yaml</code>)</div>
+          <div class="grid-3" style="gap: 10px; margin-top: 6px;">
+            <div style="background: var(--cream); padding: 12px; border-radius: 5px; text-align: center;">
+              <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">KỊCH BẢN THẤP</div>
+              <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 700; color: var(--ink); margin-top: 4px;">300</div>
+              <div style="font-size: 11.5px; color: var(--ink-muted);">người dùng</div>
+            </div>
+            <div style="background: var(--teal-soft); border: 1px solid var(--teal); padding: 12px; border-radius: 5px; text-align: center;">
+              <div style="font-family: var(--font-mono); font-size: 11px; color: var(--teal); font-weight: 700;">CƠ SỞ</div>
+              <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 700; color: var(--teal); margin-top: 4px;">700</div>
+              <div style="font-size: 11.5px; color: var(--ink-muted);">người dùng</div>
+            </div>
+            <div style="background: var(--cream); padding: 12px; border-radius: 5px; text-align: center;">
+              <div style="font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);">KỊCH BẢN CAO</div>
+              <div style="font-family: var(--font-serif); font-size: 24px; font-weight: 700; color: var(--ink); margin-top: 4px;">1.000</div>
+              <div style="font-size: 11.5px; color: var(--ink-muted);">người dùng</div>
+            </div>
+          </div>
+          <div style="font-size: 12px; color: var(--ink-muted); margin-top: 10px;">
+            *Đang chờ nạp credit để chạy đủ ≥50 phiên mô phỏng đồng bộ cùng lượt <code>eval/run-4.csv</code>.*
+          </div>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Model tham chiếu (<code>cost/personas.yaml</code>)</th>
+            <th>Đơn giá / 1M token (Input / Output)</th>
+            <th>Chi phí / 1 phiên</th>
+            <th>Chi phí / task thành công (chia 45,8%)</th>
+            <th>Chi phí nếu đạt chuẩn ≥ 80%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row-highlight">
+            <td><strong>gemini-3.1-flash-lite</strong> <span class="pill pill-teal">Khuyến nghị</span></td>
+            <td>$0,25 / $1,50</td>
+            <td><strong>$0,0046</strong> (~115đ)</td>
+            <td><strong>~$0,0100</strong> (~250đ)</td>
+            <td><strong>~$0,0058</strong> (~145đ)</td>
+          </tr>
+          <tr>
+            <td><strong>gemini-4-hydrogen</strong></td>
+            <td>$1,50 / $7,50</td>
+            <td><strong>$0,0266</strong> (~665đ)</td>
+            <td><strong>~$0,0580</strong> (~1.450đ)</td>
+            <td><strong>~$0,0333</strong> (~830đ)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="card-teal" style="padding: 14px 20px;">
+        <strong style="color: var(--teal);">Hiệu quả kinh tế so với Impact:</strong>
+        Mỗi chuyến đi tiết kiệm cho nhóm trưởng <strong>60–120 phút</strong> gom lịch &amp; kiểm tra quán (<strong>~30 phút/người/tháng</strong>) với chi phí AI chỉ khoảng <strong>0,5–1 cent / lần lập lịch</strong> trên model nhẹ → <strong>rất đáng đầu tư</strong>.
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>Nguồn: docs/cp3-toan-summary.md · cost/personas.yaml · cost/cost-estimate.md</span>
+      <span>Slide 4 / 4</span>
+    </div>
+  </section>
+
+</div>
+
+<!-- Navigation Controls -->
+<div class="controls-bar">
+  <button class="ctrl-btn" id="btnPrev" title="Trang trước (←)">← Trước</button>
+  <span id="slideCounter">1 / 4</span>
+  <div class="progress-track"><div class="progress-fill" id="progressFill" style="width: 25%;"></div></div>
+  <button class="ctrl-btn" id="btnNext" title="Trang sau (→ / Space)">Sau →</button>
+  <button class="ctrl-btn" id="btnOverview" title="Xem toàn bộ (G)">Lưới (G)</button>
+  <button class="ctrl-btn" id="btnPrint" title="Xuất PDF (P)">Xuất PDF</button>
+</div>
+
+<!-- Overview Modal -->
+<div class="overview-overlay" id="overviewOverlay">
+  <div style="max-width: 1000px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; color: var(--cream);">
+    <h2 style="font-family: var(--font-serif); font-size: 22px;">Tổng quan 4 Slide — Luồng Hệ Thống, Tầm Nhìn &amp; Chi Phí</h2>
+    <button class="ctrl-btn" id="btnCloseOverview">Đóng (Esc)</button>
+  </div>
+  <div class="overview-grid" id="overviewGrid"></div>
+</div>
+
+<script>
+  (function () {
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const total = slides.length;
+    let current = 0;
+
+    const counterEl = document.getElementById('slideCounter');
+    const progressEl = document.getElementById('progressFill');
+    const overviewEl = document.getElementById('overviewOverlay');
+    const overviewGridEl = document.getElementById('overviewGrid');
+
+    function fitSlide() {
+      const vw = window.innerWidth - 32;
+      const vh = window.innerHeight - 72;
+      const scale = Math.min(vw / 1280, vh / 720, 1);
+      slides.forEach((s) => {
+        s.style.transform = `scale(${scale})`;
+      });
+    }
+
+    function showSlide(index) {
+      current = Math.max(0, Math.min(total - 1, index));
+      slides.forEach((s, i) => s.classList.toggle('active', i === current));
+      counterEl.textContent = `${current + 1} / ${total}`;
+      progressEl.style.width = `${((current + 1) / total) * 100}%`;
+      renderOverview();
+    }
+
+    function renderOverview() {
+      overviewGridEl.innerHTML = '';
+      slides.forEach((s, i) => {
+        const card = document.createElement('div');
+        card.className = 'overview-card' + (i === current ? ' current' : '');
+        const title = s.getAttribute('data-title') || `Slide ${i + 1}`;
+        card.innerHTML = `
+          <div style="font-family:var(--font-mono); font-size:11px; color:var(--teal); font-weight:700;">SLIDE ${i + 1}</div>
+          <div style="font-family:var(--font-serif); font-size:16px; font-weight:700; margin-top:6px; color:var(--ink);">${title}</div>
+        `;
+        card.addEventListener('click', () => {
+          showSlide(i);
+          overviewEl.classList.remove('open');
+        });
+        overviewGridEl.appendChild(card);
+      });
+    }
+
+    document.getElementById('btnPrev').addEventListener('click', () => showSlide(current - 1));
+    document.getElementById('btnNext').addEventListener('click', () => showSlide(current + 1));
+    document.getElementById('btnOverview').addEventListener('click', () => overviewEl.classList.toggle('open'));
+    document.getElementById('btnCloseOverview').addEventListener('click', () => overviewEl.classList.remove('open'));
+    document.getElementById('btnPrint').addEventListener('click', () => window.print());
+
+    document.addEventListener('keydown', (e) => {
+      if (overviewEl.classList.contains('open')) {
+        if (e.key === 'Escape' || e.key.toLowerCase() === 'g') {
+          overviewEl.classList.remove('open');
+        }
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        showSlide(current + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        showSlide(current - 1);
+      } else if (e.key.toLowerCase() === 'g') {
+        overviewEl.classList.add('open');
+      } else if (e.key.toLowerCase() === 'p') {
+        window.print();
+      }
+    });
+
+    window.addEventListener('resize', fitSlide);
+    fitSlide();
+    showSlide(0);
+  })();
+</script>
+</body>
+</html>

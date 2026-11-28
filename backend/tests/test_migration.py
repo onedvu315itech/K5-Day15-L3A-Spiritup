@@ -7,7 +7,8 @@ from sqlalchemy import create_engine, inspect
 
 BACKEND = Path(__file__).resolve().parents[1]
 TABLES = {"city_stores", "places", "places_cache", "trending_spots", "trips", "trip_members", "plan_versions",
-          "proposals", "votes", "suggestions", "agent_runs", "chat_messages", "trip_events"}
+          "proposals", "votes", "suggestions", "agent_runs", "chat_messages", "trip_events",
+          "users", "auth_refresh_tokens"}
 
 
 def test_upgrade_and_downgrade(tmp_path):

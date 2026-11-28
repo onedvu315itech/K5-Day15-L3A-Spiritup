@@ -300,3 +300,26 @@ class TrendingSpot(Base):
     engagement = mapped_column(JSONType)
     summary: Mapped[str | None] = mapped_column(Text)
     collected_at = mapped_column(Date)
+
+
+class User(Base):
+    """2.14 — tài khoản đăng nhập bằng email và mật khẩu (seed từ EMAIL/PASSWORD trong .env)."""
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    display_name: Mapped[str | None] = mapped_column(Text)
+    created_at = mapped_column(UTCDateTime, nullable=False, default=utcnow)
+
+
+class AuthRefreshToken(Base):
+    """2.15 — phiên refresh_token lưu băm SHA-256 cho cơ chế cookie auth."""
+    __tablename__ = "auth_refresh_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    expires_at = mapped_column(UTCDateTime, nullable=False)
+    revoked_at = mapped_column(UTCDateTime)
+    created_at = mapped_column(UTCDateTime, nullable=False, default=utcnow)

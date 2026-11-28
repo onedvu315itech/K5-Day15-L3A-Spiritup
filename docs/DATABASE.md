@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.4 |
+| Phiên bản | 0.5 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Toàn (agent, cho mục 3), Phúc (frontend, cho mục 3) |
@@ -44,6 +44,8 @@ erDiagram
 | `trending_spots` | Seed dữ liệu | Kho quán hot thu trước |
 | `city_stores` | `place_service` | Trạng thái kho địa điểm của từng thành phố: đang thu, sẵn sàng, lỗi, hạn |
 | `places` | `place_service` | Kho địa điểm đã lọc, mỗi dòng có nguồn; `agent_service` đọc qua `place_service` để truyền cho Roa |
+| `users` | `auth_service` | Tài khoản đăng nhập email + mật khẩu (seed từ `EMAIL`/`PASSWORD` trong `.env`) |
+| `auth_refresh_tokens` | `auth_service` | Phiên `refresh_token` lưu băm SHA-256 cho cookie `HttpOnly` |
 
 Service khác không query thẳng bảng không thuộc mình; gọi qua service sở hữu (R-12).
 
@@ -238,6 +240,27 @@ Chỉ mục: unique `(city_slug, ref)`; `(city_slug, category, rank)`; `(city_sl
 
 Thu lại một thành phố thì thay toàn bộ dòng `places` của thành phố đó trong một transaction (xoá rồi chèn), `ref` giữ ổn định nên plan cũ vẫn trỏ đúng. Dữ liệu OSM theo ODbL: frontend hiện dòng ghi nguồn khi hiện địa điểm (`data/DATA_CARD.md`).
 
+### 2.14 `users`
+
+| Cột | Kiểu | Ràng buộc | Ghi chú |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `email` | text | unique, not null | Chuẩn hoá chữ thường |
+| `password_hash` | text | not null | `pbkdf2_sha256$<iterations>$<salt>$<digest>` |
+| `display_name` | text | null | Mặc định lấy phần trước `@` khi seed từ `.env` |
+| `created_at` | timestamptz | not null | |
+
+### 2.15 `auth_refresh_tokens`
+
+| Cột | Kiểu | Ràng buộc | Ghi chú |
+|---|---|---|---|
+| `id` | uuid | PK | |
+| `user_id` | uuid | FK `users` (`ON DELETE CASCADE`), not null | Có index |
+| `token_hash` | text | unique, not null | SHA-256 của cookie `refresh_token` |
+| `expires_at` | timestamptz | not null | Hạn phiên làm mới |
+| `revoked_at` | timestamptz | null | Đặt khi đăng xuất hoặc xoay vòng token |
+| `created_at` | timestamptz | not null | |
+
 ## 3. Plan JSON và thao tác
 
 Contract dùng chung giữa frontend, backend và Roa. Đổi cấu trúc là thay đổi loại L3 (`docs/CHANGE-MANAGEMENT.md`).
@@ -385,3 +408,4 @@ Geoapify trả hàng trăm nơi mỗi thành phố (Đà Lạt: 605 nơi đủ t
 | 0.2 | 2026-11-27 | Khương | `expires_at` cho phép null; `close_reason` thay `not_enough_votes` bằng `leader_closed`; thêm `votes_at_decision`, sự kiện `proposal_applied`; v1 là bản nháp đã duyệt; hội thoại chung | ADR 0004, OQ-14 |
 | 0.3 | 2026-11-28 | Khương | Thêm `city_stores`, `places` (kho địa điểm theo thành phố, có `geo_category`, `geo_categories` từ Geoapify, cờ chưa xác minh); `trips.city_slug`, `generation_status` thêm `collecting_data`; `places_cache` thêm `geocode`, đổi chủ sang `place_service`; sự kiện `store_ready`, `store_failed`; plan item thêm `hours_unverified`, `price_unverified`; mục 5 vòng đời (làm mới kho quá hạn giữ `ready`) và cách chọn nơi vào kho; migration Alembic `0001` tạo 13 bảng | OQ-22 |
 | 0.4 | 2026-11-28 | Khương | `places.category` thêm `lodging`, thêm `price_min_vnd`, `price_max_vnd`, `price_source_url` (migration `0002`); mục 5.2 thêm chỗ ở và tra giá Tavily lúc thu kho; `proposals.author_id` là thành viên bất kỳ, `expires_at` mặc định 48 giờ | CR-001 (chờ duyệt), OQ-22 |
+| 0.5 | 2026-11-28 | AI | Thêm bảng `users` và `auth_refresh_tokens` (migration `0003`) cho đăng nhập bằng email/mật khẩu và cookie `HttpOnly` (`access_token` + `refresh_token`) | `docs/API_SPEC.md` v0.5 |

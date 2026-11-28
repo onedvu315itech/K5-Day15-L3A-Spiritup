@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.4 |
+| Phiên bản | 0.5 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Phúc (frontend), Toàn (agent, cho các endpoint gọi Roa) |
@@ -407,11 +407,31 @@ Frontend gọi mỗi 5 giây khi tab đang mở (OQ-10). `since` là `id` sự k
 
 Tối đa 100 sự kiện mỗi lần. Frontend dựa vào `type` để tải lại phần cần (plan, đề xuất, góp ý, chat). `store_ready` (`payload: {"city_slug", "place_count"}`) và `store_failed` (`payload: {"city_slug", "error"}`) báo đợt thu kho xong, khi đó gọi lại `GET /trips/{id}`. Kiểu sự kiện: `docs/DATABASE.md` mục 2.8. Sự kiện góp ý chỉ trả cho nhóm trưởng và người gửi.
 
-## 8. Hệ thống
+## 8. Hệ thống & Xác thực tài khoản
 
 ### `GET /health`
 
-`200 {"status": "ok", "db": "ok", "version": "0.1.0"}`. Dùng cho health check của Render và để đánh thức backend trước buổi demo.
+`200 {"status": "ok", "db": "ok"}`. Dùng cho health check của Render và để đánh thức backend trước buổi demo.
+
+### `POST /api/auth/login` — đăng nhập bằng email và mật khẩu
+
+`{"email": "demo@partaway.vn", "password": "…", "remember_me": true}` → `200 {"user": {"id": "…", "email": "…", "display_name": "…", "created_at": "…"}}`.
+- Đặt hai cookie `HttpOnly` (`Path=/`, `SameSite=lax`): `access_token` (ký HMAC-SHA256, ngắn hạn) và `refresh_token` (lưu băm SHA-256 trong `auth_refresh_tokens`).
+- Nếu biến môi trường `EMAIL` và `PASSWORD` được cấu hình, backend tự đồng bộ tài khoản vào bảng `users`. Sai thông tin → `401 invalid_credentials`.
+
+### `GET /api/auth/me` — lấy thông tin tài khoản hiện tại từ cookie
+
+Đọc cookie `access_token` (nếu hết hạn hoặc thiếu nhưng `refresh_token` còn hiệu lực trong DB thì tự động cấp lại cookie `access_token` mới).
+- `200 {"user": {"id": "…", "email": "…", "display_name": "…", "created_at": "…"}}`.
+- Chưa đăng nhập hoặc hết hạn cả hai cookie → `401 unauthorized`.
+
+### `POST /api/auth/refresh` — xoay vòng phiên cookie
+
+Đọc cookie `refresh_token`, thu hồi dòng cũ (`revoked_at`) và phát hành cặp cookie `access_token` + `refresh_token` mới → `200 {"user": {…}}`. Không hợp lệ → `401 unauthorized`.
+
+### `POST /api/auth/logout` — đăng xuất
+
+Thu hồi `refresh_token` trong DB (nếu có) và xoá cả hai cookie `access_token`, `refresh_token` → `200 {"ok": true}`.
 
 ## Lịch sử thay đổi
 
@@ -421,3 +441,4 @@ Tối đa 100 sự kiện mỗi lần. Frontend dựa vào `type` để tải l�
 | 0.2 | 2026-11-27 | Khương | `generate` trả bản nháp hoặc `infeasible`; thêm `POST /plan` (duyệt v1), `POST /proposals/{id}/apply`, `/close`; bỏ phiếu không còn `outcome`; `expires_at` tuỳ chọn; chốt OQ-06, 14, 17 | ADR 0004, OQ-19 |
 | 0.3 | 2026-11-28 | Khương | `POST /trips` bắt đầu đợt thu kho khi thành phố chưa có kho (`collecting_data`), trả `store`; thêm `GET /cities/{slug}/store`, `GET /cities/{slug}/places` (có `geo_category`), `POST /trips/{id}/store/retry` (hai endpoint `/cities` không cần token); `generate` trả 409 `data_collecting` / `store_failed`, plan item có cờ chưa xác minh; sự kiện `store_ready`, `store_failed`; `places_unavailable` đổi sang Geoapify | OQ-22, `docs/DATABASE.md` v0.3 |
 | 0.4 | 2026-11-28 | Khương | Mọi thành viên tạo thẻ đề xuất, hạn cố định 48 giờ rồi thành `reference`/`expired`; người tạo rút được (`not_author`); nhóm trưởng vẫn là người duy nhất áp dụng, đóng; bỏ form góp ý; `generate` trả `lodging`, `message`, `agent_status`, mục khách sạn nhận phòng 14:00 / trả phòng 12:00 mặc định; đã có code: `join`, `GET /trips/{id}`, `generate`, `plan`, `versions`, đề xuất, `updates` | CR-001 (chờ duyệt) |
+| 0.5 | 2026-11-28 | AI | Thêm nhóm endpoint xác thực tài khoản bằng cookie `HttpOnly` (`/api/auth/login`, `/api/auth/me`, `/api/auth/refresh`, `/api/auth/logout`) và bật `allow_credentials=True` cho CORS | `docs/DATABASE.md` v0.5 |

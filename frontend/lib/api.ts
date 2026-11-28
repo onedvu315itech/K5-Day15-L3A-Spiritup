@@ -1,3 +1,4 @@
+import { authApi } from "./auth-api";
 import { isMockInviteCode, isMockTripId, mockApi } from "./mock-data";
 import {
   ApiError,
@@ -85,6 +86,8 @@ async function request<T>(
 }
 
 export const api = {
+  auth: authApi,
+
   createTrip(payload: CreateTripPayload): Promise<CreateTripResponse> {
     if (USE_MOCK_ENV) return mockApi.createTrip(payload);
     return request<CreateTripResponse>("/trips", {

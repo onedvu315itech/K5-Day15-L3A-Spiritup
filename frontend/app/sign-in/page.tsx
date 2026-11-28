@@ -1,44 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useSyncExternalStore } from "react";
+import { useState } from "react";
 import { StatusBanner } from "@/components/status-banner";
 import { useLocale } from "@/lib/i18n";
-
-const AUTH_STORAGE_KEY = "partaway:v1:auth_user";
-const emptySubscribe = () => () => {};
-
-interface MockAuthUser {
-  email: string;
-  signedInAt: string;
-}
-
-function readStoredAuthUser(): MockAuthUser | null {
-  try {
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as MockAuthUser;
-    return parsed && typeof parsed.email === "string" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
+import { useAuth } from "@/lib/use-auth";
 
 export default function SignInPage() {
   const { t } = useLocale();
-  const isClient = useSyncExternalStore(
-    emptySubscribe,
-    () => true,
-    () => false,
-  );
+  const { user, loading, submitting, error, login, logout, clearError } =
+    useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
 
-  const [submitting, setSubmitting] = useState(false);
-  const [banner, setBanner] = useState<{
+  const [notice, setNotice] = useState<{
     tone: "error" | "info" | "success";
     message: string;
   } | null>(null);
@@ -46,16 +24,6 @@ export default function SignInPage() {
     email?: string;
     password?: string;
   }>({});
-  const [sessionOverride, setSessionOverride] = useState<
-    MockAuthUser | null | undefined
-  >(undefined);
-
-  const signedInUser: MockAuthUser | null =
-    sessionOverride !== undefined
-      ? sessionOverride
-      : isClient
-        ? readStoredAuthUser()
-        : null;
 
   const validate = (): boolean => {
     const errors: { email?: string; password?: string } = {};
@@ -78,23 +46,19 @@ export default function SignInPage() {
         "Vui lòng nhập mật khẩu.",
         "Please enter your password.",
       );
-    } else if (password.length < 6) {
-      errors.password = t(
-        "Mật khẩu cần có ít nhất 6 ký tự.",
-        "Password must be at least 6 characters.",
-      );
     }
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setBanner(null);
+    setNotice(null);
+    clearError();
 
     if (!validate()) {
-      setBanner({
+      setNotice({
         tone: "error",
         message: t(
           "Vui lòng kiểm tra lại email và mật khẩu trước khi tiếp tục.",
@@ -104,58 +68,48 @@ export default function SignInPage() {
       return;
     }
 
-    setSubmitting(true);
-    const normalizedEmail = email.trim().toLowerCase();
+    const signedIn = await login({
+      email,
+      password,
+      rememberMe,
+    });
 
-    window.setTimeout(() => {
-      const user: MockAuthUser = {
-        email: normalizedEmail,
-        signedInAt: new Date().toISOString(),
-      };
-
-      if (rememberMe) {
-        try {
-          window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-        } catch {
-          // Ignore storage quota errors.
-        }
-      }
-
-      setSessionOverride(user);
+    if (signedIn) {
       setPassword("");
-      setSubmitting(false);
-      setBanner({
+      setNotice({
         tone: "success",
         message: t(
-          `Đăng nhập thành công với ${normalizedEmail} (chế độ giao diện mẫu).`,
-          `Signed in as ${normalizedEmail} (UI preview mode).`,
+          `Đăng nhập thành công với ${signedIn.email}.`,
+          `Signed in successfully as ${signedIn.email}.`,
         ),
       });
-    }, 450);
+    }
   };
 
-  const handleSignOut = () => {
-    try {
-      window.localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch {
-      // Ignore storage errors.
-    }
-    setSessionOverride(null);
-    setBanner({
+  const handleSignOut = async () => {
+    setNotice(null);
+    clearError();
+    await logout();
+    setNotice({
       tone: "info",
-      message: t("Bạn đã đăng xuất khỏi phiên mẫu.", "You have signed out."),
+      message: t("Bạn đã đăng xuất.", "You have signed out."),
     });
   };
 
   const handleForgotPassword = () => {
-    setBanner({
+    clearError();
+    setNotice({
       tone: "info",
       message: t(
-        "Tính năng đặt lại mật khẩu chưa kết nối backend. Bạn có thể nhập email bất kỳ (mật khẩu từ 6 ký tự) để thử giao diện.",
-        "Password reset is not connected to a backend yet. Enter any email and a 6+ character password to preview the UI.",
+        "Tài khoản được đồng bộ từ cấu hình EMAIL và PASSWORD trên máy chủ.",
+        "Account credentials are configured via EMAIL and PASSWORD on the server.",
       ),
     });
   };
+
+  const activeBanner = error
+    ? { tone: "error" as const, message: error }
+    : notice;
 
   return (
     <div className="mx-auto max-w-lg px-4 py-10 sm:px-6 sm:py-14">
@@ -175,43 +129,72 @@ export default function SignInPage() {
           </p>
         </div>
 
-        {banner ? (
+        {activeBanner ? (
           <StatusBanner
-            tone={banner.tone}
-            message={banner.message}
-            onDismiss={() => setBanner(null)}
+            tone={activeBanner.tone}
+            message={activeBanner.message}
+            onDismiss={() => {
+              clearError();
+              setNotice(null);
+            }}
           />
         ) : null}
 
-        {signedInUser ? (
+        {loading ? (
+          <div
+            aria-label={t(
+              "Đang kiểm tra phiên đăng nhập",
+              "Checking session",
+            )}
+            className="space-y-3 py-2 animate-pulse"
+          >
+            <div className="h-4 w-28 rounded-[6px] bg-canvas-soft" />
+            <div className="h-11 w-full rounded-[6px] bg-canvas-soft" />
+            <div className="h-4 w-28 rounded-[6px] bg-canvas-soft" />
+            <div className="h-11 w-full rounded-[6px] bg-canvas-soft" />
+            <div className="h-12 w-full rounded-[5px] bg-canvas-soft" />
+          </div>
+        ) : user ? (
           <div className="space-y-4 rounded-[12px] border border-hairline bg-canvas-soft/60 p-5">
             <div className="space-y-1">
               <p className="text-[12px] font-semibold uppercase tracking-wide text-secondary">
-                {t("Đang đăng nhập (Mẫu)", "Signed in (Preview)")}
+                {t("Đang đăng nhập", "Signed in")}
               </p>
               <p className="text-[16px] font-semibold text-ink break-all">
-                {signedInUser.email}
+                {user.email}
               </p>
+              {user.display_name ? (
+                <p className="text-[13px] text-ink-muted">
+                  {t("Tên hiển thị:", "Display name:")} {user.display_name}
+                </p>
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-2.5 sm:flex-row">
               <Link
-                href="/trips/demo-dalat-3n2d"
+                href="/trips/new"
                 className="inline-flex min-h-11 flex-1 items-center justify-center rounded-[5px] bg-primary active:bg-primary-active px-4 py-2 text-[14px] font-semibold text-on-primary shadow-card transition-colors"
               >
-                {t("Mở chuyến đi mẫu", "Open demo trip")}
+                {t("Tạo chuyến đi mới", "Create a new trip")}
               </Link>
               <button
                 type="button"
-                onClick={handleSignOut}
-                className="inline-flex min-h-11 items-center justify-center rounded-[5px] border border-input-border bg-surface px-4 py-2 text-[14px] font-semibold text-ink hover:bg-canvas-soft transition-colors"
+                disabled={submitting}
+                onClick={() => void handleSignOut()}
+                className="inline-flex min-h-11 items-center justify-center rounded-[5px] border border-input-border bg-surface px-4 py-2 text-[14px] font-semibold text-ink hover:bg-canvas-soft transition-colors disabled:opacity-60"
               >
-                {t("Đăng xuất", "Sign out")}
+                {submitting
+                  ? t("Đang đăng xuất…", "Signing out…")
+                  : t("Đăng xuất", "Sign out")}
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          <form
+            onSubmit={(e) => void handleSubmit(e)}
+            noValidate
+            className="space-y-4"
+          >
             <div className="space-y-1.5">
               <label
                 htmlFor="signin-email"
@@ -273,7 +256,6 @@ export default function SignInPage() {
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  minLength={6}
                   value={password}
                   onChange={(e) => {
                     setPassword(e.target.value);

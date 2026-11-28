@@ -28,6 +28,15 @@ class Settings(BaseSettings):
     # Đề xuất (CR-001, chờ duyệt): thẻ đề xuất mở trong chừng này giờ rồi thành "tham khảo".
     proposal_ttl_hours: int = 48
 
+    # Đăng nhập bằng email + mật khẩu và cookie (access_token + refresh_token).
+    email: str = ""
+    password: str = ""
+    auth_secret_key: str = "partaway-dev-cookie-secret-change-in-prod"
+    access_token_ttl_minutes: int = 15
+    refresh_token_ttl_days: int = 7
+    cookie_secure: bool = False
+    cookie_samesite: str = "lax"
+
     def cors_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
