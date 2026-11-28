@@ -20,7 +20,7 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 
 | Mã | Câu hỏi | Đang nghiêng | Chặn | Người quyết | Hạn |
 |---|---|---|---|---|---|
-| OQ-01 | Dùng LLM nào (nhà cung cấp, model)? | Model gọi công cụ ổn định, tiếng Việt tốt, trả JSON đúng schema, có gói miễn phí hoặc rẻ. Để quyết sau; trong lúc chờ, code chỉ gọi model qua `call_model()` để đổi model không phải sửa chỗ khác. **28/11:** Khương chọn `gemini-3.8-flash` qua cổng GWAI cho eval CP3 (run-4); chờ Toàn + Đức xác nhận để đóng | Agent `generate`, `draft`, `ask`; eval CP3; `cost/` | Toàn + Đức | Trước CP3 (10:00 28/11) |
+| OQ-01 | Dùng LLM nào (nhà cung cấp, model)? | Model gọi công cụ ổn định, tiếng Việt tốt, trả JSON đúng schema, có gói miễn phí hoặc rẻ. Để quyết sau; trong lúc chờ, code chỉ gọi model qua `call_model()` để đổi model không phải sửa chỗ khác. **28/11:** Lượt nộp CP3 (run-4) và Lượt 2 dùng `gpt-4o-mini`; chờ Toàn + Đức xác nhận để đóng | Agent `generate`, `draft`, `ask`; eval CP3; `cost/` | Toàn + Đức | Trước CP3 (10:00 28/11) |
 | OQ-04 | Đề xuất `reference` có được mở lại / áp dụng sau không? | Không mở lại; nhóm trưởng "tạo đề xuất mới từ đề xuất này" | UI tab "Đề xuất" | Đức | CP3 |
 | OQ-05 | Có cần bình chọn tự do (ví dụ "chọn 1 trong 3 quán") ngoài bỏ phiếu đề xuất? | Chưa làm ở MVP; nhóm trưởng tạo nhiều đề xuất | Phạm vi | Cả nhóm | CP2 |
 | OQ-08 | Lõi Roa đặt trong `codebase/` và backend import, để eval của BTC đo đúng lõi web dùng? | Có (ADR 0003, đề xuất) | Cấu trúc backend, deploy Render | Toàn + Khương | CP2 |
@@ -65,4 +65,4 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | 0.3 | 2026-11-27 | Khương | Chốt OQ-02, 03, 06, 07, 13, 14, 17, 19, 20, 21. OQ-01 để quyết sau. Các OQ còn lại giữ mở với phương án đang nghiêng | Quyết định của Khương, chờ Đức xác nhận |
 | 0.4 | 2026-11-27 | Khương | Chốt OQ-09: không giới hạn một thành phố, điểm đến bất kỳ trong Việt Nam. OQ-11 bỏ "~50 quán Đà Lạt", phạm vi thu cần quyết lại | Quyết định của Khương, chờ Đức xác nhận |
 | 0.5 | 2026-11-28 | Khương | Thêm OQ-22 (điểm đến chưa thu kho: có tra web lúc chạy không) | `docs/roa-agent-design.md` v0.4 |
-| 0.6 | 2026-11-28 | Khương | OQ-01: ghi lựa chọn `gemini-3.8-flash` qua GWAI dùng cho run-4, chưa đóng | Chạy eval CP3 |
+| 0.6 | 2026-11-28 | Khương | OQ-01: ghi model `gpt-4o-mini` của run-4 và Lượt 2, chưa đóng | Gộp nhánh agent vào `main` |

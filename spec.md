@@ -110,9 +110,9 @@ flowchart TD
 - Bị đòi ngoài phạm vi (lớp 3): từ chối lịch sự và nêu rõ giới hạn chỉ lập bản nháp · Trường hợp đặc thù lĩnh vực (lớp 4): báo rõ không xếp được nếu không thoả giờ mở cửa/ngân sách và gợi ý hướng nới ràng buộc.
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
-- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 12 câu ở CP2 (thuong 5 · kho 5 · tu_choi 2; sẽ mở rộng lên 20–30 câu trước CP3) · metric: `eval/metric_spec.yaml` (4 metric)
+- Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 24 câu ở CP3 (thuong 11 · kho 9 · tu_choi 4) · metric: `eval/metric_spec.yaml` (4 metric)
 - **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
-- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) · lượt 4 (nộp CP3) `11/24` (`46%`, `gpt-4o-mini`, `tu_choi 4/4`) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` / `run-4@20261128-093112` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
 - Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
@@ -140,7 +140,7 @@ flowchart TD
 | 28/11/2026 | Nối Gemini & OpenRouter vào `codebase/ai.py`, nâng cấp vòng lặp 8 công cụ trong `codebase/agent.py`, mở rộng `eval/benchmark.csv` lên 24 câu và chạy `eval/run-1.csv` | Hoàn thành lõi AI thật CP3, vá lỗi bỏ qua kiểm tra `check_itinerary` khi `valid=False` phát hiện ở `B01` |
 | 28/11/2026 | Chạy `eval/run-2.csv` (`openai/gpt-4o-mini`, `11/24`) & `simulate --try` (`10/10`); bật JSON mode trong `ai.py`, vá retry JSON lỗi + đệm di chuyển `fill_gaps` trong `agent.py` | Khắc phục lỗi thừa dấu `}` khi gọi `get_travel_time` ở 8/24 câu và lỗi 0 phút đệm di chuyển ở `B17`, `B18` |
 | 28/11 chiều | Gộp hai nhánh agent. Giữ luồng do code điều khiển (B1–B10): model chỉ tách yêu cầu và chọn mã ứng viên, code tính giờ, tiền và in kết quả. Nhận kho 5 thành phố `data/places_vn.json`, kho quán hot, bộ 24 câu và `ai.py` của nhánh kia. Thêm nhánh lấp khoảng trống cho plan gốc (`analyze_plan_gaps`, `search_nearby`, code tính giờ chèn, model chọn một mã, `check_itinerary` kiểm). Bỏ `lookup_place_details` và tra Google/VIETMAP lúc chạy | run-2 11/24 (thuong 1/11): model tự viết giờ, tiền và có thể trả lời khi `check` còn lỗi; run-3 2/24 do HTTP 402. B17, B18 cần chèn điểm vào plan gốc. Tra web lúc chạy chờ OQ-22 và trái B08, B21 ("chưa có dữ liệu") |
-| 28/11 trước CP3 | Chọn `gemini-3.8-flash` qua cổng GWAI (OQ-01). `ai.py`: `MODEL_PROVIDER=gwai` với model `gemini…` gọi định dạng `generateContent` của GWAI (cổng chặn `chat/completions`), thêm User-Agent riêng vì Cloudflare chặn `Python-urllib` (lỗi 1010). Chạy run-4: 23/24 (96%), `thuong` 11/11, `kho` 8/9, `tu_choi` 4/4 | run-3 dừng vì HTTP 402 của OpenRouter; GWAI trả 403 "model not allowed" ở `chat/completions`. Câu trượt `B10`: phương án thu hẹp thêm quán khớp tên mờ |
+| 28/11 sau CP3 | Gộp nhánh agent vào `main`, giữ run-4 (`gpt-4o-mini`, 11/24) làm Lượt 1. `ai.py` gộp đủ provider: `openai`, `anthropic`, `ollama` (Đức), `gemini`, `openrouter`, `gwai` (`gemini…` gọi dạng `generateContent`, thêm User-Agent vì Cloudflare chặn `Python-urllib`). Lượt 2 (CP4) dùng `gpt-4o-mini` cho cùng model với Lượt 1 | So hai lượt chỉ khác ở agent |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 

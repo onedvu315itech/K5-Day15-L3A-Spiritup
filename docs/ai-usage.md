@@ -7,7 +7,7 @@ README của nhóm có mục "Dùng AI vào việc gì" (2–3 dòng, bắt bu�
 | Việc | Công cụ AI | AI làm gì | Người kiểm/sửa gì | Ai phụ trách |
 |---|---|---|---|---|
 | Code bản chạy thử | Coding agent (Antigravity) | Nối Gemini REST API trong `codebase/ai.py`, viết vòng lặp agent 5 bước dùng 8 công cụ trong `codebase/agent.py`, thêm test trong `tests/test_agent.py` | Chạy `unittest discover -s tests -v` (chưa chạy eval đầy đủ do quota 429) | Toàn *(chờ xác nhận)* |
-| Code bản chạy thử (bản gộp, nối GWAI) | Coding agent (Claude Code) | Gộp hai nhánh agent, nối `gemini-3.8-flash` qua GWAI trong `codebase/ai.py`, chạy run-4 và đề xuất chấm cột `pass` kèm ghi chú | Khương đọc lại output 24 câu theo `pass_criterion`; 24/24 unit test | Khương |
+| Code bản chạy thử (bản gộp, nối GWAI) | Coding agent (Claude Code) | Gộp hai nhánh agent, nối GWAI và gộp các provider của Đức trong `codebase/ai.py` | Khương đọc lại; 24/24 unit test | Khương |
 | Prompt / thiết kế lời gọi mô hình | Coding agent (Antigravity) | Soạn `SYSTEM`, `ORCHESTRATOR_GUIDE` và chốt kiểm tra bắt buộc `analyze_plan_gaps` / `check_itinerary` (không cho kết thúc khi `valid=False`) | Đối chiếu trace `B01` trong `traces/run-try.jsonl` và dữ liệu `data/places_vn.json` | Toàn *(chờ xác nhận)* |
 | Đào data (viết script đếm, gợi ý nhãn) | | | Kiểm tay __ dòng, khớp __ | |
 | Rà câu hỏi phỏng vấn / khảo sát | | Chỉ rà câu dẫn dắt | | |

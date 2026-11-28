@@ -130,6 +130,35 @@ def call_chat_completions(system: str, user: str, url: str, key: str) -> dict:
     return {"text": text, "tokens_in": tokens_in, "tokens_out": tokens_out}
 
 
+URL_OPENAI = "https://api.openai.com/v1/chat/completions"
+URL_CLAUDE = "https://api.anthropic.com/v1/messages"
+URL_OLLAMA = "http://localhost:11434/api/chat"
+
+
+def call_openai(system, user):
+    return call_chat_completions(system, user, URL_OPENAI, API_KEY)
+
+
+def call_claude(system, user):
+    data = post_json(URL_CLAUDE,
+                     {"x-api-key": API_KEY, "anthropic-version": "2023-06-01"},
+                     {"model": MODEL_NAME, "max_tokens": 1024, "system": system or "",
+                      "messages": [{"role": "user", "content": user}]})
+    text = "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    u = data["usage"]
+    return {"text": text, "tokens_in": u["input_tokens"], "tokens_out": u["output_tokens"]}
+
+
+def call_ollama(system, user):
+    messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
+    data = post_json(URL_OLLAMA, {}, {"model": MODEL_NAME, "messages": messages, "stream": False}, timeout=300)
+    return {"text": data["message"]["content"],
+            "tokens_in": data.get("prompt_eval_count", 0), "tokens_out": data.get("eval_count", 0)}
+
+
+PROVIDERS = {"openai": call_openai, "anthropic": call_claude, "ollama": call_ollama}
+
+
 @model_call
 def call_model(system: str, user: str) -> dict:
     if MODEL_PROVIDER == "fake":
@@ -143,8 +172,10 @@ def call_model(system: str, user: str) -> dict:
             "tokens_in": int(r["tokens_in"]),
             "tokens_out": int(r["tokens_out"]),
         }
-    if MODEL_PROVIDER in ("openrouter", "gwai"):
-        if MODEL_PROVIDER == "gwai" and MODEL_NAME.startswith("gemini"):
+    if MODEL_PROVIDER in ("openrouter", "gwai") or MODEL_PROVIDER in PROVIDERS:
+        if MODEL_PROVIDER in PROVIDERS:
+            r = PROVIDERS[MODEL_PROVIDER](system, user)
+        elif MODEL_PROVIDER == "gwai" and MODEL_NAME.startswith("gemini"):
             # Cổng GWAI chỉ nhận Gemini theo định dạng generateContent, không qua chat/completions.
             r = call_gemini(system, user, GWAI_GEMINI_URL, os.getenv("GWAI_API_KEY", "").strip())
         elif MODEL_PROVIDER == "gwai":

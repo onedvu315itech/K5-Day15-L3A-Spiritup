@@ -9,8 +9,8 @@ Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu c
 
 ## 2. Bộ câu thử dựng ra sao
 
-- `eval/benchmark.csv`: 12 câu (`thuong` 5 · `kho` 5 · `tu_choi` 2, trong đó 2 câu tấn công)
-- Nguồn (`python run.py check` in sẵn): `nguoi_dung` 4 (`S07`, `S09`, `S14`, `S38`) · `data_that` 0 · `tu_viet` 8 · `sinh_seed` 0 → từ người dùng / data thật 4/12 (đạt ≥1/3)
+- `eval/benchmark.csv`: 24 câu (`thuong` 11 · `kho` 9 · `tu_choi` 4, trong đó 4 câu tấn công/vượt thẩm quyền)
+- Nguồn (`python run.py check` in sẵn): `nguoi_dung` 11 · `data_that` 1 · `tu_viet` 12 · `sinh_seed` 0 → từ người dùng / data thật 12/24 (đạt ≥1/3)
 - Độ phủ — lưới input 3–5 chiều (guide 2.4 bước 5): (1) độ dài chuyến đi (1 buổi sáng/tối, 1 ngày, 2N1Đ), (2) quy mô nhóm (4–10 người), (3) ngân sách/người (từ bất khả thi 100k/2 ngày đến 2 triệu), (4) ràng buộc đặc biệt & mức độ rõ ràng (ăn chay, xung đột ngân sách, thiếu thông tin, thiếu dữ liệu ngoài Đà Lạt), (5) phạm vi & thẩm quyền (yêu cầu hợp lệ vs đòi tự lưu/đặt bàn/lộ prompt).
 - Câu `kho` trỏ về 4 lớp chỗ khó (`spec.md` §5): lớp 1 (nguồn sự thật / thiếu dữ liệu thành phố ngoài Đà Lạt): `B08` · lớp 2 (mơ hồ / thiếu thông tin / mâu thuẫn nhóm): `B06`, `B09` · lớp 3 (ngoài phạm vi / tấn công): `B11`, `B12` · lớp 4 (đặc thù lĩnh vực — ngân sách bất khả thi, thời gian di chuyển/giờ mở cửa không kịp): `B07`, `B10`.
 
@@ -38,7 +38,7 @@ Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu c
 | 1 | `run-1@20261128-033425` | `gemini-3.5-flash` | 24 câu, 8 công cụ, vòng lặp `MAX_STEPS=5` + chặn `check_itinerary` | `4/24` | `17%` | chưa *(20 câu lỗi `HTTP 429`)* |
 | 2 | `run-2@20261128-034607` | `openai/gpt-4o-mini` | 24 câu chạy đủ không lỗi API; lộ 8 lỗi JSON thừa `}` ở `get_travel_time` | `11/24` | `46%` | chưa |
 | 3 | `run-3@20261128-035701` | `openai/gpt-4o-mini` | Bật `json_object` trong `ai.py` + retry JSON lỗi & đệm di chuyển trong `agent.py` | `2/24` | `8%` | chưa *(21 câu lỗi `HTTP 402` hết credit)* |
-| 4 | `run-4@20261128-095519` | `gemini-3.8-flash` (qua GWAI, định dạng `generateContent`) | Bản gộp: luồng B1–B10 do code điều khiển + nhánh lấp khoảng trống, 7 công cụ, kho 5 thành phố; 0 lỗi API | `23/24` | `96%` | đạt *(≥80%, `tu_choi` 4/4, không lịch nào vi phạm giờ mở cửa hay ngân sách)* |
+| 4 | `run-4@20261128-093112` | `gpt-4o-mini` | Lượt nộp CP3; luồng agent của nhánh `docs/cp2-benchmark-datacard`; 0 lỗi API | `11/24` | `46%` | chưa |
 
 Lượt chạy lại vì lỗi kỹ thuật, lượt sau CP4: ghi thêm dòng, không sửa dòng cũ.
 

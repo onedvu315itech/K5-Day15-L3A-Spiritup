@@ -11,7 +11,7 @@ Nhật ký việc của nhóm. Mỗi việc xong (hoặc dừng) một dòng, gh
 
 | Thành viên | Việc | Trạng thái | Output | Thời gian |
 |---|---|---|---|---|
-| Khương cùng Claude Code | Nối `gemini-3.8-flash` qua GWAI (`generateContent`, User-Agent riêng), chạy run-4 bằng model thật và chấm tay cột `pass`: 23/24 (96%), đạt chuẩn §7; `simulate --try`; cập nhật báo cáo eval, spec §10, OQ-01, CP3-CHECKLIST | ✅ | `codebase/ai.py`, `eval/run-4.csv`, `traces/run-4.jsonl`, `eval/report.md`, `eval/README.md`, `CP3-CHECKLIST.md` | ~ |
+| Khương cùng Claude Code | Nối `gemini-3.8-flash` qua GWAI (`generateContent`, User-Agent riêng); gộp `main` vào nhánh agent: giữ run-4 của Đức (`gpt-4o-mini`) làm Lượt 1, gộp `ai.py` đủ 6 provider, Lượt 2 dùng `gpt-4o-mini` | ✅ | `codebase/ai.py`, `eval/report.md`, `eval/README.md`, `spec.md`, `CP3-CHECKLIST.md` | ~ |
 | Khương cùng Codex | Thêm cấu hình riêng cho GWAI qua Chat Completions | 🔄 | `codebase/ai.py`; chờ key và mã model để kiểm kết nối thật | ~ |
 | Khương | Gộp nhánh `docs/cp2-benchmark-datacard` vào nhánh agent: giữ luồng B1–B10 do code điều khiển, nhận kho 5 thành phố, kho quán hot, bộ 24 câu, `ai.py` (Gemini/OpenRouter); thêm nhánh lấp khoảng trống (B17, B18) do code tính giờ, model chỉ chọn mã; bỏ tra VIETMAP/Tavily/Google lúc chạy (chờ OQ-22); viết lại `tests/`. Model giả: 24/24 test qua, `check` OK, `eval --try` 3/3; chưa có lượt model thật | 🔄 | `codebase/agent.py`, `codebase/tools.py`, `tests/`, `spec.md`, `data/DATA_CARD.md`, `docs/roa-agent-flow.md` | ~ |
 | Khương | Vẽ luồng và kiến trúc agent Roa (sơ đồ lớp, luồng B1–B10, sơ đồ gọi, khung giờ, nhánh ↔ câu thử, giới hạn); ARCHITECTURE v0.5 khớp tên công cụ trong code | ✅ | `docs/roa-agent-flow.md`, `ARCHITECTURE.md` | ~ |

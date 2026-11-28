@@ -11,11 +11,11 @@
 | 1 | `run-1@20261128-033425` (`gemini-3.5-flash`) | `4/24` | `17%` | `3/11` (`27%`) | `0/9` (`0%`) | `1/4` (`25%`) | chưa *(20/24 câu lỗi `HTTP 429`)* |
 | 2 | `run-2@20261128-034607` (`openai/gpt-4o-mini`) | `11/24` | `46%` | `1/11` (`9%`) | `6/9` (`67%`) | `4/4` (`100%`) | chưa *(8 câu lỗi JSON thô)* |
 | 3 *(sau sửa JSON mode)* | `run-3@20261128-035701` (`openai/gpt-4o-mini`) | `2/24` | `8%` | `1/11` (`9%`) | `0/9` (`0%`) | `1/4` (`25%`) | chưa *(21/24 câu lỗi `HTTP 402` hết credit OpenRouter)* |
-| 4 *(bản gộp, model chốt)* | `run-4@20261128-095519` (`gemini-3.8-flash` qua GWAI) | `23/24` | `96%` | `11/11` (`100%`) | `8/9` (`89%`) | `4/4` (`100%`) | đạt *(0 lỗi API; không lịch nào vi phạm giờ mở cửa hay ngân sách)* |
+| 4 *(lượt nộp CP3)* | `run-4@20261128-093112` (`gpt-4o-mini`) | `11/24` | `46%` | `2/11` (`18%`) | `5/9` (`56%`) | `4/4` (`100%`) | chưa *(0 lỗi API)* |
 
 Kết quả từng câu: `eval/run-1.csv` … `eval/run-4.csv`. Trace: `traces/run-1.jsonl` … `traces/run-4.jsonl`.
 
-**Lượt nộp CP3 là run-4**: lượt đầu tiên chạy đủ 24 câu bằng model thật trên bản gộp hai nhánh agent (model chỉ tách yêu cầu và chọn mã ứng viên; code tính giờ, tiền, in kết quả). Trung bình mỗi câu gọi model 1,3 lần, công cụ 7,0 lần, token vào 2.379, ra 3.934. Câu trượt duy nhất: `B10` (xem mục 4). Run-1..3 chạy luồng cũ của nhánh kia nên không so trực tiếp được với run-4.
+**Lượt nộp CP3 (Lượt 1) là run-4** (Đức chạy, `gpt-4o-mini`, luồng agent của nhánh `docs/cp2-benchmark-datacard`). Lượt 2 cho CP4 sẽ chạy cùng `gpt-4o-mini` trên bản gộp hai nhánh agent (luồng B1–B10 do code điều khiển + nhánh lấp khoảng trống), để so hai lượt chỉ khác ở agent.
 
 ## 2. Lỗi lượt 2 (`run-2@20261128-034607`, đủ 24/24 câu không lỗi API) — gom thành nhóm có tên
 
@@ -42,7 +42,7 @@ Kết quả từng câu: `eval/run-1.csv` … `eval/run-4.csv`. Trace: `traces/r
 
 ## 4. Còn lại
 
-- **Lỗi còn lại ở run-4 (`B10`, kho):** Roa từ chối nhồi 4 điểm vào 08:00–10:30 và giải thích đúng bằng giờ mở cửa, thời gian đi; nhưng phương án thu hẹp chỉ giữ Bánh Căn Lệ và thêm "Bánh Căn" (Phường Xuân Hương) do khớp tên mờ, bỏ Tiệm Cà Phê Túi Mơ To (cách 21 phút) dù vẫn vừa khung. Nguy hiểm: nhóm trưởng thấy một quán mình không chọn. Hướng sửa cho lượt sau: khớp tên điểm bắt buộc theo nguyên cụm, phương án thu hẹp chỉ lấy trong các điểm nhóm nêu.
+- **Lỗi thấy khi chạy thử bản gộp (`B10`, kho; lượt thử bằng `gemini-3.8-flash`, không giữ file vì trùng số run-4):** Roa từ chối nhồi 4 điểm vào 08:00–10:30 và giải thích đúng bằng giờ mở cửa, thời gian đi; nhưng phương án thu hẹp chỉ giữ Bánh Căn Lệ và thêm "Bánh Căn" (Phường Xuân Hương) do khớp tên mờ, bỏ Tiệm Cà Phê Túi Mơ To (cách 21 phút) dù vẫn vừa khung. Nguy hiểm: nhóm trưởng thấy một quán mình không chọn. Hướng sửa cho lượt sau: khớp tên điểm bắt buộc theo nguyên cụm, phương án thu hẹp chỉ lấy trong các điểm nhóm nêu.
 
 - Lỗi chưa sửa + nguy hiểm thế nào: Cần nạp thêm credit OpenRouter (hoặc đổi key/model còn quota) để chạy lại đủ 24 câu sau cải tiến và giữ đúng `B01` không hỏi lại ngân sách đã cung cấp; cũng cần chạy lại `python run.py simulate` (≥50 phiên) sau khi có lượt eval hoàn chỉnh cùng model.
 - Nếu có thêm 1 tuần: Chạy đủ 24 câu không lỗi API trên `openai/gpt-4o-mini` hoặc `gemini-3-flash-preview`, chấm chéo 2 người theo `eval/metric_spec.yaml`, và hoàn tất `cost/cost-estimate.md`.
