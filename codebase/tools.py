@@ -3,14 +3,20 @@
 Mỗi công cụ là một hàm Python có @tool. Docstring ghi đúng 4 ý như sơ đồ ở spec.md §4:
     tên · input · output · có tác động ra ngoài không (gửi tin, sửa dữ liệu, chấm điểm…)
 
-Dữ liệu chỉ đọc từ kho file đã thu trước, không gọi mạng lúc chạy:
+Dữ liệu chỉ đọc từ kho đã thu trước, không gọi mạng lúc chạy. Có hai nguồn kho:
+  - File (mặc định, dùng khi chạy eval và bản chạy thử):
   - `data/places/<slug>.json`: kho một thành phố, dựng bằng scripts/build_place_store.py (OSM qua Geoapify).
   - `data/places_vn.json`: kho sạch đa thành phố (Đà Lạt, Hà Nội, Đà Nẵng, TP.HCM, Huế); trùng mã thì
     bản ghi ở đây thắng vì có toạ độ.
   - `data/trending_spots.json`: quán hot thu trước từ TikTok (có bản ghi chưa khớp được địa điểm).
+  - DB: backend đọc bảng `places` rồi gọi `answer()` trong `with use_store(rows):` (docs/DATABASE.md mục 2.13).
+    Chỉ có trong lượt gọi đó, không ghi đè kho file, không lẫn giữa các request (ContextVar).
+Nơi có `hours_unverified` / `price_unverified` (OQ-22) vẫn xếp được, gắn nhãn "chưa xác minh".
 Giờ tính theo phút từ 0h (`open_min`, `close_min`; thiếu dữ liệu thì None); đóng qua nửa đêm thì > 1440.
 Mọi giờ, tiền, thời gian đi do code ở đây tính, model không tự nhẩm.
 """
+import contextlib
+import contextvars
 import json
 import math
 import os
@@ -68,10 +74,40 @@ def _minutes(hour):
 
 
 _CATALOG = {}
+_STORE_OVERRIDE = contextvars.ContextVar("roa_store_override", default=None)
+
+
+def store_rows_to_catalog(rows) -> dict:
+    """Dòng kho từ DB (dict) → catalog theo mã. Cần: id, name, city, category; còn lại tuỳ chọn."""
+    out = {}
+    for r in rows:
+        row = dict(r)
+        for k in ("area", "lat", "lon", "address", "open_min", "close_min", "avg_price_vnd", "vegetarian_friendly"):
+            row.setdefault(k, None)
+        row.setdefault("is_hot", False)
+        row.setdefault("source", "db")
+        row.setdefault("hours_unverified", not has_hours(row))
+        row.setdefault("price_unverified", row.get("avg_price_vnd") is None)
+        out[row["id"]] = row
+    return out
+
+
+@contextlib.contextmanager
+def use_store(rows):
+    """Dùng kho do backend truyền vào (dòng bảng `places`) thay kho file trong khối `with`."""
+    token = _STORE_OVERRIDE.set(store_rows_to_catalog(rows))
+    try:
+        yield
+    finally:
+        _STORE_OVERRIDE.reset(token)
 
 
 def _catalog() -> dict:
-    """Mọi địa điểm theo mã, nạp một lần. Kho một thành phố trước, kho đa thành phố đè lên khi trùng mã."""
+    """Mọi địa điểm theo mã. Có kho backend truyền vào thì dùng kho đó; không thì nạp kho file một lần:
+    kho một thành phố trước, kho đa thành phố đè lên khi trùng mã."""
+    override = _STORE_OVERRIDE.get()
+    if override is not None:
+        return override
     if _CATALOG:
         return _CATALOG
     if os.path.isdir(STORE_DIR):
@@ -129,6 +165,15 @@ def has_hours(p: dict) -> bool:
     return p.get("open_min") is not None and p.get("close_min") is not None
 
 
+def hours_unverified(p: dict) -> bool:
+    """Giờ chưa xác minh: kho chưa có giờ, hoặc đợt thu gắn cờ (OQ-22)."""
+    return not has_hours(p) or bool(p.get("hours_unverified"))
+
+
+def price_unverified(p: dict) -> bool:
+    return p.get("avg_price_vnd") is None or bool(p.get("price_unverified"))
+
+
 def is_sample(p: dict) -> bool:
     """Giờ, giá thuộc bộ mẫu CP2 nhóm tự đặt, chưa có nguồn."""
     src = str(p.get("source") or "")
@@ -143,6 +188,7 @@ def _public(p: dict) -> dict:
         "avg_price_vnd": p.get("avg_price_vnd"),
         "vegetarian_friendly": p.get("vegetarian_friendly"),
         "is_hot": bool(p.get("is_hot")), "source": p.get("source"),
+        "hours_unverified": hours_unverified(p), "price_unverified": price_unverified(p),
     }
 
 
@@ -158,8 +204,8 @@ def search_places(city: str, preference: str = "", category: str = "") -> list:
     """Tra địa điểm trong kho theo thành phố, sở thích và loại.
     Input: city (str; "TP.HCM", "Sài Gòn", "Hồ Chí Minh" là một), preference (str, vd "chay"),
     category ("food" | "snack" | "cafe" | "sightseeing" | "activity", có thể nhiều loại cách nhau dấu phẩy; "" = mọi loại).
-    Output: danh sách dict {id, name, city, category, area, open, close, avg_price_vnd, vegetarian_friendly, is_hot, source};
-    open/close = None khi kho chưa có giờ; rỗng nếu thành phố chưa có kho. Không tác động ra ngoài."""
+    Output: danh sách dict {id, name, city, category, area, open, close, avg_price_vnd, vegetarian_friendly, is_hot, source,
+    hours_unverified, price_unverified}; open/close = None khi kho chưa có giờ; rỗng nếu thành phố chưa có kho. Không tác động ra ngoài."""
     rows = _store(city)
     cats = _wanted_categories(category)
     if cats:
@@ -188,7 +234,7 @@ def get_trending_spots(city: str) -> list:
         else:
             row = {"id": None, "name": r["name"], "city": r.get("city"), "category": r.get("category"), "area": None,
                    "open": None, "close": None, "avg_price_vnd": None, "vegetarian_friendly": None,
-                   "is_hot": True, "source": "tiktok_chua_khop_kho"}
+                   "is_hot": True, "source": "tiktok_chua_khop_kho", "hours_unverified": True, "price_unverified": True}
         row["source_url"] = r.get("source_url")
         out.append(row)
         seen.add(pid or slug(r["name"]))
@@ -305,7 +351,8 @@ def check_itinerary(items: list, budget_per_person_vnd: int, window_start: str =
     Input: items (list[{day, id, start "HH:MM", end "HH:MM"}]), budget_per_person_vnd (int, 0 = không kiểm),
     window_start/window_end ("HH:MM", tuỳ chọn).
     Output: dict {valid, total_per_person_vnd, unpriced, missing_data, violations, warnings};
-    tổng chỉ cộng mục có giá; missing_data liệt kê trường kho chưa có (giờ, giá). Không tác động ra ngoài."""
+    tổng chỉ cộng mục có giá; missing_data liệt kê trường kho chưa có (giờ, giá). Nơi chưa có giờ không bị tính là
+    vi phạm giờ mở cửa, chỉ thành cảnh báo "chưa xác minh" (OQ-22). Không tác động ra ngoài."""
     by_id = _catalog()
     violations, warnings, unpriced, missing = [], [], [], []
     total = 0
@@ -326,6 +373,7 @@ def check_itinerary(items: list, budget_per_person_vnd: int, window_start: str =
                 violations.append(f"Ngày {day}: {place['name']} có giờ kết thúc không sau giờ bắt đầu.")
             if not has_hours(place):
                 missing.append(f"{place['name']}: giờ mở cửa")
+                warnings.append(f"{place['name']}: giờ mở cửa chưa xác minh, cần kiểm tra trước khi đi.")
             elif s < place["open_min"] or e > place["close_min"]:
                 violations.append(f"Ngày {day}: {place['name']} chỉ mở {hhmm(place['open_min'])}–{hhmm(place['close_min'])}, "
                                   f"lịch đang xếp {hhmm(s)}–{hhmm(e)}.")

@@ -24,20 +24,22 @@ import re
 if __package__:
     from .ai import call_model
     from .tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
-                        get_opening_hours, get_trending_spots, has_hours, hhmm, search_nearby, search_places, slug,
-                        supported_cities, to_min)
+                        get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_nearby,
+                        search_places, slug, supported_cities, to_min)
     from .tracing import note
 else:
     from ai import call_model
     from tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
-                       get_opening_hours, get_trending_spots, has_hours, hhmm, search_nearby, search_places, slug,
-                       supported_cities, to_min)
+                       get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_nearby,
+                       search_places, slug, supported_cities, to_min)
     from tracing import note
 
 MAX_STEPS = 5          # số lần gọi model tối đa cho một câu (tách, chọn, sửa)
 MAX_CANDIDATES = 25    # số ứng viên đưa cho model
 NEARBY_MIN = 15        # bán kính tìm điểm lấp khoảng trống (phút đi xe)
 MIN_STAY = 30          # ở một điểm chèn thêm ít nhất bao nhiêu phút *(tự ước tính)*
+# Nơi giờ chưa xác minh (OQ-22) chỉ lấp khung không còn nơi đã xác minh nào vừa: mỗi mục +10 điểm, trừ lại 9.
+UNVERIFIED_PENALTY = 9
 # Thời lượng mỗi loại điểm (phút) — nhóm tự đặt *(tự ước tính)*.
 DURATION = {"food": 60, "snack": 45, "cafe": 60, "sightseeing": 90, "activity": 90}
 CAT_VI = {"food": "ăn uống", "snack": "ăn vặt", "cafe": "cafe", "sightseeing": "tham quan", "activity": "vui chơi"}
@@ -342,19 +344,25 @@ def candidates(req: dict, budget: int, text: str = "") -> list:
     for p in rows:
         full = by_id[p["id"]]
         if p["id"] not in must:
-            if not has_hours(full):
-                continue  # thiếu giờ thì không xếp được giờ
+            if not has_hours(full) and not full.get("hours_unverified"):
+                continue  # kho file thiếu giờ: không xếp. Kho DB gắn cờ chưa xác minh thì vẫn xếp (OQ-22)
             if budget and p["avg_price_vnd"] is None:
                 continue  # có ngân sách thì chỉ dùng nơi có giá để tổng tiền kiểm được
             if req["indoor"] and full["category"] in ("sightseeing", "activity") and \
                     not re.search(INDOOR_NAME, full["name"].lower() + " "):
                 continue
-        out.append(dict(full, hot=p["id"] in hot_ids, liked=_liked(full, s), near=full.get("area") in req["areas"]))
+        row = dict(full, hot=p["id"] in hot_ids, liked=_liked(full, s), near=full.get("area") in req["areas"],
+                   unverified=hours_unverified(full))
+        if not has_hours(row):
+            # Chưa có giờ: xếp như mở cả ngày trong khung của nhóm, in là "giờ chưa xác minh".
+            row["open_min"], row["close_min"] = 0, 24 * 60
+        out.append(row)
     if req["vegetarian"]:
         for pid in must:  # điểm bắt buộc vẫn giữ dù không rõ món chay
             if pid not in {p["id"] for p in out}:
-                out.append(dict(by_id[pid], hot=pid in hot_ids, liked=False, near=False))
-    out.sort(key=lambda p: (p["id"] not in must, not p["liked"], not p["near"], not p["hot"], p.get("avg_price_vnd") is None,
+                out.append(dict(by_id[pid], hot=pid in hot_ids, liked=False, near=False, unverified=False))
+    out.sort(key=lambda p: (p["id"] not in must, p["unverified"], not p["liked"], not p["near"], not p["hot"],
+                            p.get("avg_price_vnd") is None,
                             p.get("avg_price_vnd") or 0, p["name"]))
     out = out[:MAX_CANDIDATES]
     for i, p in enumerate(out, 1):
@@ -463,7 +471,8 @@ def plan_day(req, slots, ws, we, pool, must, budget_left):
                 sum(8 for it in items if it[0].get("liked")) + sum(4 for it in items if it[0].get("near")) +
                 12 * len(set(req.get("wanted", [])) & {it[0]["category"] for it in items}) +
                 sum(40 for it in items if req.get("morning_dish") and it[0].get("liked") and it[3].startswith("Bữa sáng")) +
-                sum(3 for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6)
+                sum(3 for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6 -
+                UNVERIFIED_PENALTY * sum(1 for it in items if it[0].get("unverified")))
 
     def go(i, t, prev, items, cost, used):
         if i == len(slots):
@@ -575,8 +584,10 @@ def select(text, req, cands, plan, budget, calls):
 def _line(it, p, hot, extra=""):
     price = vnd(p["avg_price_vnd"]) + "/người" if p.get("avg_price_vnd") is not None else "giá chưa có — [Cần kiểm tra & điền tay]"
     tag = " · đang hot" if hot else ""
+    hours = (f"mở {hhmm(p['open_min'])}–{hhmm(p['close_min'])}" if has_hours(p)
+             else "giờ chưa xác minh — [Cần kiểm tra & điền tay]")
     return (f"- {it['start']}–{it['end']}  {p['name']} ({CAT_VI.get(p['category'], p['category'])}, "
-            f"{p.get('area') or 'chưa rõ khu'}; mở {hhmm(p['open_min'])}–{hhmm(p['close_min'])}) — {price}{tag}{extra}")
+            f"{p.get('area') or 'chưa rõ khu'}; {hours}) — {price}{tag}{extra}")
 
 
 def render(req, plan, res, reasons, budget, cands) -> str:
@@ -614,7 +625,11 @@ def render(req, plan, res, reasons, budget, cands) -> str:
         why.append("ưu tiên nơi thuộc " + ", ".join(req["areas"]))
     if req["indoor"]:
         why.append("trời mưa nên điểm tham quan chỉ lấy nơi trong nhà (đoán theo tên, cần kiểm tra lại)")
-    why.append("mọi điểm nằm trong giờ mở cửa và có đủ thời gian di chuyển giữa hai điểm")
+    if any(hours_unverified(by_id[it["id"]]) for it in plan):
+        why.append("các điểm đã có giờ nằm trong giờ mở cửa; điểm ghi \"giờ chưa xác minh\" chỉ dùng khi không còn nơi "
+                   "đã xác minh nào vừa khung, đủ thời gian di chuyển giữa hai điểm")
+    else:
+        why.append("mọi điểm nằm trong giờ mở cửa và có đủ thời gian di chuyển giữa hai điểm")
     lines.append("\nLý do chọn: " + "; ".join(why) + ".")
     if res["warnings"]:
         lines.append("\nLưu ý:\n" + "\n".join(f"- {w}" for w in res["warnings"]))

@@ -15,7 +15,7 @@ Repo nộp bài hackathon AI20K của nhóm **Spiritup** (L3A, track C — Du l�
   - **Lịch sử phiên bản:** mỗi lần áp dụng tạo phiên bản mới (v1, v2…), không ghi đè. Khôi phục bản cũ cũng là một đề xuất. Plan v1: Roa soạn bản nháp, nhóm trưởng duyệt, không qua bỏ phiếu.
 - **Lát cắt AI nộp BTC (OQ-19):** `generate` — Roa xếp lịch trình theo ngày thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được. `answer(text)` gọi `generate`; bộ câu thử đo chế độ này. Ưu tiên `codebase/` + eval trước CP3, web app sau (OQ-20).
 - **Demo web app:** tạo chuyến đi → Roa soạn bản nháp → nhóm trưởng duyệt v1 → sửa → đề xuất → bỏ phiếu → nhóm trưởng áp dụng → v2 → thành viên hỏi Roa. Điểm đến: bất kỳ đâu trong Việt Nam, không giới hạn một thành phố, demo cũng vậy (OQ-09).
-- **Hiện trạng (27/11):** khung tài liệu xong, chưa có code `backend/`, `frontend/`. `codebase/` còn là ví dụ của BTC.
+- **Hiện trạng (28/11):** `codebase/` có lõi Roa (`generate`, đọc kho file hoặc kho DB). `backend/` có khung FastAPI, 13 bảng (migration `0001`), kho địa điểm theo thành phố thu từ Geoapify (OQ-22) và endpoint tạo chuyến đi, xem kho. `frontend/` có khung Next.js.
 
 ## 2. Tài liệu phải đọc
 
@@ -68,8 +68,9 @@ python run.py eval               # chạy cả bộ → eval/run-N.csv + traces/
 python run.py score eval/run-N.csv
 python run.py simulate           # mô phỏng chi phí → cost/simulate-N.csv
 # Khi đã có code (xem docs/DEVELOPMENT.md mục 1):
+alembic upgrade head             # trong backend/, tạo hoặc cập nhật bảng theo DATABASE_URL
 uvicorn app.main:app --reload    # trong backend/
-pytest                           # trong backend/
+pytest                           # trong backend/ (SQLite tạm, Geoapify giả)
 npm run dev                      # trong frontend/
 ```
 

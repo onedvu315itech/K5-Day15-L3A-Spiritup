@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.5 |
+| Phiên bản | 0.9 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Cả nhóm |
@@ -241,7 +241,10 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
 | `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
 | `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
-| `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
+| `GEOAPIFY_API_KEY` | Backend | Geocoding và Places của Geoapify cho đợt thu kho địa điểm theo thành phố (OQ-22, `docs/DATABASE.md` mục 5). Routing chưa dùng |
+| `FRONTEND_BASE_URL` | Backend | Gốc URL frontend để dựng `invite_url` |
+| `STORE_TTL_DAYS` | Backend | Hạn kho địa điểm (ngày). Để trống: kho không hết hạn [NEEDS CLARIFICATION: OQ-12] |
+| `STORE_MAX_CAFE`, `STORE_MAX_FOOD` | Backend | Số quán cafe, quán ăn tối đa mỗi thành phố, mặc định 60 *(tự ước tính)*; điểm tham quan không giới hạn |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
 
@@ -281,3 +284,4 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.6 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
 | 0.7 | 2026-11-28 | Khương | Gộp nhánh agent: lõi Roa đọc cả `data/places/` và `data/places_vn.json` (5 thành phố); bản chạy thử không gọi VIETMAP, Tavily, Google lúc chạy (chờ OQ-22), nên `VIETMAP_API_KEY`, `TAVILY_API_KEY` chưa dùng | Gộp `feat/kho-du-lieu-va-agent-roa` với `docs/cp2-benchmark-datacard` |
 | 0.8 | 2026-11-28 | Khương | `GWAI_API_KEY`: model Gemini đi đường `generateContent` của GWAI | Chạy eval CP3 bằng `gemini-3.8-flash` |
+| 0.9 | 2026-11-28 | Khương | Biến môi trường kho địa điểm (`STORE_*`, `FRONTEND_BASE_URL`); Geoapify dùng cho đợt thu kho; sửa ô phiên bản ở đầu file | OQ-22, code `backend/` |

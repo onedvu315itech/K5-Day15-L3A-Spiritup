@@ -30,7 +30,6 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | OQ-15 | Giới hạn số thành viên tham gia (bằng `group_size` hay tối đa 20)? | Tối đa 20, không theo `group_size` | `POST /join` | Đức | CP3 |
 | OQ-16 | Muốn Roa tạo lại toàn bộ plan sau v1 thì làm sao? | Đề xuất `edit` với `ops` thay toàn bộ ngày; chưa làm ở MVP | `POST /generate`, đề xuất | Toàn | CP3 |
 | OQ-18 | Ai giữ key Google Maps, key LLM; hạn mức chi bao nhiêu? | Đức giữ, đặt giới hạn chi trên console | Deploy, `cost/` | Đức | CP2 |
-| OQ-22 | Điểm đến chưa thu kho (chưa có giá, giờ, quán hot): (a) Roa vẫn xếp từ Geoapify, đánh dấu giá và giờ là chưa xác minh; (b) tra web (Tavily) lúc chạy, chấp nhận chậm hơn? | (a): giữ độ trễ thấp; giá, giờ chỉ tra theo đợt (`docs/roa-agent-design.md` mục 3.1) | B5 của `generate`, bộ câu thử có điểm đến ngoài kho | Cả nhóm | CP3 |
 
 ## Đã chốt
 
@@ -48,6 +47,7 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | OQ-17 | Phiếu công khai tên người bỏ hay ẩn danh? | Công khai tên người bỏ | 2026-11-27 | Khương | `docs/API_SPEC.md` mục 4 |
 | OQ-19 | Lát cắt nộp BTC và quyết định AI trung tâm | Quyết định trung tâm là `generate`: Roa xếp lịch trình theo ngày, thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được (kèm lý do). `answer(text)` gọi `generate`; bộ câu thử đo `generate`. `ask`, `draft` là phần phụ | 2026-11-27 | Khương (chờ Đức xác nhận) | `canvas.md`, ADR 0003, `ARCHITECTURE.md` 3.3 |
 | OQ-20 | Trước CP3, web app làm đến đâu? | Ưu tiên `codebase/` + eval đến CP3. Web app (Vercel, Render, đề xuất, bỏ phiếu) làm sau, hoặc song song khi lát cắt AI đã chạy | 2026-11-27 | Khương (chờ Đức xác nhận) | `docs/WORKFLOW.md` mục 3 |
+| OQ-22 | Điểm đến chưa thu kho (chưa có giá, giờ, quán hot): xếp từ dữ liệu chưa xác minh hay tra web lúc chạy? | Ghép (a) và (c): nhóm trưởng tạo chuyến đi tới thành phố chưa có kho thì backend chạy một đợt thu (Geoapify; giá, giờ chỉ tra trong đợt này), xong mới cho `generate`. Không tra web lúc `generate`. Nơi chưa có giờ hoặc giá vẫn giữ trong kho và vẫn được xếp, gắn nhãn "chưa xác minh". Đợt thu không lấy được thì để trống, không đoán | 2026-11-28 | Khương (chờ cả nhóm xác nhận) | `docs/DATABASE.md` 2.12, 2.13, mục 5; `docs/API_SPEC.md` `POST /trips`, mục 2a |
 | OQ-21 | Nguồn bằng chứng pain | Nguồn chính: review công khai. Nguồn kiểm lại: form khảo sát nhóm đã tạo cho người ngoài nhóm điền. Kết quả lưu ở `evidence/` | 2026-11-27 | Khương (chờ Đức xác nhận) | `canvas.md` dòng 4, `docs/WORKFLOW.md` |
 
 ## Đã bỏ
@@ -66,3 +66,4 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | 0.4 | 2026-11-27 | Khương | Chốt OQ-09: không giới hạn một thành phố, điểm đến bất kỳ trong Việt Nam. OQ-11 bỏ "~50 quán Đà Lạt", phạm vi thu cần quyết lại | Quyết định của Khương, chờ Đức xác nhận |
 | 0.5 | 2026-11-28 | Khương | Thêm OQ-22 (điểm đến chưa thu kho: có tra web lúc chạy không) | `docs/roa-agent-design.md` v0.4 |
 | 0.6 | 2026-11-28 | Khương | OQ-01: ghi model `gpt-4o-mini` của run-4 và Lượt 2, chưa đóng | Gộp nhánh agent vào `main` |
+| 0.7 | 2026-11-28 | Khương | Chốt OQ-22: ghép (a) và (c), thu kho theo đợt khi tạo chuyến đi tới thành phố mới, nơi chưa có giờ hoặc giá vẫn xếp và gắn nhãn chưa xác minh | Quyết định của Khương, chờ cả nhóm xác nhận |
