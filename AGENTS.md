@@ -23,6 +23,7 @@ Repo nộp bài hackathon AI20K của nhóm **Spiritup** (L3A, track C — Du l�
 |---|---|
 | Bất kỳ việc gì | File này, [`docs/PROJECT-RULES.md`](docs/PROJECT-RULES.md), [`docs/OPEN-QUESTIONS.md`](docs/OPEN-QUESTIONS.md) |
 | Tính năng | Spec trong [`docs/features/`](docs/features/), [`docs/FEATURE-LIST.md`](docs/FEATURE-LIST.md) |
+| Frontend (UI, thiết kế, quy tắc FE) | [`frontend/AGENTS.md`](frontend/AGENTS.md), [`frontend/DESIGN.md`](frontend/DESIGN.md), [`frontend/RULES.md`](frontend/RULES.md), [`frontend/docs/frontend-screens.md`](frontend/docs/frontend-screens.md) |
 | Backend, kiến trúc, deploy | [`ARCHITECTURE.md`](ARCHITECTURE.md), [`docs/adr/`](docs/adr/) |
 | Bảng, cột, plan JSON | [`docs/DATABASE.md`](docs/DATABASE.md) |
 | Endpoint, mã lỗi | [`docs/API_SPEC.md`](docs/API_SPEC.md) |

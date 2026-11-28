@@ -1,35 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --color-primary: #0075de;
-  --color-primary-active: #005bab;
-  --color-secondary: #213183;
-  --color-on-primary: #ffffff;
-  --color-canvas: #ffffff;
-  --color-canvas-soft: #f6f5f4;
-  --color-surface: #ffffff;
-  --color-ink: #000000;
-  --color-ink-secondary: #31302e;
-  --color-ink-muted: #615d59;
-  --color-ink-faint: #a39e98;
-  --color-hairline: #e6e6e6;
-  --color-input-border: #dddddd;
-  --color-accent-sky: #62aef0;
-  --color-accent-purple: #d6b6f6;
-  --color-accent-purple-deep: #391c57;
-  --color-accent-pink: #ff64c8;
-  --color-accent-orange: #dd5b00;
-  --color-accent-orange-deep: #793400;
-  --color-accent-teal: #2a9d99;
-  --color-accent-green: #1aae39;
-  --color-accent-brown: #523410;
+  /* Bohemian (Boho) Design System */
+  --color-primary: #c67a4b;
+  --color-primary-active: #a96237;
+  --color-on-primary: #fff5e1;
+
+  --color-secondary: #1a6b6a;
+  --color-secondary-active: #145453;
+  --color-on-secondary: #fff5e1;
+
+  --color-tertiary: #6b7b3a;
+
+  --color-canvas: #fff5e1;
+  --color-canvas-soft: #f5e9d3;
+  --color-surface: #fffdf8;
+
+  --color-ink: #29211d;
+  --color-ink-secondary: #4a3f39;
+  --color-ink-muted: #72645c;
+  --color-ink-faint: #9e8f86;
+
+  --color-hairline: #e4d4be;
+  --color-input-border: #d4b896;
+
+  --color-success: #1a6b6a;
+  --color-warning: #cc5500;
+  --color-error: #b91c1c;
+  --color-info: #3f51b5;
 }
 
 @theme inline {
   --color-primary: var(--color-primary);
   --color-primary-active: var(--color-primary-active);
-  --color-secondary: var(--color-secondary);
   --color-on-primary: var(--color-on-primary);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-active: var(--color-secondary-active);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-tertiary: var(--color-tertiary);
   --color-canvas: var(--color-canvas);
   --color-canvas-soft: var(--color-canvas-soft);
   --color-surface: var(--color-surface);
@@ -39,16 +47,11 @@
   --color-ink-faint: var(--color-ink-faint);
   --color-hairline: var(--color-hairline);
   --color-input-border: var(--color-input-border);
-  --color-accent-sky: var(--color-accent-sky);
-  --color-accent-purple: var(--color-accent-purple);
-  --color-accent-purple-deep: var(--color-accent-purple-deep);
-  --color-accent-pink: var(--color-accent-pink);
-  --color-accent-orange: var(--color-accent-orange);
-  --color-accent-orange-deep: var(--color-accent-orange-deep);
-  --color-accent-teal: var(--color-accent-teal);
-  --color-accent-green: var(--color-accent-green);
-  --color-accent-brown: var(--color-accent-brown);
-  --font-sans: var(--font-inter), Inter, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+  --font-sans: var(--font-baskerville), var(--font-inter), Georgia, serif;
 }
 
 @media (pointer: fine) {
@@ -58,13 +61,13 @@
 }
 
 body {
-  background-color: var(--color-canvas-soft);
+  background-color: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-feature-settings: "lnum" 1, "locl" 1;
   font-weight: 400;
   line-height: 1.5;
-  -webkit-tap-highlight-color: rgba(0, 117, 222, 0.14);
+  -webkit-tap-highlight-color: rgba(212, 163, 115, 0.2);
 }
 
 h1,
@@ -74,79 +77,69 @@ h3 {
 }
 
 .type-display-1 {
-  font-size: clamp(2.25rem, 1.4rem + 2.7vw, 4rem);
+  font-size: clamp(2.15rem, 1.35rem + 2.5vw, 3.5rem);
   font-weight: 700;
-  line-height: 1.04;
-  letter-spacing: -0.033em;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
 }
 
 .type-heading-1 {
-  font-size: clamp(1.75rem, 1.35rem + 1.2vw, 2.5rem);
+  font-size: clamp(1.75rem, 1.35rem + 1.2vw, 2.35rem);
   font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: -1px;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
 }
 
 .type-heading-2 {
-  font-size: 1.625rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  line-height: 1.23;
-  letter-spacing: -0.625px;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
 }
 
 .type-heading-3 {
-  font-size: 1.375rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1.27;
-  letter-spacing: -0.25px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .type-title {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
   line-height: 1.4;
-  letter-spacing: -0.125px;
 }
 
 .type-eyebrow {
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.33;
-  letter-spacing: 0.125px;
+  letter-spacing: 0.02em;
 }
 
-.shadow-notion-1 {
+.shadow-card {
   box-shadow:
-    rgba(0, 0, 0, 0.01) 0 0.175px 1.041px,
-    rgba(0, 0, 0, 0.02) 0 0.8px 2.925px,
-    rgba(0, 0, 0, 0.027) 0 2.025px 7.847px,
-    rgba(0, 0, 0, 0.04) 0 4px 18px;
+    rgba(28, 25, 23, 0.03) 0 1px 2px,
+    rgba(28, 25, 23, 0.04) 0 4px 12px;
 }
 
-.shadow-notion-2 {
+.shadow-elevated {
   box-shadow:
-    rgba(0, 0, 0, 0.014) 0 0.5px 1.5px,
-    rgba(0, 0, 0, 0.022) 0 2px 5px,
-    rgba(0, 0, 0, 0.03) 0 5px 12px,
-    rgba(0, 0, 0, 0.038) 0 11px 26px,
-    rgba(0, 0, 0, 0.05) 0 23px 52px;
+    rgba(28, 25, 23, 0.04) 0 2px 6px,
+    rgba(28, 25, 23, 0.08) 0 12px 28px;
 }
 
-.notion-input {
-  border-radius: 4px;
+.nomad-input {
+  border-radius: 6px;
   border: 1px solid var(--color-input-border);
   background-color: var(--color-surface);
   color: var(--color-ink);
   transition: box-shadow 150ms ease, border-color 150ms ease;
 }
 
-.notion-input:focus {
-  border-color: var(--color-primary);
-  box-shadow:
-    rgba(0, 0, 0, 0.01) 0 0.175px 1.041px,
-    rgba(0, 0, 0, 0.02) 0 0.8px 2.925px,
-    rgba(0, 0, 0, 0.027) 0 2.025px 7.847px,
-    rgba(0, 0, 0, 0.04) 0 4px 18px;
+.nomad-input:focus {
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.14);
 }
 
 .tabular-nums {
@@ -161,7 +154,7 @@ h3 {
   background: var(--color-primary);
   color: var(--color-on-primary);
   padding: 0.625rem 1rem;
-  border-radius: 8px;
+  border-radius: 5px;
   font-weight: 600;
 }
 
@@ -196,13 +189,13 @@ textarea {
 }
 
 :is(a, button, input, select, textarea, summary):focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-secondary);
   outline-offset: 2px;
 }
 
 :is(input, select, textarea):user-invalid {
-  border-color: var(--color-accent-orange);
-  background-color: #fff7f2;
+  border-color: var(--color-error);
+  background-color: #fef2f2;
 }
 
 dialog:modal {
@@ -216,17 +209,14 @@ dialog:modal {
   color: var(--color-ink);
   padding: 0;
   box-shadow:
-    rgba(0, 0, 0, 0.014) 0 0.5px 1.5px,
-    rgba(0, 0, 0, 0.022) 0 2px 5px,
-    rgba(0, 0, 0, 0.03) 0 5px 12px,
-    rgba(0, 0, 0, 0.038) 0 11px 26px,
-    rgba(0, 0, 0, 0.05) 0 23px 52px;
+    rgba(28, 25, 23, 0.06) 0 4px 12px,
+    rgba(28, 25, 23, 0.12) 0 20px 44px;
 }
 
 dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
-  background: rgba(0, 0, 0, 0.42);
+  background: rgba(28, 25, 23, 0.45);
 }
 
 @media (prefers-reduced-motion: reduce) {
