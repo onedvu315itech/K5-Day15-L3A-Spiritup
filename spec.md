@@ -147,4 +147,4 @@ flowchart TD
 
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
-|  |  |  |
+| 28/11 sau CP4 | Thêm bộ nhớ hội thoại trượt (`ASK_MEMORY_WINDOW = 10` tin gần nhất) cho chế độ `ask` (`ask_about_plan` trong `codebase/agent.py`, phiên CLI `codebase/app.py`, và endpoint `POST/GET /api/v1/trips/{id}/chat` lưu bảng `chat_messages`). Không sửa `generate_plan` hay `answer(text)` | Hỗ trợ hỏi đáp nối tiếp nhiều lượt và nối khớp frontend tab Trò chuyện (`API_SPEC` mục 6) mà không ảnh hưởng kết quả `eval/run-6.csv` |

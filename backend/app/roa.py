@@ -20,3 +20,9 @@ def generate_plan(text: str, rows: list[dict]) -> dict:
     import agent  # codebase/agent.py; import muộn để test thay được `agent.call_model`
     with use_store(rows):
         return agent.generate_plan(text)
+
+
+def ask_plan(question: str, plan: dict | None, history: list[dict], trip_meta: dict | None = None) -> dict:
+    """Roa trả lời câu hỏi về plan hiện tại (chế độ `ask`, chỉ đọc) kèm bộ nhớ hội thoại trượt."""
+    import agent  # codebase/agent.py
+    return agent.ask_about_plan(question, plan=plan, history=history, trip_meta=trip_meta)
