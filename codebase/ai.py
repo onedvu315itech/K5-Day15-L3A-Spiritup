@@ -30,6 +30,8 @@ else:
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+GWAI_URL = "https://1gw.gwai.cloud/v1/chat/completions"
+GWAI_GEMINI_URL = "https://1gw.gwai.cloud/v1beta/models/{model}:generateContent"
 
 
 def load_env(path=os.path.join(ROOT, ".env")):
@@ -50,38 +52,40 @@ MODEL_PROVIDER = (os.environ.get("MODEL_PROVIDER") or "fake").strip().lower()
 MODEL_NAME = (os.environ.get("MODEL_NAME") or "").strip()
 API_KEY = (os.environ.get("API_KEY") or "").strip()
 
-SHOW_RAW = False
 
 def post_json(url, headers, body, timeout=60):
     """Gửi POST JSON, trả về JSON phản hồi. Chỉ dùng thư viện chuẩn (urllib)."""
     req = urllib.request.Request(
-        url, data=json.dumps(body).encode("utf-8"), method="POST",
-        headers=dict({"Content-Type": "application/json"}, **headers))
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        # User-Agent riêng: một số cổng (Cloudflare) chặn "Python-urllib" mặc định với lỗi 1010.
+        headers={"Content-Type": "application/json", "User-Agent": "partaway-roa/0.1", **headers},
+    )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode("utf-8"))
+            return json.loads(r.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         raise RuntimeError("HTTP %d: %s" % (e.code, e.read().decode("utf-8", "replace")[:300]))
-    if SHOW_RAW:
-        print(json.dumps(data, ensure_ascii=False, indent=2)[:3000])
-    return data
 
 
-def call_gemini(system: str, user: str) -> dict:
-    """Gọi Gemini REST API (generateContent), trả về text, tokens_in, tokens_out."""
+def call_gemini(system: str, user: str, url_tpl: str = GEMINI_URL, key: str = "") -> dict:
+    """Gọi Gemini REST API (generateContent), trả về text, tokens_in, tokens_out.
+    url_tpl, key: mặc định Google; GWAI dùng cùng định dạng ở cổng riêng (GWAI_GEMINI_URL)."""
+    key = key or API_KEY
     if not MODEL_NAME:
-        raise RuntimeError("Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER=gemini")
-    if not API_KEY:
-        raise RuntimeError("Thiếu API_KEY trong .env cho MODEL_PROVIDER=gemini")
+        raise RuntimeError(f"Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER={MODEL_PROVIDER}")
+    if not key:
+        raise RuntimeError(f"Thiếu API key trong .env cho MODEL_PROVIDER={MODEL_PROVIDER}")
     model = MODEL_NAME.removeprefix("models/")
-    url = GEMINI_URL.format(model=model)
+    url = url_tpl.format(model=model)
     body = {
         "contents": [{"role": "user", "parts": [{"text": user}]}],
         "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
     }
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
-    data = post_json(url, {"x-goog-api-key": API_KEY}, body, timeout=120)
+    data = post_json(url, {"x-goog-api-key": key}, body, timeout=120)
     candidates = data.get("candidates") or []
     if not candidates:
         raise RuntimeError("Gemini không trả về candidate: %s" % json.dumps(data, ensure_ascii=False)[:300])
@@ -96,15 +100,18 @@ def call_gemini(system: str, user: str) -> dict:
 
 
 def call_openrouter(system: str, user: str) -> dict:
-    """Gọi OpenRouter Chat Completions API, trả về text, tokens_in, tokens_out."""
+    return call_chat_completions(system, user, OPENROUTER_URL, API_KEY)
+
+
+def call_chat_completions(system: str, user: str, url: str, key: str) -> dict:
     if not MODEL_NAME:
-        raise RuntimeError("Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER=openrouter")
-    if not API_KEY:
-        raise RuntimeError("Thiếu API_KEY trong .env cho MODEL_PROVIDER=openrouter")
+        raise RuntimeError(f"Thiếu MODEL_NAME cho {MODEL_PROVIDER}")
+    if not key or key == "YOUR_GWAI_API_KEY_HERE":
+        raise RuntimeError(f"Thiếu API key cho {MODEL_PROVIDER}")
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
     data = post_json(
-        OPENROUTER_URL,
-        {"Authorization": "Bearer " + API_KEY},
+        url,
+        {"Authorization": "Bearer " + key},
         {
             "model": MODEL_NAME,
             "messages": messages,
@@ -115,7 +122,7 @@ def call_openrouter(system: str, user: str) -> dict:
     )
     choices = data.get("choices") or []
     if not choices:
-        raise RuntimeError("OpenRouter không trả về choices: %s" % json.dumps(data, ensure_ascii=False)[:300])
+        raise RuntimeError(f"{MODEL_PROVIDER} không trả về choices")
     text = choices[0].get("message", {}).get("content") or ""
     usage = data.get("usage") or {}
     tokens_in = int(usage.get("prompt_tokens") or 0)
@@ -124,19 +131,12 @@ def call_openrouter(system: str, user: str) -> dict:
 
 
 URL_OPENAI = "https://api.openai.com/v1/chat/completions"
+URL_CLAUDE = "https://api.anthropic.com/v1/messages"
+URL_OLLAMA = "http://localhost:11434/api/chat"
 
 
 def call_openai(system, user):
-    messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
-    data = post_json(URL_OPENAI, {"Authorization": "Bearer " + API_KEY},
-                     {"model": MODEL_NAME, "messages": messages, "temperature": 0.2,
-                      "response_format": {"type": "json_object"}})
-    u = data["usage"]
-    return {"text": data["choices"][0]["message"]["content"],
-            "tokens_in": u["prompt_tokens"], "tokens_out": u["completion_tokens"]}
-
-
-URL_CLAUDE = "https://api.anthropic.com/v1/messages"
+    return call_chat_completions(system, user, URL_OPENAI, API_KEY)
 
 
 def call_claude(system, user):
@@ -149,9 +149,6 @@ def call_claude(system, user):
     return {"text": text, "tokens_in": u["input_tokens"], "tokens_out": u["output_tokens"]}
 
 
-URL_OLLAMA = "http://localhost:11434/api/chat"
-
-
 def call_ollama(system, user):
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
     data = post_json(URL_OLLAMA, {}, {"model": MODEL_NAME, "messages": messages, "stream": False}, timeout=300)
@@ -159,25 +156,41 @@ def call_ollama(system, user):
             "tokens_in": data.get("prompt_eval_count", 0), "tokens_out": data.get("eval_count", 0)}
 
 
-def call_provider(system, user):
-    """Gọi đúng MỘT lần model. Trả về {"text": str, "tokens_in": int, "tokens_out": int}."""
-    # 1. gọi model bằng API_KEY và MODEL_NAME (chép từ quickstart)
-    # 2. lấy chữ trả lời + số token vào / ra từ phản hồi
-    raise RuntimeError("Chưa điền: chép ví dụ quickstart vào call_provider()")
+PROVIDERS = {"openai": call_openai, "anthropic": call_claude, "ollama": call_ollama}
 
 
 @model_call
 def call_model(system: str, user: str) -> dict:
-    if MODEL_PROVIDER == "fake":              # nhánh fake của khung — giữ nguyên 3 dòng này
+    if MODEL_PROVIDER == "fake":
         last = (user.strip().splitlines() or [""])[-1]
         return {"text": "[câu trả lời giả — chưa nối model] " + last[:60], "model": "fake", "tokens_in": 0, "tokens_out": 0}
-    if MODEL_PROVIDER == "openai":
-        r = call_openai(system, user)
-    elif MODEL_PROVIDER == "anthropic":
-        r = call_claude(system, user)
-    elif MODEL_PROVIDER == "ollama":
-        r = call_ollama(system, user)
-    else:
-        r = call_provider(system, user)       # nhà cung cấp khác: mục 2.4
-    return {"text": r["text"], "model": MODEL_NAME,
-            "tokens_in": int(r["tokens_in"]), "tokens_out": int(r["tokens_out"])}
+    if MODEL_PROVIDER == "gemini":
+        r = call_gemini(system, user)
+        return {
+            "text": r["text"],
+            "model": MODEL_NAME,
+            "tokens_in": int(r["tokens_in"]),
+            "tokens_out": int(r["tokens_out"]),
+        }
+    if MODEL_PROVIDER in ("openrouter", "gwai") or MODEL_PROVIDER in PROVIDERS:
+        if MODEL_PROVIDER in PROVIDERS:
+            r = PROVIDERS[MODEL_PROVIDER](system, user)
+        elif MODEL_PROVIDER == "gwai" and MODEL_NAME.startswith("gemini"):
+            # Cổng GWAI chỉ nhận Gemini theo định dạng generateContent, không qua chat/completions.
+            r = call_gemini(system, user, GWAI_GEMINI_URL, os.getenv("GWAI_API_KEY", "").strip())
+        elif MODEL_PROVIDER == "gwai":
+            r = call_chat_completions(system, user, GWAI_URL, os.getenv("GWAI_API_KEY", "").strip())
+        else:
+            r = call_openrouter(system, user)
+        return {
+            "text": r["text"],
+            "model": MODEL_NAME,
+            "tokens_in": int(r["tokens_in"]),
+            "tokens_out": int(r["tokens_out"]),
+        }
+
+    # NHÓM VIẾT: gọi model thật ở đây (theo MODEL_PROVIDER, MODEL_NAME, API_KEY) rồi trả đúng 4 khoá.
+    # Ví dụ chép được cho từng nhà cung cấp: docs/connect-model.md mục 2.
+    raise NotImplementedError(
+        "chưa viết phần gọi model thật cho MODEL_PROVIDER=%s trong codebase/ai.py — xem docs/connect-model.md"
+        % MODEL_PROVIDER)
