@@ -110,7 +110,7 @@
 
     .slide-title {
       font-family: var(--font-serif);
-      font-size: 31px;
+      font-size: 30px;
       font-weight: 700;
       color: var(--ink);
       line-height: 1.2;
@@ -155,12 +155,6 @@
       gap: 20px;
     }
 
-    .grid-asym {
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 20px;
-    }
-
     .grid-asym-rev {
       display: grid;
       grid-template-columns: 0.85fr 1.15fr;
@@ -179,7 +173,7 @@
       background: var(--cream);
       border: 1px solid var(--sand);
       border-radius: 6px;
-      padding: 18px 20px;
+      padding: 16px 20px;
     }
 
     .card-teal {
@@ -324,7 +318,10 @@
       background: #FFFFFF;
       border: 1.5px solid var(--border);
       border-radius: 6px;
-      padding: 12px 14px;
+      padding: 14px 15px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
     }
 
     .flow-node.highlight {
@@ -332,52 +329,39 @@
       border-color: var(--teal);
     }
 
+    .flow-node.warn {
+      background: rgba(204, 85, 0, 0.07);
+      border-color: var(--burnt);
+    }
+
     .flow-step {
       font-family: var(--font-mono);
       font-size: 11px;
       font-weight: 700;
       color: var(--terracotta-dark);
-      margin-bottom: 4px;
+      margin-bottom: 5px;
     }
 
     .flow-node.highlight .flow-step { color: var(--teal); }
+    .flow-node.warn .flow-step { color: var(--burnt); }
 
     .flow-arrow {
       display: flex;
       align-items: center;
       color: var(--terracotta);
       font-weight: 700;
-      font-size: 18px;
+      font-size: 20px;
+      flex-shrink: 0;
     }
 
-    /* Video Placeholder */
-    .video-frame {
-      background: #2A2421;
-      border: 2px dashed var(--terracotta);
-      border-radius: 8px;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      color: var(--cream);
-      text-align: center;
-      padding: 24px;
-      position: relative;
-      box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
-    }
-
-    .play-circle {
-      width: 68px;
-      height: 68px;
-      border-radius: 50%;
-      background: var(--terracotta);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 14px;
-      box-shadow: 0 8px 20px rgba(198, 122, 75, 0.45);
+    .branch-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 5px;
+      background: #FFFFFF;
+      border: 1px dashed var(--burnt);
+      font-size: 12px;
+      color: var(--ink);
     }
 
     /* Controls Bar */
@@ -540,7 +524,7 @@
 
     <div class="slide-footer">
       <span>Nguồn: TEAMS.md · canvas.md · spec.md</span>
-      <span>Slide 1 / 5</span>
+      <span>Slide 1 / 6</span>
     </div>
   </section>
 
@@ -555,14 +539,11 @@
     </div>
 
     <div class="slide-body">
-      <!-- 2 Pie/Donut Charts -->
       <div class="grid-2">
-        <!-- Pie Chart 1: Tỉ lệ gặp vướng mắc -->
+        <!-- Pie Chart 1 -->
         <div class="card" style="display: flex; align-items: center; gap: 20px;">
           <svg width="150" height="150" viewBox="0 0 120 120" style="flex-shrink: 0;">
-            <!-- Background circle (20.9% không vướng mắc) -->
             <circle cx="60" cy="60" r="46" fill="none" stroke="#EFE2CE" stroke-width="22" />
-            <!-- 79.1% gặp vướng mắc: circumference = 2 * pi * 46 = 289.03; 79.1% = 228.6 -->
             <circle cx="60" cy="60" r="46" fill="none" stroke="#C67A4B" stroke-width="22"
               stroke-dasharray="228.6 289.03" transform="rotate(-90 60 60)" />
             <text x="60" y="57" text-anchor="middle" font-family="Lora, Georgia, serif" font-size="20" font-weight="700" fill="#2A2421">79,1%</text>
@@ -580,13 +561,10 @@
           </div>
         </div>
 
-        <!-- Pie Chart 2: Thời gian chốt lịch & Sự cố đi thật -->
+        <!-- Pie Chart 2 -->
         <div class="card" style="display: flex; align-items: center; gap: 20px;">
           <svg width="150" height="150" viewBox="0 0 120 120" style="flex-shrink: 0;">
-            <!-- Background (< 1h: 39.5%) -->
             <circle cx="60" cy="60" r="46" fill="none" stroke="#D4B896" stroke-width="22" />
-            <!-- 60.5% mất >= 1h: 0.605 * 289.03 = 174.9 -->
-            <!-- Breakdown inside 60.5%: >4h (30.2% = 87.3), 2-4h (20.9% = 60.4), 1-2h (9.3% = 26.9) -->
             <circle cx="60" cy="60" r="46" fill="none" stroke="#1A6B6A" stroke-width="22"
               stroke-dasharray="87.3 289.03" transform="rotate(-90 60 60)" />
             <circle cx="60" cy="60" r="46" fill="none" stroke="#CC5500" stroke-width="22"
@@ -608,7 +586,6 @@
         </div>
       </div>
 
-      <!-- Bottom: Real trip incidents + Quotes -->
       <div class="grid-asym-rev">
         <div class="card-teal" style="display: flex; flex-direction: column; justify-content: center; gap: 10px;">
           <div class="card-title" style="color: var(--teal); margin-bottom: 2px;">Hậu quả khi đi thật (n = 43)</div>
@@ -639,7 +616,7 @@
 
     <div class="slide-footer">
       <span>Nguồn: evidence/summary.md · evidence/survey/results.csv (47 phiếu, 43 đúng người dùng đi nhóm ≥ 3 người)</span>
-      <span>Slide 2 / 5</span>
+      <span>Slide 2 / 6</span>
     </div>
   </section>
 
@@ -712,132 +689,284 @@
 
     <div class="slide-footer">
       <span>Nguồn: spec.md §2, §3 · Khảo sát Q2, Q5, Q6 (n = 43)</span>
-      <span>Slide 3 / 5</span>
+      <span>Slide 3 / 6</span>
     </div>
   </section>
 
-  <!-- SLIDE 4: GIẢI PHÁP (SOLUTION) -->
-  <section class="slide" data-title="4. Giải pháp — Partaway &amp; Roa">
+  <!-- SLIDE 4: WORKFLOW CỦA LEADER -->
+  <section class="slide" data-title="4. Luồng xử lý của Leader">
     <div class="slide-header">
       <div>
-        <div class="kicker">SLIDE 4 · GIẢI PHÁP PARTAWAY &amp; AI AGENT ROA (SPEC.MD §4)</div>
-        <h2 class="slide-title">Roa lập bản nháp có kiểm chứng bằng code — Nhóm trưởng giữ quyền chốt</h2>
+        <div class="kicker">SLIDE 4 · LUỒNG NGƯỜI DÙNG — VAI TRÒ NHÓM TRƯỞNG (LEADER)</div>
+        <h2 class="slide-title">Luồng khởi tạo &amp; lưu lịch trình của Leader cùng Roa</h2>
       </div>
-      <div class="slide-badge">1 Agent · 8 Tools · AI gợi ý, người quyết</div>
+      <div class="slide-badge">Role: Leader (Nhóm trưởng)</div>
     </div>
 
     <div class="slide-body">
-      <div class="card-cream" style="padding: 14px 18px; font-size: 14.5px; line-height: 1.5;">
-        <strong style="color: var(--terracotta-dark);">Lát cắt sản phẩm:</strong>
-        Nhóm trưởng nhập số ngày, ngân sách, sở thích cho chuyến đi tại Việt Nam → <strong>Roa</strong> chọn điểm đến và xếp lịch theo ngày/giờ thoả giờ mở cửa và ngân sách (hoặc nói rõ không xếp được và vì sao) → trả bản nháp kèm tổng tiền và lý do để nhóm trưởng duyệt.
+      <div class="flow-strip" style="flex: 1; align-items: stretch;">
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">BƯỚC 1 · NHẬP LIỆU</div>
+            <div class="card-title" style="font-size: 16px;">Điền Form yêu cầu</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Leader nhập thông tin chuyến đi vào biểu mẫu:
+            </p>
+            <ul class="clean-list" style="margin-top: 8px;">
+              <li>Điểm đến (thành phố VN)</li>
+              <li>Số ngày &amp; khung giờ đi</li>
+              <li>Số lượng thành viên</li>
+              <li>Ngân sách / người</li>
+              <li>Sở thích &amp; ràng buộc (ăn chay...)</li>
+            </ul>
+          </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Frontend Form</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node warn">
+          <div>
+            <div class="flow-step">BƯỚC 2 · ROA KIỂM TRA</div>
+            <div class="card-title" style="font-size: 16px;">Kiểm tra trường bắt buộc</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              <strong>Roa</strong> kiểm tra form xem đã đủ các trường bắt buộc hay chưa.
+            </p>
+            <div class="branch-box">
+              <strong>Nếu thiếu thông tin:</strong><br>
+              Roa dừng tạo lịch và <strong>hỏi lại trực tiếp Leader</strong> đúng phần còn thiếu (không tự đoán bừa).
+            </div>
+          </div>
+          <span class="pill pill-burnt" style="margin-top: 10px; align-self: flex-start;">Validation Gate</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">BƯỚC 3 · XÁC NHẬN</div>
+            <div class="card-title" style="font-size: 16px;">Leader xác nhận (Confirm)</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Khi form hợp lệ, Roa sinh bản nháp lịch trình kèm giờ mở cửa, tuyến đi và tổng tiền ước tính.
+            </p>
+            <p style="font-size: 13px; color: var(--ink); margin-top: 8px; line-height: 1.45;">
+              <strong>Leader rà soát &amp; bấm Confirm</strong> để chốt bản chính thức <code>v1</code>.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Human-in-the-loop</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">BƯỚC 4 · LƯU TRỮ</div>
+            <div class="card-title" style="font-size: 16px;">Lưu vào Database</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Hệ thống lưu chuyến đi vào PostgreSQL với phiên bản bất biến (<code>plan_versions</code>):
+            </p>
+            <ul class="clean-list" style="margin-top: 8px;">
+              <li>Sinh <code>plan_id</code></li>
+              <li>Sinh <code>plan_secret_key</code> để chia sẻ cho Member</li>
+            </ul>
+          </div>
+          <span class="pill pill-olive" style="margin-top: 10px; align-self: flex-start;">Store to DB</span>
+        </div>
       </div>
 
-      <div class="flow-strip">
+      <div class="card-cream" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px;">
+        <div style="font-size: 13.8px;">
+          <strong style="color: var(--terracotta-dark);">Điểm chốt kiến trúc:</strong> Roa chỉ tạo bản nháp và kiểm tra điều kiện đầu vào; mọi thao tác ghi chính thức vào Database đều phải qua bước <strong>Confirm</strong> của Leader.
+        </div>
+        <span class="pill pill-terracotta">Input → Check → Confirm → DB</span>
+      </div>
+    </div>
+
+    <div class="slide-footer">
+      <span>Partaway &amp; Roa · Luồng khởi tạo chuyến đi</span>
+      <span>Slide 4 / 6</span>
+    </div>
+  </section>
+
+  <!-- SLIDE 5: WORKFLOW CỦA MEMBER (KHÔNG CẦN ĐĂNG NHẬP) -->
+  <section class="slide" data-title="5. Luồng xử lý của Member (Không cần đăng nhập)">
+    <div class="slide-header">
+      <div>
+        <div class="kicker">SLIDE 5 · LUỒNG NGƯỜI DÙNG — VAI TRÒ THÀNH VIÊN (MEMBER)</div>
+        <h2 class="slide-title">Thành viên tham gia không cần đăng nhập: Góp ý, Upvote &amp; Hỏi Roa</h2>
+      </div>
+      <div class="slide-badge">No Auth · Truy cập bằng plan_id + secret_key</div>
+    </div>
+
+    <div class="slide-body">
+      <div class="flow-strip" style="align-items: stretch;">
         <div class="flow-node">
-          <div class="flow-step">1. YÊU CẦU NHÓM</div>
-          <strong style="font-size: 14px;">Nhóm trưởng nhập</strong>
-          <p style="font-size: 12.5px; color: var(--ink-muted); margin-top: 4px;">Thành phố VN, số ngày, số người, ngân sách, ăn chay / sở thích.</p>
+          <div>
+            <div class="flow-step">1. TRUY CẬP KHÔNG CẦN AUTH</div>
+            <div class="card-title" style="font-size: 15.5px;">Mở Plan bằng mã</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Member không cần tạo tài khoản, chỉ cần nhập:
+            </p>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 5px;">
+              <code>plan_id</code>
+              <code>plan_secret_key</code>
+            </div>
+          </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Frictionless Join</span>
         </div>
+
         <div class="flow-arrow">→</div>
-        <div class="flow-node highlight">
-          <div class="flow-step">2. TRA CỨU DỮ LIỆU THẬT</div>
-          <strong style="font-size: 14px;">Roa gọi công cụ đọc</strong>
-          <p style="font-size: 12.5px; color: var(--ink-muted); margin-top: 4px;">Kho 66 điểm sạch 5 TP + kho quán hot TikTok + giờ mở cửa + thời gian đi.</p>
-        </div>
-        <div class="flow-arrow">→</div>
-        <div class="flow-node highlight">
-          <div class="flow-step">3. KIỂM CHỨNG CODE</div>
-          <strong style="font-size: 14px;"><code>check_itinerary</code></strong>
-          <p style="font-size: 12.5px; color: var(--ink-muted); margin-top: 4px;">Kiểm giờ mở cửa, đệm di chuyển, tổng tiền bằng Python. Vi phạm → xếp lại.</p>
-        </div>
-        <div class="flow-arrow">→</div>
+
         <div class="flow-node">
-          <div class="flow-step">4. CỘNG TÁC &amp; CHỐT</div>
-          <strong style="font-size: 14px;">Duyệt v1 · Đề xuất v2+</strong>
-          <p style="font-size: 12.5px; color: var(--ink-muted); margin-top: 4px;">Cả nhóm góp ý &amp; bỏ phiếu công khai; chỉ nhóm trưởng áp dụng bản mới.</p>
+          <div>
+            <div class="flow-step">2. GÓP Ý CÓ CẤU TRÚC</div>
+            <div class="card-title" style="font-size: 15.5px;">Xem &amp; Đề xuất hoạt động</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Xem lịch trình hiện tại và thêm <strong>comment có cấu trúc</strong> (chọn khung giờ/ngày, địa điểm gợi ý, lý do) để đề xuất hoạt động thay thế.
+            </p>
+          </div>
+          <span class="pill pill-terracotta" style="margin-top: 10px; align-self: flex-start;">Structured Comment</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">3. BỎ PHIẾU TÍN NHIỆM</div>
+            <div class="card-title" style="font-size: 15.5px;">Upvote đề xuất</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              Cả nhóm cùng <strong>Upvote</strong> các comment đề xuất hay nhất để thể hiện mức độ đồng thuận của nhóm.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Group Voting</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">4. LEADER CHỌN THAY THẾ</div>
+            <div class="card-title" style="font-size: 15.5px;">Thay vào cùng khung giờ</div>
+            <p style="font-size: 12.8px; color: var(--ink-muted); line-height: 1.45;">
+              <strong>Leader</strong> xem đề xuất có nhiều Upvote nhất và bấm chọn để <strong>thay thế hoạt động ở đúng khung giờ tương ứng</strong> trong timeline.
+            </p>
+          </div>
+          <span class="pill pill-olive" style="margin-top: 10px; align-self: flex-start;">Update Timeline</span>
         </div>
       </div>
 
       <div class="grid-2">
-        <div class="card">
-          <div class="card-title">Chốt chặn an toàn &amp; minh bạch</div>
-          <ul class="clean-list">
-            <li><strong>Không bịa dữ liệu:</strong> Điểm thiếu giờ mở cửa/giá trong kho → báo rõ <em>"Chưa có dữ liệu từ công cụ"</em> và gắn nhãn <code>[Cần kiểm tra &amp; điền tay]</code>.</li>
-            <li><strong>Xử lý 4 lớp ca khó:</strong> Thiếu thông tin → hỏi lại; ngân sách bất khả thi / quá nhiều điểm xa → từ chối nhồi nhét &amp; gợi ý nới ràng buộc.</li>
-          </ul>
+        <div class="card-teal">
+          <div class="card-title" style="color: var(--teal); margin-bottom: 6px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A6B6A" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Member hỏi Roa về Plan hiện tại (Chỉ đọc)
+          </div>
+          <p style="font-size: 13.5px; line-height: 1.5; color: var(--ink);">
+            Bất kỳ thành viên nào cũng có thể hỏi trực tiếp <strong>Roa</strong> về thông tin trong lịch trình hiện tại (giờ mở cửa, chi phí dự kiến, khoảng cách di chuyển, món chay...) trong hội thoại chung cả nhóm mà không làm thay đổi dữ liệu gốc.
+          </p>
         </div>
-        <div class="card">
-          <div class="card-title">Ranh giới quyền: AI gợi ý, người quyết</div>
+
+        <div class="card-cream">
+          <div class="card-title" style="margin-bottom: 6px;">Lợi ích của thiết kế không cần đăng nhập</div>
           <ul class="clean-list">
-            <li><strong>Lịch sử phiên bản bất biến:</strong> Mọi thay đổi qua đề xuất (<code>ops</code>); phiếu bầu để ghi nhận ý kiến, nhóm trưởng quyết định áp dụng.</li>
-            <li><strong>Không tự động ra ngoài:</strong> Roa không tự lưu plan, không đặt bàn/thanh toán thay và từ chối prompt injection.</li>
+            <li><strong>Giảm rào cản tham gia:</strong> Nhóm đông 5–20 người vào xem &amp; vote ngay qua link kèm <code>plan_id</code> + <code>plan_secret_key</code>.</li>
+            <li><strong>Tránh trôi tin nhắn:</strong> Góp ý gắn trực tiếp vào từng khung giờ thay vì tranh luận rời rạc trên Messenger/Zalo.</li>
           </ul>
         </div>
       </div>
     </div>
 
     <div class="slide-footer">
-      <span>Nguồn: spec.md §4 · ADR 0002, ADR 0004 · codebase/agent.py &amp; codebase/tools.py</span>
-      <span>Slide 4 / 5</span>
+      <span>Partaway &amp; Roa · Luồng cộng tác của Thành viên</span>
+      <span>Slide 5 / 6</span>
     </div>
   </section>
 
-  <!-- SLIDE 5: LIVE DEMO (CHỜ CHÈN VIDEO) -->
-  <section class="slide" data-title="5. Demo thực tế (Live Demo)">
+  <!-- SLIDE 6: PRODUCT VISION -->
+  <section class="slide" data-title="6. Tầm nhìn sản phẩm (Product Vision)">
     <div class="slide-header">
       <div>
-        <div class="kicker">SLIDE 5 · TRẢI NGHIỆM SẢN PHẨM PARTAWAY &amp; ROA</div>
-        <h2 class="slide-title">Demo thực tế: Lập lịch, Đề xuất &amp; Xử lý ca khó</h2>
+        <div class="kicker">SLIDE 6 · TẦM NHÌN SẢN PHẨM (PRODUCT VISION)</div>
+        <h2 class="slide-title">AI Agent tự động săn xu hướng 6 tháng gần nhất từ TikTok &amp; Facebook</h2>
       </div>
-      <div class="slide-badge">Video Demo + Live Web App</div>
+      <div class="slide-badge">Key: Real-time Trend Crawling</div>
     </div>
 
     <div class="slide-body">
-      <div class="grid-asym" style="align-items: center; flex: 1;">
-        <!-- Video Demo Placeholder -->
-        <div>
-          <div class="video-frame">
-            <div class="play-circle">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#FFF5E1"><polygon points="6 4 20 12 6 20 6 4"/></svg>
-            </div>
-            <div style="font-family: var(--font-serif); font-size: 20px; font-weight: 700; margin-bottom: 6px;">
-              KHUNG CHÈN VIDEO DEMO
-            </div>
-            <div style="font-family: var(--font-mono); font-size: 12.5px; color: var(--sand); max-width: 420px; line-height: 1.5;">
-              Chèn file video demo (<code>&lt;video controls src="..."&gt;</code>) hoặc chuyển sang cửa sổ Web App Partaway trực tiếp tại đây.
-            </div>
+      <div class="flow-strip" style="align-items: stretch;">
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">1. KHỞI TẠO YÊU CẦU</div>
+            <div class="card-title" style="font-size: 15.5px;">AI Agent lập Plan</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Nhận yêu cầu chuyến đi (điểm đến, ngân sách, gu ăn chơi, số người) làm tiêu chí lọc đầu vào.
+            </p>
           </div>
+          <span class="pill pill-muted" style="margin-top: 10px; align-self: flex-start;">Agent Orchestrator</span>
         </div>
 
-        <!-- Demo Script & Cases -->
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <div class="card-cream" style="padding: 14px 16px;">
-            <div class="card-title" style="font-size: 15.5px; margin-bottom: 6px;">Kịch bản luồng Web App (6 bước)</div>
-            <p style="font-size: 13px; line-height: 1.5; color: var(--ink);">
-              1. Tạo chuyến đi Đà Lạt → 2. <strong>Roa</strong> soạn bản nháp → 3. Nhóm trưởng duyệt <code>v1</code> → 4. Sửa &amp; tạo đề xuất → 5. Thành viên bỏ phiếu &amp; nhóm trưởng áp dụng <code>v2</code> → 6. Thành viên hỏi Roa.
-            </p>
-          </div>
+        <div class="flow-arrow">→</div>
 
-          <div class="card" style="padding: 14px 16px; border-left: 4px solid var(--teal);">
-            <span class="pill pill-teal">CA THƯỜNG · B01</span>
-            <p style="font-size: 12.8px; margin-top: 6px; line-height: 1.45;">
-              Nhóm 6 người đi Đà Lạt 1 ngày, <strong>400.000đ/người</strong>, ưu tiên quán hot TikTok → Roa xếp đủ lịch, đúng giờ mở cửa, không vượt ngân sách.
+        <div class="flow-node">
+          <div>
+            <div class="flow-step">2. GỌI TOOL BẢN ĐỒ</div>
+            <div class="card-title" style="font-size: 15.5px;">Tìm Places nền tảng</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Gọi công cụ bản đồ để lấy danh sách địa điểm thực tế: <strong>nhà hàng, khách sạn, quán cafe, điểm tham quan</strong> kèm toạ độ &amp; giờ mở cửa.
             </p>
           </div>
+          <span class="pill pill-terracotta" style="margin-top: 10px; align-self: flex-start;">Places Tool</span>
+        </div>
 
-          <div class="card" style="padding: 14px 16px; border-left: 4px solid var(--burnt);">
-            <span class="pill pill-burnt">CA KHÓ · B10</span>
-            <p style="font-size: 12.8px; margin-top: 6px; line-height: 1.45;">
-              Nhóm 10 người đòi đi 4 điểm xa nhau trong <strong>08:00–10:30</strong> → Roa chỉ rõ thiếu giờ di chuyển &amp; quán đóng lúc 10:00, từ chối nhồi nhét.
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node warn">
+          <div>
+            <div class="flow-step">3. ĐIỂM NHẤN CỐT LÕI</div>
+            <div class="card-title" style="font-size: 15.5px;">Crawl TikTok / Facebook</div>
+            <p style="font-size: 13px; color: var(--ink); line-height: 1.45;">
+              Dựa trên danh sách Places vừa tìm, hệ thống <strong>crawl dữ liệu review từ TikTok &amp; Facebook trong vòng 6 tháng gần nhất</strong> để nắm bắt độ hot, chất lượng thực tế và tình trạng đóng/mở mới nhất.
             </p>
           </div>
+          <span class="pill pill-burnt" style="margin-top: 10px; align-self: flex-start;">6-Month Fresh Data</span>
+        </div>
+
+        <div class="flow-arrow">→</div>
+
+        <div class="flow-node highlight">
+          <div>
+            <div class="flow-step">4. XẾP HẠNG &amp; CHỐT LỊCH</div>
+            <div class="card-title" style="font-size: 15.5px;">Ranking khớp yêu cầu</div>
+            <p style="font-size: 13px; color: var(--ink-muted); line-height: 1.45;">
+              Chấm điểm &amp; <strong>Ranking</strong> những địa điểm phù hợp nhất với ngân sách, sở thích và độ hot 6 tháng gần nhất để đưa vào lịch trình.
+            </p>
+          </div>
+          <span class="pill pill-teal" style="margin-top: 10px; align-self: flex-start;">Trend-Aware Ranking</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-cream" style="border-left: 4px solid var(--burnt);">
+          <div class="card-title" style="color: var(--burnt); margin-bottom: 6px;">Tại sao Crawl dữ liệu 6 tháng là chìa khoá?</div>
+          <ul class="clean-list">
+            <li><strong>Quán ăn/cafe thay đổi rất nhanh:</strong> Review trên Google Maps thường cũ hoặc ít phản ánh trend; TikTok/Facebook phản ánh ngay quán nào đang thực sự đông, ngon hay đã xuống cấp/đóng cửa.</li>
+            <li><strong>Khớp gu giới trẻ đi nhóm:</strong> Tự động gom tín hiệu mạng xã hội thay cho việc cả nhóm phải tự lướt hàng giờ.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title" style="margin-bottom: 6px;">Lộ trình nâng cấp từ MVP hiện tại</div>
+          <ul class="clean-list">
+            <li><strong>Hiện tại (MVP):</strong> Dùng kho 66 địa điểm sạch + 12 quán hot TikTok thu trước để đảm bảo tốc độ và độ ổn định.</li>
+            <li><strong>Tầm nhìn (Product Vision):</strong> Tự động hoá pipeline crawl &amp; cập nhật định kỳ 6 tháng trượt từ TikTok/Facebook theo từng cụm địa điểm tìm được.</li>
+          </ul>
         </div>
       </div>
     </div>
 
     <div class="slide-footer">
-      <span>Nhóm Spiritup · Lớp L3A · Track C — Cảm ơn Ban Giám Khảo!</span>
-      <span>Slide 5 / 5</span>
+      <span>Partaway &amp; Roa · Nhóm Spiritup · Lớp L3A · Track C — Cảm ơn Ban Giám Khảo!</span>
+      <span>Slide 6 / 6</span>
     </div>
   </section>
 
@@ -846,8 +975,8 @@
 <!-- Navigation Controls -->
 <div class="controls-bar">
   <button class="ctrl-btn" id="btnPrev" title="Trang trước (←)">← Trước</button>
-  <span id="slideCounter">1 / 5</span>
-  <div class="progress-track"><div class="progress-fill" id="progressFill" style="width: 20%;"></div></div>
+  <span id="slideCounter">1 / 6</span>
+  <div class="progress-track"><div class="progress-fill" id="progressFill" style="width: 16.7%;"></div></div>
   <button class="ctrl-btn" id="btnNext" title="Trang sau (→ / Space)">Sau →</button>
   <button class="ctrl-btn" id="btnOverview" title="Xem toàn bộ (G)">Lưới (G)</button>
   <button class="ctrl-btn" id="btnPrint" title="Xuất PDF (P)">Xuất PDF</button>
@@ -856,7 +985,7 @@
 <!-- Overview Modal -->
 <div class="overview-overlay" id="overviewOverlay">
   <div style="max-width: 1100px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; color: var(--cream);">
-    <h2 style="font-family: var(--font-serif); font-size: 22px;">Tổng quan 5 Slide — Partaway &amp; Roa</h2>
+    <h2 style="font-family: var(--font-serif); font-size: 22px;">Tổng quan 6 Slide — Partaway &amp; Roa</h2>
     <button class="ctrl-btn" id="btnCloseOverview">Đóng (Esc)</button>
   </div>
   <div class="overview-grid" id="overviewGrid"></div>
