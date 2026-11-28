@@ -57,9 +57,11 @@ async function fetchWorkspaceBundle(
   token: string,
   versionToLoad?: number,
 ) {
-  const [detail, plan, vers, props, chats, sugs] = await Promise.all([
-    api.getTrip(tripId, token),
-    api.getPlan(tripId, token, versionToLoad),
+  const detail = await api.getTrip(tripId, token);
+  // Chưa duyệt v1 thì backend chưa có plan (GET /plan trả 404): không gọi.
+  const hasPlan = detail.trip.current_version > 0;
+  const [plan, vers, props, chats, sugs] = await Promise.all([
+    hasPlan ? api.getPlan(tripId, token, versionToLoad) : Promise.resolve(null),
     api.getVersions(tripId, token),
     api.getProposals(tripId, token, "all"),
     api.getChat(tripId, token),
@@ -253,6 +255,29 @@ function WorkspaceContent() {
               Về trang chủ nhập mã mời
             </Link>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && tripDetail && session && !planVersion) {
+    const leader = tripDetail.me.role === "leader";
+    return (
+      <div className="mx-auto max-w-lg px-4 py-12">
+        <div className="rounded-[16px] border border-hairline bg-surface p-8 shadow-card space-y-4">
+          <h1 className="type-heading-2 text-ink">{tripDetail.trip.title}</h1>
+          <p className="text-[15px] text-ink-muted">
+            {leader
+              ? "Chuyến đi chưa có lịch trình v1. Quay lại bước tạo chuyến đi để Roa soạn bản nháp và duyệt."
+              : "Nhóm trưởng chưa chốt lịch trình v1. Trang sẽ tự cập nhật khi có lịch trình."}
+          </p>
+          {errorMsg ? <StatusBanner tone="error" message={errorMsg} /> : null}
+          <Link
+            href="/"
+            className="inline-flex min-h-11 items-center rounded-[5px] bg-primary active:bg-primary-active px-5 py-2 text-[15px] font-semibold text-on-primary transition-colors"
+          >
+            Về trang chủ
+          </Link>
         </div>
       </div>
     );

@@ -131,6 +131,76 @@ class RoaAgentTest(unittest.TestCase):
         self.assertEqual(agent._must_visit("Đà Lạt", s, "quán cà phê view đẹp"), [])
 
 
+class UserTimeBlockTest(unittest.TestCase):
+    """Người dùng nêu giờ cho việc cụ thể: đè lên SLOTS mặc định trong khoảng đó; không nêu thì giữ SLOTS."""
+
+    def run_plan(self, text):
+        fake, _ = model_says()
+        with patch.object(agent, "call_model", side_effect=fake):
+            return agent.generate_plan(text)
+
+    def test_day_window_phrases_are_not_user_blocks(self):
+        for text in ["Xếp lịch ăn tối và cafe buổi tối ở Đà Lạt từ 18:00 đến 21:30 cho nhóm 8 người.",
+                     "Nhóm 4 người đi Đà Lạt 1 ngày từ 09:00 đến 18:00, 500k/người.",
+                     "Đi Đà Lạt 2 ngày 1 đêm, ngắm Đồi Chè Cầu Đất sáng sớm từ 05:30."]:
+            req = agent.parse_regex(text)
+            self.assertEqual(req["user_blocks"], [], text)
+            self.assertTrue(req["window_start"] or req["early_start"], text)
+
+    def test_parse_user_blocks(self):
+        req = agent.parse_regex("Nhóm 5 bạn đi Hà Nội 2 ngày 1 đêm, 1 triệu/người. Ngày 2 lúc 12h ăn trưa ở "
+                                "Phở Thìn Bờ Hồ, 3h-5h chiều cafe, ngày 1 từ 15h đến 16h30 nghỉ ngơi.")
+        got = [(b["day"], agent.hhmm(b["start"]), agent.hhmm(b["end"]), b["cats"], b["pin"], b["free"])
+               for b in req["user_blocks"]]
+        self.assertEqual(got, [(2, "12:00", "13:00", ("food",), "HN-01", False),
+                               (2, "15:00", "17:00", ("cafe",), None, False),
+                               (1, "15:00", "16:30", (), None, True)])
+        self.assertIsNone(req["window_start"])
+
+    def test_no_time_request_uses_default_slots(self):
+        req = agent.parse_regex("Nhóm 4 người đi Đà Lạt 1 ngày, 500k/người.")
+        slots, ws, we = agent.day_slots(req, 1)
+        self.assertEqual([sl[0] for sl in slots], [s[0] for s in agent.SLOTS[1:]])
+        self.assertEqual((agent.hhmm(ws), agent.hhmm(we)), (agent.DAY_START, agent.DAY_END))
+
+    def test_user_blocks_override_default_slots(self):
+        r = self.run_plan("Nhóm 4 người đi Đà Lạt 1 ngày, ngân sách 500k/người, 9h-11h đi chợ, 12h ăn trưa, "
+                          "15h-17h tự do.")
+        self.assertEqual(r["status"], "ok")
+        rows = items_of(r["output"])
+        notes = {it["note"]: it for it in r["plan"]["days"][0]["items"]}
+        self.assertNotIn("Bữa trưa", notes)
+        lunch = notes["Theo yêu cầu: ăn trưa"]
+        self.assertLessEqual(agent.to_min(lunch["start"]) - 12 * 60, agent.USER_SLACK)
+        self.assertEqual(agent.to_min(lunch["end"]) - agent.to_min(lunch["start"]), 60)
+        self.assertIn("Theo yêu cầu: đi chợ", notes)
+        self.assertIn("15:00–17:00  tự do (theo yêu cầu", r["output"])
+        for s, e, _ in [r for r in rows if r[2] != "tự do"]:  # không mục nào chồng lên khung tự do
+            self.assertTrue(agent.to_min(e) <= 15 * 60 or agent.to_min(s) >= 17 * 60, (s, e))
+        free = [it for it in r["plan"]["days"][0]["items"] if it["kind"] == "other"]
+        self.assertEqual([(f["start"], f["end"]) for f in free], [("15:00", "17:00")])
+
+    def test_pinned_place_kept_for_its_day(self):
+        r = self.run_plan("Nhóm 4 người đi Hà Nội 2 ngày 1 đêm, 1 triệu/người. Ngày 2 lúc 12h ăn trưa ở Phở Thìn Bờ Hồ.")
+        self.assertEqual(r["status"], "ok")
+        pho = [(d["day"], it["start"]) for d in r["plan"]["days"] for it in d["items"] if it["place_id"] == "HN-01"]
+        self.assertEqual(len(pho), 1)
+        self.assertEqual(pho[0][0], 2)
+        self.assertLessEqual(agent.to_min(pho[0][1]) - 12 * 60, agent.USER_SLACK)
+
+    def test_model_moving_user_item_falls_back_to_code_draft(self):
+        text = "Nhóm 5 bạn đi Hà Nội 1 ngày, 400k/người, ăn trưa ở Phở Thìn Bờ Hồ lúc 12h."
+        moved = json.dumps({"items": [{"day": 1, "code": "c1", "start": "08:00", "end": "09:00"}], "reasons": "x"})
+        req = agent.parse_regex(text)
+        cands = agent.candidates(req, 400000, text)
+        plan, _ = agent.draft(req, cands, 400000)
+        fake, _ = model_says(moved, moved)
+        with patch.object(agent, "call_model", side_effect=fake):
+            got, reasons = agent.select(text, req, cands, plan, 400000, [])
+        self.assertIs(got, plan)
+        self.assertIsNone(reasons)
+
+
 
 def db_rows():
     """Kho giả của một thành phố chỉ có trong DB: 2 nơi có giờ, 3 nơi chưa có giờ (OQ-22)."""

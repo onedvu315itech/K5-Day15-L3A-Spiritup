@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.2 |
+| Phiên bản | 0.3 |
 | Trạng thái | Nháp, mô tả code trên nhánh `feat/kho-du-lieu-va-agent-roa` |
 | Người phụ trách | Khương (agent, dữ liệu đầu ra) |
 | Cập nhật | 2026-11-28 |
@@ -175,6 +175,13 @@ Mỗi ngày chia thành các khung. Mỗi khung chọn một nơi hợp loại h
 - Điểm số chọn bản tốt nhất: điểm bắt buộc +100 · mỗi mục +10 · lấp bữa trưa hoặc sáng sớm +5 · điểm bắt buộc ở khung sáng sớm +20 · quán hot +3 · rẻ hơn thắng khi hoà.
 - Mỗi nơi chỉ dùng một lần trong cả chuyến.
 
+**Khung giờ nhóm nêu** (`user_blocks`, đọc bằng regex ở B1):
+- Câu không nêu giờ cho từng việc: dùng nguyên bảng khung mặc định ở trên.
+- Câu nêu giờ cho một việc ("9h-11h đi chợ", "12h ăn trưa ở Phở Thìn Bờ Hồ", "15h-17h tự do", "ngày 2 lúc 12h …"): code đối chiếu với khung mặc định. Khung mặc định cùng loại và trùng giờ bị thay; khung khác loại bị cắt hoặc dời ra ngoài khoảng đó. Khung của nhóm được ưu tiên (+60 điểm, trừ 1 điểm mỗi phút bắt đầu muộn, cho trễ tối đa 15 phút để kịp di chuyển).
+- Nêu tên nơi thì khung chỉ nhận đúng nơi đó, các ngày khác không dùng lại. Việc tự do, nghỉ, họp thành khối trống "nhóm tự sắp xếp", không gán địa điểm.
+- Không ghi ngày: nêu tên nơi thì là ngày 1, còn lại áp cho mọi ngày. Khung ngày ("từ 09:00 đến 18:00"), "từ HH:MM" (sáng sớm), giờ nhận/trả phòng vẫn đọc như cũ, không thành khung của nhóm.
+- Ở B6–B9, model phải giữ nguyên các mục theo khung giờ nhóm nêu; dời đi thì code dùng lại bản nháp.
+
 ## 4. Công cụ (`codebase/tools.py`)
 
 | Công cụ | Input | Output | Tác động ra ngoài |
@@ -257,3 +264,4 @@ Kết quả trên chưa chấm cột `pass` và chưa có lượt model thật.
 |---|---|---|---|
 | 0.1 | 2026-11-28 | Khương | Bản đầu: kiến trúc lớp, luồng B1–B10, khung giờ, công cụ, kho, đối chiếu câu thử |
 | 0.2 | 2026-11-28 | Khương | Gộp nhánh `docs/cp2-benchmark-datacard`: nhánh G lấp khoảng trống, hai công cụ mới, kho 5 thành phố, từ chối hai loại, B13–B24 |
+| 0.3 | 2026-11-28 | Khương (cùng Claude Code) | Mục 3: khung giờ nhóm nêu thay khung mặc định trùng giờ |

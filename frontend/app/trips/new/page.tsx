@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useRef, useState } from "react";
 import { StatusBanner } from "@/components/status-banner";
 import { api } from "@/lib/api";
-import { formatDate, formatDurationMinutes, formatVnd } from "@/lib/format";
+import { formatDate, formatDurationMinutes, formatItemCost, formatVnd } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { saveTripSession } from "@/lib/storage";
 import { getTripTemplateById, TRIP_TEMPLATES } from "@/lib/trip-templates";
@@ -90,6 +90,37 @@ function NewTripContent() {
   const [generating, setGenerating] = useState(false);
   const [approving, setApproving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [collectingMsg, setCollectingMsg] = useState<string | null>(null);
+
+  // Thành phố chưa có kho: backend thu ở nền rồi mới cho `generate` (409 data_collecting).
+  // Hỏi lại GET /trips/{id} mỗi 3 giây đến khi kho `ready` (API_SPEC mục 2).
+  const waitForStore = async (tripId: string, token: string) => {
+    const deadline = Date.now() + 5 * 60_000;
+    try {
+      for (;;) {
+        const detail = await api.getTrip(tripId, token);
+        const store = detail.store;
+        if (!store || store.status === "ready") return;
+        const city = store.city_name || detail.trip.destination;
+        if (store.status === "failed") {
+          throw new Error(
+            `Thu dữ liệu địa điểm cho ${city} bị lỗi. Bấm tạo lại sau ít phút.`,
+          );
+        }
+        if (Date.now() > deadline) {
+          throw new Error(
+            `Thu dữ liệu địa điểm cho ${city} lâu hơn dự kiến. Bấm tạo lại sau ít phút.`,
+          );
+        }
+        setCollectingMsg(
+          `Roa đang thu dữ liệu địa điểm cho ${city}. Lần đầu với một thành phố mất vài phút…`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+      }
+    } finally {
+      setCollectingMsg(null);
+    }
+  };
 
   const toggleItem = (
     list: string[],
@@ -176,6 +207,7 @@ function NewTripContent() {
         });
       }
 
+      await waitForStore(tripId, token);
       const generated = await api.generateDraft(tripId, token, extraRequest);
       setDraftResult(generated);
     } catch (err) {
@@ -194,6 +226,7 @@ function NewTripContent() {
     setErrorMsg(null);
     setGenerating(true);
     try {
+      await waitForStore(createdTrip.tripId, createdTrip.token);
       const generated = await api.generateDraft(
         createdTrip.tripId,
         createdTrip.token,
@@ -259,6 +292,9 @@ function NewTripContent() {
         </div>
       </div>
 
+      {collectingMsg ? (
+        <StatusBanner tone="info" message={collectingMsg} />
+      ) : null}
       {errorMsg ? (
         <StatusBanner
           tone="error"
@@ -687,7 +723,7 @@ function NewTripContent() {
                           </p>
                         </div>
                         <span className="text-[13px] font-semibold text-ink tabular-nums shrink-0">
-                          {formatVnd(it.cost_per_person)}
+                          {formatItemCost(it)}
                         </span>
                       </li>
                     ))}
