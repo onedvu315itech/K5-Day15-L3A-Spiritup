@@ -33,11 +33,17 @@ class ProposalBody(BaseModel):
     ops: list[dict] | None = None
     summary: str = Field(min_length=1, max_length=300)
     reason: str | None = Field(default=None, max_length=1000)
-    origin: Literal["manual", "agent"] = "manual"
+    origin: Literal["manual", "agent", "suggestion"] = "manual"
+    suggestion_id: uuid.UUID | None = None
 
 
 class VoteBody(BaseModel):
     value: Literal["agree", "disagree"]
+
+
+class DraftProposalBody(BaseModel):
+    request: str = Field(min_length=1, max_length=1000)
+    suggestion_id: str | None = None
 
 
 # ---------------------------------------------------------------- tham gia, chuyến đi
@@ -96,6 +102,12 @@ def version_diff(n: int, against: int | None = Query(default=None, ge=1), auth=D
 
 
 # ---------------------------------------------------------------- đề xuất (CR-001: mọi thành viên tạo)
+
+@router.post("/trips/{trip_id}/proposals/draft")
+def draft_proposal(body: DraftProposalBody, auth=Depends(current_member), db=Depends(get_db)):
+    trip, member = auth
+    return proposal_service.draft(db, trip, member, body.request)
+
 
 @router.post("/trips/{trip_id}/proposals", status_code=201)
 def create_proposal(body: ProposalBody, auth=Depends(current_member), db=Depends(get_db),

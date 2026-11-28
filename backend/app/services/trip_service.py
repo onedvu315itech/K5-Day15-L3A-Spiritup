@@ -115,14 +115,17 @@ def join(db, invite_code: str, display_name: str):
 
 def trip_detail(db, trip: Trip, member: TripMember) -> dict:
     """GET /trips/{id}."""
-    from app.services import proposal_service
+    from app.services import proposal_service, suggestion_service
     proposal_service.expire_due(db, trip.id)
     db.refresh(trip)
     members = db.query(TripMember).filter(TripMember.trip_id == trip.id).order_by(TripMember.joined_at).all()
     store = db.get(CityStore, trip.city_slug)
     return {"trip": trip_dict(trip), "store": place_service.store_dict(store),
             "members": [member_dict(m) for m in members], "me": {"id": str(member.id), "role": member.role},
-            "counts": {"open_proposals": proposal_service.open_count(db, trip.id)}}
+            "counts": {
+                "open_proposals": proposal_service.open_count(db, trip.id),
+                "new_suggestions": suggestion_service.new_count(db, trip.id),
+            }}
 
 
 def updates(db, trip: Trip, since: int) -> dict:

@@ -26,3 +26,20 @@ def ask_plan(question: str, plan: dict | None, history: list[dict], trip_meta: d
     """Roa trả lời câu hỏi về plan hiện tại (chế độ `ask`, chỉ đọc) kèm bộ nhớ hội thoại trượt."""
     import agent  # codebase/agent.py
     return agent.ask_about_plan(question, plan=plan, history=history, trip_meta=trip_meta)
+
+
+def is_edit_intent(text: str) -> bool:
+    import agent  # codebase/agent.py
+    return bool(agent.EDIT_INTENT_RE.search(text or ""))
+
+
+def draft_edit(
+    request: str,
+    plan: dict,
+    rows: list[dict],
+    history: list[dict] | None = None,
+    trip_meta: dict | None = None,
+) -> dict:
+    """Roa soạn danh sách thao tác sửa plan (`ops`) từ kho địa điểm thật (R-31: chỉ tạo bản nháp)."""
+    import agent  # codebase/agent.py
+    return agent.draft_plan_edit(request, plan=plan, candidates=rows, history=history, trip_meta=trip_meta)

@@ -33,6 +33,7 @@ import {
 } from "@/lib/storage";
 import type {
   ChatMessage,
+  DraftProposalResponse,
   MemberRole,
   PlanItem,
   PlanOp,
@@ -113,6 +114,7 @@ function WorkspaceContent() {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatDrafts, setChatDrafts] = useState<Record<number, DraftProposalResponse>>({});
   const [lastEventId, setLastEventId] = useState(0);
 
   const [loading, setLoading] = useState(true);
@@ -430,8 +432,46 @@ function WorkspaceContent() {
   };
 
   const handleSendChat = async (text: string) => {
-    await api.sendChat(tripId, session.token, text);
+    const res = await api.sendChat(tripId, session.token, text);
+    const draftProposal = res.answer.draft_proposal;
+    if (draftProposal) {
+      setChatDrafts((prev) => ({
+        ...prev,
+        [res.answer.id]: draftProposal,
+      }));
+    }
     await loadWorkspace(session.token, planVersion.version_no);
+  };
+
+  const handleCreateProposalFromDraft = async (
+    draft: DraftProposalResponse,
+  ): Promise<{ number: number }> => {
+    const created = await api.createProposal(tripId, session.token, {
+      kind: "edit",
+      base_version: draft.base_version,
+      ops: draft.ops,
+      summary: draft.summary,
+      reason: draft.reason || undefined,
+      origin: "agent",
+    });
+    await loadWorkspace(session.token, planVersion.version_no);
+    return { number: created.number };
+  };
+
+  const handleApplyDraftDirectly = async (
+    draft: DraftProposalResponse,
+  ): Promise<{ new_version: number }> => {
+    const created = await api.createProposal(tripId, session.token, {
+      kind: "edit",
+      base_version: draft.base_version,
+      ops: draft.ops,
+      summary: draft.summary,
+      reason: draft.reason || undefined,
+      origin: "agent",
+    });
+    const applied = await api.applyProposal(tripId, created.id, session.token);
+    await loadWorkspace(session.token);
+    return { new_version: applied.new_version };
   };
 
   const sidebarNode = (
@@ -670,9 +710,14 @@ function WorkspaceContent() {
               />
             ) : (
               <ChatPanel
-                messages={chatMessages}
+                messages={chatMessages.map((m) =>
+                  chatDrafts[m.id] ? { ...m, draft_proposal: chatDrafts[m.id] } : m,
+                )}
                 isLeader={isLeader}
+                currentVersion={tripDetail.trip.current_version}
                 onSend={handleSendChat}
+                onCreateProposalFromDraft={handleCreateProposalFromDraft}
+                onApplyDraftDirectly={isLeader ? handleApplyDraftDirectly : undefined}
                 onCreateSuggestionFromChat={(prefill) =>
                   setSugFormState({
                     open: true,

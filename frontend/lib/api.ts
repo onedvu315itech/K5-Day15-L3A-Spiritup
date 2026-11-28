@@ -31,16 +31,12 @@ const BASE_URL = (
 const USE_MOCK_ENV = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 /**
- * Endpoint có trong API_SPEC nhưng backend chưa làm. Với chuyến đi thật, không gọi
- * (tránh 404 làm hỏng cả trang): danh sách trả rỗng, thao tác báo "chưa có".
- * - proposalDraft: nhờ Roa soạn `ops` (mục 4) chưa làm.
- * - suggestions: form góp ý, bỏ theo CR-001 (chờ duyệt).
- * Backend làm xong mục nào thì đổi mục đó thành `true`.
+ * Cờ tính năng backend đã sẵn sàng.
  */
 const BACKEND_HAS = {
   chat: true,
-  proposalDraft: false,
-  suggestions: false,
+  proposalDraft: true,
+  suggestions: true,
 } as const;
 
 function notAvailable(feature: string): ApiError {

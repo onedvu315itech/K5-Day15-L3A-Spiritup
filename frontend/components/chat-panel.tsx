@@ -1,28 +1,65 @@
 "use client";
 
 import { useState } from "react";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatSignedVnd } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, DiffChange, DraftProposalResponse } from "@/lib/types";
 import { StatusBanner } from "./status-banner";
+
+function describeDraftChange(
+  change: DiffChange,
+  t: (vi: string, en: string) => string,
+): string {
+  if (change.type === "moved") {
+    return t(
+      `Chuyển "${change.name}": Ngày ${change.from.day} (${change.from.start}) → Ngày ${change.to.day} (${change.to.start})`,
+      `Move "${change.name}": Day ${change.from.day} (${change.from.start}) → Day ${change.to.day} (${change.to.start})`,
+    );
+  }
+  if (change.type === "added") {
+    return t(
+      `Thêm "${change.name}" (Ngày ${change.day})`,
+      `Add "${change.name}" (Day ${change.day})`,
+    );
+  }
+  if (change.type === "removed") {
+    return t(
+      `Xoá "${change.name}" (Ngày ${change.day})`,
+      `Remove "${change.name}" (Day ${change.day})`,
+    );
+  }
+  const fieldsText = Object.keys(change.fields).join(", ");
+  return t(
+    `Sửa "${change.name ?? change.item_id}" (${fieldsText || "thông tin"})`,
+    `Edit "${change.name ?? change.item_id}" (${fieldsText || "details"})`,
+  );
+}
 
 interface ChatPanelProps {
   messages: ChatMessage[];
   isLeader: boolean;
+  currentVersion?: number;
   onSend: (text: string) => Promise<void>;
   onCreateSuggestionFromChat?: (prefill: string) => void;
+  onCreateProposalFromDraft?: (draft: DraftProposalResponse) => Promise<{ number: number }>;
+  onApplyDraftDirectly?: (draft: DraftProposalResponse) => Promise<{ new_version: number }>;
 }
 
 export function ChatPanel({
   messages,
   isLeader,
+  currentVersion,
   onSend,
   onCreateSuggestionFromChat,
+  onCreateProposalFromDraft,
+  onApplyDraftDirectly,
 }: ChatPanelProps) {
   const { t } = useLocale();
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [busyDraftId, setBusyDraftId] = useState<number | null>(null);
+  const [draftDoneMap, setDraftDoneMap] = useState<Record<number, string>>({});
 
   const submitMessage = async () => {
     const trimmed = input.trim();
@@ -61,12 +98,30 @@ export function ChatPanel({
     return "";
   };
 
+  const handleDraftAction = async (
+    msgId: number,
+    fn: () => Promise<string>,
+  ) => {
+    setErrorMsg(null);
+    setBusyDraftId(msgId);
+    try {
+      const doneText = await fn();
+      setDraftDoneMap((prev) => ({ ...prev, [msgId]: doneText }));
+    } catch (err) {
+      setErrorMsg(
+        err instanceof Error ? err.message : "Không thể thực hiện thay đổi lịch trình.",
+      );
+    } finally {
+      setBusyDraftId(null);
+    }
+  };
+
   return (
     <section aria-label={t("Hỏi đáp chung với Roa", "Shared Q&A with Roa")} className="flex flex-col gap-3">
       <div className="rounded-[8px] border border-hairline bg-canvas-soft px-3 py-2 text-[13px] text-ink-muted">
         {t(
-          "Hội thoại chung của cả nhóm. Roa trả lời dựa trên phiên bản hiện tại và không tự sửa lịch trình.",
-          "Shared group conversation. Roa answers based on the current version and never edits the plan.",
+          "Hội thoại chung của cả nhóm. Roa trả lời dựa trên phiên bản hiện tại và soạn thay đổi chờ bạn duyệt.",
+          "Shared group conversation. Roa answers based on the current version and drafts edits for your approval.",
         )}
       </div>
 
@@ -117,8 +172,103 @@ export function ChatPanel({
                   {msg.content}
                 </p>
 
+                {isAgent && msg.draft_proposal ? (() => {
+                  const draft = msg.draft_proposal;
+                  const doneText = draftDoneMap[msg.id];
+                  const isBusy = busyDraftId === msg.id;
+                  const isStaleVersion =
+                    currentVersion != null && draft.base_version !== currentVersion;
+                  return (
+                    <div className="mt-3 rounded-[8px] border border-secondary/30 bg-canvas-soft p-3 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-[12px]">
+                        <span className="font-semibold text-secondary">
+                          {t("Bản nháp sửa lịch", "Draft itinerary edit")} (v{draft.base_version})
+                        </span>
+                        <span className="font-medium text-ink-muted tabular-nums">
+                          {formatSignedVnd(draft.preview.cost_delta_per_person)}
+                        </span>
+                      </div>
+                      <p className="text-[13px] font-medium text-ink">{draft.summary}</p>
+                      {draft.preview.changes.length > 0 ? (
+                        <ul className="space-y-0.5 text-[12px] text-ink-secondary">
+                          {draft.preview.changes.map((c, cIdx) => (
+                            <li key={`${c.item_id}-${cIdx}`}>• {describeDraftChange(c, t)}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                      {draft.warnings.length > 0 ? (
+                        <ul className="space-y-0.5 text-[12px] text-warning">
+                          {draft.warnings.map((w, wIdx) => (
+                            <li key={wIdx}>⚠ {w.message}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+
+                      {doneText ? (
+                        <p className="text-[12px] font-semibold text-success">
+                          ✓ {doneText}
+                        </p>
+                      ) : isStaleVersion ? (
+                        <p className="text-[12px] text-ink-muted">
+                          {t(
+                            `Lịch đã chuyển sang v${currentVersion}; hãy nhắn lại nếu muốn soạn tiếp trên bản mới.`,
+                            `Plan is now on v${currentVersion}; send another message to draft from the latest version.`,
+                          )}
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {isLeader && onApplyDraftDirectly ? (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                void handleDraftAction(msg.id, async () => {
+                                  const res = await onApplyDraftDirectly(draft);
+                                  return t(
+                                    `Đã cập nhật lịch trình thành v${res.new_version}`,
+                                    `Updated itinerary to v${res.new_version}`,
+                                  );
+                                })
+                              }
+                              className="inline-flex min-h-9 items-center rounded-[5px] bg-primary active:bg-primary-active px-3 py-1.5 text-[13px] font-semibold text-on-primary disabled:opacity-60 transition-colors"
+                            >
+                              {isBusy
+                                ? t("Đang cập nhật…", "Applying…")
+                                : t(
+                                    `Áp dụng thành v${draft.base_version + 1}`,
+                                    `Apply as v${draft.base_version + 1}`,
+                                  )}
+                            </button>
+                          ) : null}
+                          {onCreateProposalFromDraft ? (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                void handleDraftAction(msg.id, async () => {
+                                  const prop = await onCreateProposalFromDraft(draft);
+                                  return t(
+                                    `Đã tạo đề xuất #${prop.number} cho nhóm`,
+                                    `Created proposal #${prop.number}`,
+                                  );
+                                })
+                              }
+                              className="inline-flex min-h-9 items-center rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                            >
+                              {isLeader
+                                ? t("Gửi đề xuất cho nhóm", "Create group proposal")
+                                : t("Tạo đề xuất cho nhóm", "Create group proposal")}
+                            </button>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })() : null}
+
                 {isAgent &&
                 msg.suggest_feedback &&
+                !msg.draft_proposal &&
                 !isLeader &&
                 onCreateSuggestionFromChat ? (
                   <button

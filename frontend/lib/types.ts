@@ -356,6 +356,7 @@ export interface ChatMessage {
   content: string;
   plan_version?: number;
   suggest_feedback?: boolean;
+  draft_proposal?: DraftProposalResponse;
   created_at: string;
 }
 

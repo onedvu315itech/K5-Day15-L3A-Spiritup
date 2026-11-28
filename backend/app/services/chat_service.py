@@ -10,7 +10,7 @@ from app import roa
 from app.db.base import utcnow
 from app.db.models import AgentRun, ChatMessage, Trip, TripEvent, TripMember
 from app.errors import ApiError
-from app.services import plan_service
+from app.services import plan_service, proposal_service
 
 log = logging.getLogger("partaway.chat")
 
@@ -38,7 +38,12 @@ def _check_rate_limit(member_id: uuid.UUID) -> None:
     q.append(now)
 
 
-def _msg_dict(row: ChatMessage, names: dict[uuid.UUID, str], suggest_feedback: bool | None = None) -> dict:
+def _msg_dict(
+    row: ChatMessage,
+    names: dict[uuid.UUID, str],
+    suggest_feedback: bool | None = None,
+    draft_proposal: dict | None = None,
+) -> dict:
     out = {
         "id": row.id,
         "role": row.role,
@@ -51,6 +56,8 @@ def _msg_dict(row: ChatMessage, names: dict[uuid.UUID, str], suggest_feedback: b
         out["plan_version"] = row.plan_version
         if suggest_feedback is not None:
             out["suggest_feedback"] = suggest_feedback
+        if draft_proposal is not None:
+            out["draft_proposal"] = draft_proposal
     return out
 
 
@@ -69,8 +76,9 @@ def list_messages(db, trip: Trip, before: int | None = None, limit: int = 30) ->
     return [_msg_dict(r, names) for r in rows]
 
 
-def send_message(db, trip: Trip, member: TripMember, message: str, ask_fn=None) -> dict:
-    """POST /trips/{id}/chat: lưu câu hỏi + trả lời Roa kèm `MEMORY_WINDOW` tin nhắn làm memory."""
+def send_message(db, trip: Trip, member: TripMember, message: str, ask_fn=None, draft_fn=None) -> dict:
+    """POST /trips/{id}/chat: lưu câu hỏi + trả lời Roa kèm `MEMORY_WINDOW` tin nhắn làm memory.
+    Nếu phát hiện ý định sửa plan khi đã có v1, thử để Roa soạn sẵn `draft_proposal` để người dùng bấm áp dụng."""
     text = message.strip()
     if not text:
         raise ApiError(400, "bad_request", "Nội dung câu hỏi không được để trống.")
@@ -109,6 +117,52 @@ def send_message(db, trip: Trip, member: TripMember, message: str, ask_fn=None) 
         "budget_per_person": trip.budget_per_person,
         "current_version": trip.current_version,
     }
+
+    if trip.current_version > 0 and ask_fn is None and (draft_fn is not None or roa.is_edit_intent(text)):
+        drafted = proposal_service.draft_for_chat(db, trip, member, text, history, draft_fn=draft_fn)
+        if drafted is not None:
+            now = utcnow()
+            question_row = ChatMessage(
+                trip_id=trip.id,
+                member_id=member.id,
+                role="member",
+                content=text,
+                plan_version=plan_version,
+                created_at=now,
+            )
+            answer_row = ChatMessage(
+                trip_id=trip.id,
+                member_id=None,
+                role="agent",
+                content=drafted["answer"],
+                plan_version=plan_version,
+                agent_run_id=drafted["run_id"],
+                created_at=utcnow(),
+            )
+            db.add_all([question_row, answer_row])
+            db.flush()
+            db.add(
+                TripEvent(
+                    trip_id=trip.id,
+                    type="chat_message",
+                    actor_id=member.id,
+                    payload={"message_id": answer_row.id, "plan_version": plan_version},
+                    created_at=now,
+                )
+            )
+            db.commit()
+            draft_payload = {
+                "base_version": drafted["base_version"],
+                "ops": drafted["ops"],
+                "summary": drafted["summary"],
+                "reason": drafted["reason"],
+                "preview": drafted["preview"],
+                "warnings": drafted["warnings"],
+            }
+            return {
+                "question": _msg_dict(question_row, names),
+                "answer": _msg_dict(answer_row, names, suggest_feedback=True, draft_proposal=draft_payload),
+            }
 
     t0 = time.monotonic()
     run = AgentRun(trip_id=trip.id, member_id=member.id, mode="ask", status="ok", created_at=utcnow())
