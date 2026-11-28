@@ -38,6 +38,7 @@ interface TripTimelineProps {
   versionNo: number;
   isCurrent: boolean;
   isLeader: boolean;
+  destination?: string;
   initialEditRequest?: {
     suggestionId?: string;
     prefillText?: string;
@@ -65,6 +66,7 @@ export function TripTimeline({
   versionNo,
   isCurrent,
   isLeader,
+  destination,
   initialEditRequest,
   onReturnToCurrent,
   onDraftWithRoa,
@@ -132,10 +134,15 @@ export function TripTimeline({
       setErrorMsg("Giờ kết thúc phải lớn hơn giờ bắt đầu.");
       return;
     }
-    const costNum = Number(editCost);
-    if (!Number.isFinite(costNum) || costNum < 0) {
-      setErrorMsg("Chi phí dự kiến phải là số không âm.");
-      return;
+    const costTrimmed = editCost.trim();
+    let costVal: number | null = null;
+    if (costTrimmed !== "") {
+      const parsed = Number(costTrimmed);
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setErrorMsg("Chi phí dự kiến phải là số không âm.");
+        return;
+      }
+      costVal = Math.round(parsed);
     }
 
     const nextOps: PlanOp[] = [];
@@ -152,7 +159,7 @@ export function TripTimeline({
     if (
       editStart !== item.start ||
       editEnd !== item.end ||
-      costNum !== item.cost_per_person ||
+      costVal !== item.cost_per_person ||
       editNote !== item.note
     ) {
       nextOps.push({
@@ -161,7 +168,7 @@ export function TripTimeline({
         set: {
           start: editStart,
           end: editEnd,
-          cost_per_person: Math.round(costNum),
+          cost_per_person: costVal,
           note: editNote.trim(),
         },
       });
@@ -209,7 +216,7 @@ export function TripTimeline({
           kind: newKind,
           name: newName.trim(),
           place_id: null,
-          address: newAddress.trim() || "Đà Lạt",
+          address: newAddress.trim() || destination || "",
           lat: null,
           lng: null,
           cost_per_person: costVal,
@@ -756,7 +763,7 @@ export function TripTimeline({
                   (w) => w.item_id === item.id,
                 );
                 const isEditingThis = editingItemId === item.id;
-                const kindMeta = KIND_META[item.kind];
+                const kindMeta = KIND_META[item.kind] ?? KIND_META.other;
 
                 return (
                   <li key={item.id} className="relative">

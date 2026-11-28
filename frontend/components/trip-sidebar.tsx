@@ -205,7 +205,7 @@ export function TripSidebar({
                       <button
                         type="button"
                         onClick={() => onRevertVersion(ver.version_no)}
-                        className="rounded-[5px] border border-hairline bg-surface px-2.5 py-1 text-[12px] font-semibold text-on-primary bg-primary/90 hover:bg-primary transition-colors"
+                        className="rounded-[5px] border border-hairline px-2.5 py-1 text-[12px] font-semibold text-on-primary bg-primary/90 hover:bg-primary transition-colors"
                       >
                         {t("Khôi phục", "Restore")}
                       </button>

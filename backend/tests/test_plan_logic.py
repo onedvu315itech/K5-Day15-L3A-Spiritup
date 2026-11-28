@@ -54,8 +54,11 @@ def test_apply_ops_does_not_mutate_and_resorts():
     assert [it["name"] for it in new["days"][0]["items"]] == ["Bún", "Nhận phòng", "Phở"]
     added = new["days"][1]["items"][0]
     assert added["name"] == "Cà phê" and added["id"] not in pl.all_ids(p)
-    types = sorted(c["type"] for c in pl.diff(p, new)["changes"])
+    changes = pl.diff(p, new)["changes"]
+    types = sorted(c["type"] for c in changes)
     assert types == ["added", "moved", "updated"]
+    updated = next(c for c in changes if c["type"] == "updated")
+    assert updated["name"] == "Phở"
     assert pl.diff(p, new)["cost_delta_per_person"] == 30000
     assert pl.touched([{"op": "move_item", "item_id": bun, "after_id": pho}]) == {bun, pho}
 

@@ -100,9 +100,14 @@ def generate(db, trip: Trip, member: TripMember, extra: str | None, run_agent=No
             d["date"] = (trip.start_date + timedelta(days=d["day"] - 1)).isoformat()
         trip.generation_status = "done"
         db.commit()
-        computed = res.get("computed") or {}
+        raw_computed = res.get("computed") or {}
+        warnings = [
+            {"item_id": None, "type": "warning", "message": w} if isinstance(w, str) else w
+            for w in (raw_computed.get("warnings") or [])
+        ]
+        computed = {**raw_computed, "warnings": warnings}
         return {"status": "ok", "draft": {"plan": plan, "computed": computed,
-                                          "warnings": computed.get("warnings") or [], "lodging": res.get("lodging"),
+                                          "warnings": warnings, "lodging": res.get("lodging"),
                                           "message": res.get("output")},
                 "agent_run_id": str(run.id)}
     trip.generation_status = "done"

@@ -103,7 +103,7 @@ export function SiteHeader() {
                       ? "text-[#A9C77B] font-semibold"
                       : "text-secondary font-semibold"
                     : transparent
-                      ? "text-ink hover:text-[#A9C77B]"
+                      ? "text-white/90 hover:text-[#A9C77B]"
                       : "text-ink hover:text-secondary"
                 }`}
               >

@@ -81,6 +81,7 @@ function NewTripContent() {
     token: string;
     memberId: string;
     inviteCode: string;
+    payloadKey: string;
   } | null>(null);
   const [draftResult, setDraftResult] = useState<GenerateDraftResponse | null>(
     null,
@@ -167,10 +168,26 @@ function NewTripContent() {
         ? [...constraints, extraNote.trim()]
         : constraints;
 
-      let tripId = createdTrip?.tripId;
-      let token = createdTrip?.token;
-      let memberId = createdTrip?.memberId;
-      let inviteCode = createdTrip?.inviteCode;
+      const roundedBudget = budgetNum ? Math.round(budgetNum) : null;
+      const currentPayloadKey = JSON.stringify({
+        title: title.trim(),
+        destination: destination.trim(),
+        startDate,
+        endDate,
+        groupSize: sizeNum,
+        budget: roundedBudget,
+        transport,
+        interests,
+        constraints: allConstraints,
+        leaderName: leaderName.trim(),
+      });
+
+      const canReuseTrip =
+        createdTrip && createdTrip.payloadKey === currentPayloadKey;
+      let tripId = canReuseTrip ? createdTrip.tripId : undefined;
+      let token = canReuseTrip ? createdTrip.token : undefined;
+      let memberId = canReuseTrip ? createdTrip.memberId : undefined;
+      let inviteCode = canReuseTrip ? createdTrip.inviteCode : undefined;
 
       if (!tripId || !token || !memberId || !inviteCode) {
         const created = await api.createTrip({
@@ -179,7 +196,7 @@ function NewTripContent() {
           start_date: startDate,
           end_date: endDate,
           group_size: sizeNum,
-          budget_per_person: budgetNum ? Math.round(budgetNum) : null,
+          budget_per_person: roundedBudget,
           preferences: {
             interests,
             constraints: allConstraints,
@@ -191,7 +208,13 @@ function NewTripContent() {
         token = created.token;
         memberId = created.member.id;
         inviteCode = created.trip.invite_code;
-        setCreatedTrip({ tripId, token, memberId, inviteCode });
+        setCreatedTrip({
+          tripId,
+          token,
+          memberId,
+          inviteCode,
+          payloadKey: currentPayloadKey,
+        });
         saveTripSession({
           tripId,
           title: created.trip.title,
@@ -677,9 +700,12 @@ function NewTripContent() {
 
           {draftResult.draft.warnings.length > 0 ? (
             <div className="space-y-2">
-              {draftResult.draft.warnings.map((w, idx) => (
-                <StatusBanner key={idx} tone="warning" message={w.message} />
-              ))}
+              {draftResult.draft.warnings.map((w, idx) => {
+                const msg = typeof w === "string" ? w : w.message;
+                return msg ? (
+                  <StatusBanner key={idx} tone="warning" message={msg} />
+                ) : null;
+              })}
             </div>
           ) : null}
 
@@ -703,9 +729,9 @@ function NewTripContent() {
                     </span>
                   </div>
                   <ul className="space-y-2.5">
-                    {day.items.map((it) => (
+                    {day.items.map((it, itemIdx) => (
                       <li
-                        key={it.id}
+                        key={it.id ?? `${day.day}-${it.start}-${it.name}-${itemIdx}`}
                         className="flex flex-wrap items-start justify-between gap-2 rounded-[8px] border border-hairline bg-canvas-soft p-3.5 text-[14px]"
                       >
                         <div className="min-w-0 space-y-0.5">

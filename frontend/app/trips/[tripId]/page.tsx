@@ -597,6 +597,7 @@ function WorkspaceContent() {
             versionNo={planVersion.version_no}
             isCurrent={planVersion.is_current}
             isLeader={isLeader}
+            destination={tripDetail.trip.destination}
             initialEditRequest={editPrefill}
             onReturnToCurrent={() =>
               void handleSelectVersion(tripDetail.trip.current_version)
@@ -658,8 +659,7 @@ function WorkspaceContent() {
               </button>
             </div>
 
-            {(rightTab === "proposals" && mobileView !== "chat") ||
-            mobileView === "proposals" ? (
+            {rightTab === "proposals" ? (
               <ProposalPanel
                 proposals={proposals}
                 isLeader={isLeader}

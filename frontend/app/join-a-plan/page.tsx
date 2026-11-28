@@ -15,22 +15,24 @@ export default function JoinAPlanPage() {
 
   const [memberName, setMemberName] = useState("");
   const [planCode, setPlanCode] = useState("");
-  const [planSecretKey, setPlanSecretKey] = useState("");
-  const [showSecretKey, setShowSecretKey] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [bannerError, setBannerError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{
     memberName?: string;
     planCode?: string;
-    planSecretKey?: string;
   }>({});
+
+  const extractInviteCode = (raw: string): string => {
+    const trimmed = raw.trim();
+    if (!trimmed.includes("/join/")) return trimmed;
+    return trimmed.split("/join/").pop()?.split(/[?#]/)[0] ?? "";
+  };
 
   const validate = (): boolean => {
     const errors: {
       memberName?: string;
       planCode?: string;
-      planSecretKey?: string;
     } = {};
 
     if (!memberName.trim()) {
@@ -40,17 +42,10 @@ export default function JoinAPlanPage() {
       );
     }
 
-    if (!planCode.trim()) {
+    if (!extractInviteCode(planCode)) {
       errors.planCode = t(
-        "Vui lòng nhập mã kế hoạch.",
-        "Please enter the plan code.",
-      );
-    }
-
-    if (!planSecretKey.trim()) {
-      errors.planSecretKey = t(
-        "Vui lòng nhập mã bí mật kế hoạch.",
-        "Please enter the plan secret key.",
+        "Vui lòng nhập mã mời hoặc link mời hợp lệ.",
+        "Please enter a valid invite code or link.",
       );
     }
 
@@ -65,15 +60,15 @@ export default function JoinAPlanPage() {
     if (!validate()) {
       setBannerError(
         t(
-          "Vui lòng điền đầy đủ tên thành viên, mã kế hoạch và mã bí mật kế hoạch.",
-          "Please fill in member name, plan code, and plan secret key.",
+          "Vui lòng điền đầy đủ tên thành viên và mã mời.",
+          "Please fill in member name and invite code.",
         ),
       );
       return;
     }
 
     const trimmedName = memberName.trim();
-    const trimmedCode = planCode.trim();
+    const trimmedCode = extractInviteCode(planCode);
 
     setSubmitting(true);
     try {
@@ -139,8 +134,8 @@ export default function JoinAPlanPage() {
           </h1>
           <p className="text-[14px] text-ink-muted">
             {t(
-              "Nhập tên thành viên, mã kế hoạch và mã bí mật kế hoạch do nhóm trưởng chia sẻ.",
-              "Enter your member name, plan code, and plan secret key shared by your trip leader.",
+              "Nhập tên hiển thị và mã mời (hoặc dán link mời) do nhóm trưởng chia sẻ.",
+              "Enter your display name and the invite code (or invite link) shared by your trip leader.",
             )}
           </p>
         </div>
@@ -207,7 +202,7 @@ export default function JoinAPlanPage() {
               htmlFor="join-plan-code"
               className="block text-[14px] font-semibold text-ink"
             >
-              {t("Mã kế hoạch *", "Plan code *")}
+              {t("Mã mời hoặc link mời *", "Invite code or link *")}
             </label>
             <input
               id="join-plan-code"
@@ -223,8 +218,8 @@ export default function JoinAPlanPage() {
                 }
               }}
               placeholder={t(
-                "Nhập mã kế hoạch (vd: dalat3n2d0)",
-                "Enter plan code (e.g. dalat3n2d0)",
+                "Nhập mã mời hoặc dán link (vd: dalat3n2d0)",
+                "Enter invite code or paste link (e.g. dalat3n2d0)",
               )}
               aria-invalid={Boolean(fieldErrors.planCode)}
               aria-describedby={
@@ -249,96 +244,6 @@ export default function JoinAPlanPage() {
                 className="text-[13px] font-medium text-error"
               >
                 {fieldErrors.planCode}
-              </p>
-            ) : null}
-          </div>
-
-          <div className="space-y-1.5">
-            <label
-              htmlFor="join-plan-secret-key"
-              className="block text-[14px] font-semibold text-ink"
-            >
-              {t("Mã bí mật kế hoạch *", "Plan secret key *")}
-            </label>
-            <div className="relative">
-              <input
-                id="join-plan-secret-key"
-                name="plan_secret_key"
-                type={showSecretKey ? "text" : "password"}
-                required
-                autoComplete="off"
-                value={planSecretKey}
-                onChange={(e) => {
-                  setPlanSecretKey(e.target.value);
-                  if (fieldErrors.planSecretKey) {
-                    setFieldErrors((prev) => ({
-                      ...prev,
-                      planSecretKey: undefined,
-                    }));
-                  }
-                }}
-                placeholder={t(
-                  "Nhập mã bí mật kế hoạch",
-                  "Enter plan secret key",
-                )}
-                aria-invalid={Boolean(fieldErrors.planSecretKey)}
-                aria-describedby={
-                  fieldErrors.planSecretKey
-                    ? "join-plan-secret-key-error"
-                    : undefined
-                }
-                className="nomad-input min-h-11 w-full pl-3.5 pr-12 py-2.5 text-[15px]"
-              />
-              <button
-                type="button"
-                onClick={() => setShowSecretKey((prev) => !prev)}
-                aria-label={
-                  showSecretKey
-                    ? t("Ẩn mã bí mật kế hoạch", "Hide plan secret key")
-                    : t("Hiện mã bí mật kế hoạch", "Show plan secret key")
-                }
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 inline-flex h-9 w-9 items-center justify-center rounded-[5px] text-ink-muted hover:bg-canvas-soft hover:text-ink transition-colors"
-              >
-                {showSecretKey ? (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                    <line x1="1" y1="1" x2="23" y2="23" />
-                  </svg>
-                ) : (
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    aria-hidden="true"
-                  >
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                )}
-              </button>
-            </div>
-            {fieldErrors.planSecretKey ? (
-              <p
-                id="join-plan-secret-key-error"
-                className="text-[13px] font-medium text-error"
-              >
-                {fieldErrors.planSecretKey}
               </p>
             ) : null}
           </div>

@@ -215,7 +215,7 @@ def diff(old: dict, new: dict) -> dict:
                             "from": {"day": oday, "start": oit["start"]}, "to": {"day": day, "start": it["start"]}})
         fields = {k: [oit.get(k), it.get(k)] for k in ITEM_FIELDS if oit.get(k) != it.get(k)}
         if fields and oday == day:
-            changes.append({"type": "updated", "item_id": iid, "fields": fields})
+            changes.append({"type": "updated", "item_id": iid, "name": it["name"], "fields": fields})
     for iid, (day, it) in a.items():
         if iid not in b:
             changes.append({"type": "removed", "item_id": iid, "day": day, "name": it["name"]})
