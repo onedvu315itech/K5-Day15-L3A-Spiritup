@@ -30,6 +30,7 @@ else:
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+GWAI_URL = "https://1gw.gwai.cloud/v1/chat/completions"
 
 
 def load_env(path=os.path.join(ROOT, ".env")):
@@ -95,15 +96,18 @@ def call_gemini(system: str, user: str) -> dict:
 
 
 def call_openrouter(system: str, user: str) -> dict:
-    """Gọi OpenRouter Chat Completions API, trả về text, tokens_in, tokens_out."""
+    return call_chat_completions(system, user, OPENROUTER_URL, API_KEY)
+
+
+def call_chat_completions(system: str, user: str, url: str, key: str) -> dict:
     if not MODEL_NAME:
-        raise RuntimeError("Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER=openrouter")
-    if not API_KEY:
-        raise RuntimeError("Thiếu API_KEY trong .env cho MODEL_PROVIDER=openrouter")
+        raise RuntimeError(f"Thiếu MODEL_NAME cho {MODEL_PROVIDER}")
+    if not key or key == "YOUR_GWAI_API_KEY_HERE":
+        raise RuntimeError(f"Thiếu API key cho {MODEL_PROVIDER}")
     messages = ([{"role": "system", "content": system}] if system else []) + [{"role": "user", "content": user}]
     data = post_json(
-        OPENROUTER_URL,
-        {"Authorization": "Bearer " + API_KEY},
+        url,
+        {"Authorization": "Bearer " + key},
         {
             "model": MODEL_NAME,
             "messages": messages,
@@ -114,7 +118,7 @@ def call_openrouter(system: str, user: str) -> dict:
     )
     choices = data.get("choices") or []
     if not choices:
-        raise RuntimeError("OpenRouter không trả về choices: %s" % json.dumps(data, ensure_ascii=False)[:300])
+        raise RuntimeError(f"{MODEL_PROVIDER} không trả về choices")
     text = choices[0].get("message", {}).get("content") or ""
     usage = data.get("usage") or {}
     tokens_in = int(usage.get("prompt_tokens") or 0)
@@ -135,8 +139,11 @@ def call_model(system: str, user: str) -> dict:
             "tokens_in": int(r["tokens_in"]),
             "tokens_out": int(r["tokens_out"]),
         }
-    if MODEL_PROVIDER == "openrouter":
-        r = call_openrouter(system, user)
+    if MODEL_PROVIDER in ("openrouter", "gwai"):
+        if MODEL_PROVIDER == "gwai":
+            r = call_chat_completions(system, user, GWAI_URL, os.getenv("GWAI_API_KEY", "").strip())
+        else:
+            r = call_openrouter(system, user)
         return {
             "text": r["text"],
             "model": MODEL_NAME,

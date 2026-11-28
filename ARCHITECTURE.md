@@ -237,6 +237,7 @@ Biến môi trường (giá trị giả trong `.env.example`):
 |---|---|---|
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
+| `GWAI_API_KEY` | Backend | Key riêng khi dùng `MODEL_PROVIDER=gwai`, gọi Chat Completions |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
 | `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
 | `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
