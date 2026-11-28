@@ -1,6 +1,6 @@
 # Thiết kế agent Roa: dữ liệu, công cụ, luồng `generate`, cache
 
-> **Bản nháp v0.3 (27/11/2026), chưa duyệt.** Đề xuất thay nguồn địa điểm Google bằng Geoapify và thiết kế luồng thu "quán hot". Khi được duyệt thì chuyển phần đã chốt vào `spec.md` §4, `ARCHITECTURE.md`, `docs/DATABASE.md` (mục 8) và người quyết ghi ADR. Các mục còn phải quyết ở mục 9; không tự chọn (R-02).
+> **Bản nháp v0.4 (28/11/2026), chưa duyệt.** Đề xuất thay nguồn địa điểm Google bằng Geoapify và thiết kế luồng thu "quán hot". Khi được duyệt thì chuyển phần đã chốt vào `spec.md` §4, `ARCHITECTURE.md`, `docs/DATABASE.md` (mục 8) và người quyết ghi ADR. Các mục còn phải quyết ở mục 9; không tự chọn (R-02).
 
 ## 1. Nguồn dữ liệu
 
@@ -9,6 +9,8 @@
 | Điểm đến → ranh giới, toạ độ | Geoapify Geocoding `GET /v1/geocode/search` (`type=city`, `filter=countrycode:vn`) | Lúc chạy, có cache |
 | Danh sách địa điểm theo loại | Geoapify Places `GET /v2/places` (`filter=place:<id thành phố>`) | Lúc chạy, có cache |
 | Giờ mở cửa, website | Geoapify Place Details `GET /v2/place-details` | Lúc chạy, chỉ cho ứng viên đã chọn, có cache |
+| Giá, giờ mở cửa bổ sung | Tavily Search (snippet), Tavily Extract cho trang menu | **Thu trước theo đợt** vào kho `data/places/<city>.jsonl` (mục 3.1) |
+| Khách sạn còn phòng | Không tra. Roa gợi ý khu ở và đưa link Google Maps / Google Hotels | Không gọi API |
 | Thời gian, quãng đường | Geoapify Routing `GET /v1/routing` (`mode=scooter` / `drive` / `walk`) | Lúc chạy, có cache |
 | Độ "hot" | TikTok (Tavily tìm, Firecrawl / RapidAPI lấy engagement) | **Thu trước theo đợt** vào kho `trending_spots` |
 
@@ -95,6 +97,41 @@ Gộp hai chiều theo mã OSM (`n1152319302`), mỗi nơi một dòng kho:
 
 Quán ở chiều B không tìm thấy trên Geoapify thì không có toạ độ để tính đường. Lần chạy đầu cho thấy đây có thể là phần lớn quán hot (mục 2.1), nên bỏ đi sẽ mất đúng phần nhóm cần. Thứ tự đề xuất: (1) Geocoding theo chữ "`<tên>, <thành phố>`"; (2) geocode địa chỉ trong caption; (3) người duyệt nhập toạ độ tay khi nạp kho, ghi nguồn. Dòng kho không có mã OSM thì dùng `ref = tt:<id nội bộ>`. Lần 3 (mục 2.1): 1/6 tên khớp được, và chỉ qua Geocoding (bước 1).
 
+### 3.1. Thu giá và giờ mở cửa theo đợt (Tavily)
+
+Geoapify gần như không có giá và chỉ có giờ ở khoảng 11–15% nơi (mục 2.1). Bù bằng Tavily, **làm lúc thu kho theo đợt, không làm lúc user hỏi** để không tăng độ trễ của `generate`. Lúc chạy Roa chỉ đọc kho.
+
+**Tra những nơi nào.** Không tra cả danh mục (Đà Lạt khoảng 780 nơi). Chỉ tra:
+
+- quán hot đã khớp với danh mục (mục 3);
+- top-N mỗi loại, ví dụ 20 cà phê, 20 quán ăn, 15 điểm tham quan *(tự ước tính)*;
+- các nơi nằm trong bộ câu thử.
+
+**Cách tra, toàn bộ bằng code, không gọi LLM cho từng kết quả:**
+
+1. Tavily Search `"<tên> <địa chỉ> <thành phố> giá giờ mở cửa"`, `search_depth="basic"`, `max_results=3`, `include_answer=false`, `include_raw_content=false`. Giá credit của Tavily chưa kiểm.
+2. Đọc snippet bằng code:
+   - **Đúng chi nhánh:** snippet phải có tên đường trong địa chỉ Geoapify (có số nhà thì càng chắc). Không có thì bỏ kết quả đó.
+   - **Giờ:** regex dạng `HH:MM–HH:MM`, `7h–22h`.
+   - **Giá:** regex số kèm đơn vị (`đ`, `k`, `vnđ`, `/ly`, `/suất`, `/vé`, `/người`). Loại số điện thoại, ngày tháng, năm.
+3. Snippet có tên đúng chi nhánh nhưng thiếu giá, và kết quả là trang menu, thì gọi Tavily Extract cho URL đó.
+4. Thứ tự ưu tiên nguồn: website hoặc fanpage chính thức > trang tổng hợp (Foody…) > bài review. Thông báo có ngày cụ thể (vd fanpage báo nghỉ lễ) thắng giờ cố định theo tuần nếu trùng ngày đi.
+
+**Luật lưu (mỗi nơi một dòng trong kho, khoá là `ref` Geoapify/OSM):**
+
+- Giá: `{amount_min, amount_max, currency: "VND", unit: "ly"|"suất"|"vé"|"người", text: "35.000đ/ly", source_url, fetched_at}`. Giữ chuỗi gốc để hiển thị.
+- Giờ: tách giờ cố định theo tuần và thông báo theo ngày (`valid_for`). Gặp "mở đến khuya", "till late" thì ghi `close_unverified: true`, hiển thị "chưa xác minh giờ đóng cửa".
+- Tra thất bại cũng lưu (`status: not_found`, `retry_after`), để đợt sau không tra lại ngay.
+- Chỉ lưu dữ kiện đã trích, URL và ngày tra; không lưu nguyên văn bài.
+
+**Hạn dùng chỉ quyết định khi nào chạy đợt thu lại**, không ảnh hưởng lúc user hỏi: giờ khoảng 30 ngày, lần tra thất bại khoảng 7 ngày *(tự ước tính, chốt ở OQ-12)*.
+
+**Không làm:**
+
+- Không xác nhận khách sạn còn phòng: snippet Tavily không có thông tin này. Roa gợi ý khu ở, có nút "Kiểm tra phòng cho nhóm" mở Google Maps (`https://www.google.com/maps/search/?api=1&query=<tên>+<thành phố>`, không cần key) hoặc Google Hotels. Chi phí ở ghi là ước tính.
+- Không kỳ vọng lấy giờ từ Google Maps qua Tavily: trang Maps hiển thị bằng JavaScript. Nơi thiếu giờ thì ghi "chưa xác minh giờ" kèm link Maps.
+- Dùng Tavily Extract đọc cả trang Foody là scrape trang bên thứ ba: kiểm điều khoản trước (Q9). Dùng snippet Foody làm một nguồn, có ghi URL, thì được.
+
 ## 4. Công cụ của Roa
 
 Mỗi công cụ một hàm `@tool` trong `codebase/tools.py`. Không có công cụ ghi plan (R-31).
@@ -104,9 +141,11 @@ Mỗi công cụ một hàm `@tool` trong `codebase/tools.py`. Không có công 
 | `search_places` | điểm đến, nhóm loại (`cafe` / `food` / `sight` / `hotel`), số nơi | `[{ref, name, kind, lat, lon, address, opening_hours?, cuisine?, maybe_closed}]`, kèm `city_ref` | Geocoding + Places, cache |
 | `get_place_details` | `ref` | `opening_hours`, `website`, mô tả | Place Details, cache |
 | `get_trending_spots` | `city_ref`, nhóm loại tuỳ chọn | `[{ref, name, kind, hot_level, evidence, price_hint?, hours_hint?, summary}]`, chỉ mục thu trong 6 tháng | Kho `trending_spots` (DB ở backend, file `data/` khi eval) |
+| `get_place_facts` | danh sách `ref` | `[{ref, price?, hours?, close_unverified, source_url, fetched_at}]` | Kho `data/places/<city>.jsonl` (mục 3.1), không gọi web |
 | `get_travel_time` | danh sách điểm theo thứ tự, phương tiện | thời gian, quãng đường từng chặng | Routing, cache theo từng cặp điểm |
 | `check_plan` | plan nháp, thông tin chuyến | vi phạm cứng, vi phạm mềm | Code, không gọi mạng |
 
+- **Roa không query DB, không viết SQL.** Công cụ là hàm có kiểu rõ ràng, đọc qua một lớp repository có hai bản: bản đọc file (`codebase/`, eval, không cần DB) và bản đọc DB (backend). Cùng một công cụ chạy được ở cả hai nơi.
 - `ref` là mã OSM (`osm:n1152319302`), ổn định hơn `place_id` của Geoapify (chuỗi hex dài, có chứa toạ độ). Place Details nhận được cả `osm_id` + `osm_type`.
 - Giờ mở cửa OSM có cú pháp riêng (`Mo-Su 07:00-22:00`). Cần một hàm đọc các dạng phổ biến; dạng không đọc được thì coi như chưa có giờ.
 - Phương tiện: Routing có `scooter` (xe máy), hợp với nhóm đi xe máy thuê.
@@ -122,13 +161,16 @@ B3  Gom ứng viên (code, song song)
       search_places × 3–4 nhóm loại theo sở thích
       get_trending_spots(city_ref)
 B4  Gộp, lọc, xếp hạng (code)   → nối theo ref; bỏ nơi không tên, maybe_closed;
-                                   điểm = mức hot + khớp sở thích; gom theo khu (khoảng cách đường chim bay);
+                                   điểm = mức hot + khớp sở thích + đã có giá/giờ trong kho;
+                                   gom theo khu (khoảng cách đường chim bay);
                                    giữ K ≈ 30 nơi, đặt mã c1…cK
-B5  Bổ sung giờ (code)          → get_place_details cho ứng viên chưa có giờ (tối đa ~10 nơi)
+B5  Bổ sung giá, giờ (code)     → get_place_facts đọc kho; còn thiếu giờ thì get_place_details
+                                   (Geoapify, có cache, tối đa ~10 nơi). Không tra web lúc này
 B6  Chọn và xếp (model)         → mỗi ngày một danh sách mã c…, thời lượng gợi ý; chỉ được dùng mã đã cho
     Kiểm bằng code               → bỏ mã lạ; sai schema thì thử lại 1 lần (R-33)
 B7  Tính giờ, tiền (code)       → get_travel_time từng ngày; giờ bắt đầu/kết thúc từng mục;
-                                   chi phí từ price_hint hoặc mức mặc định (ghi là ước tính)
+                                   chi phí từ giá trong kho, hoặc mức mặc định (ghi là ước tính);
+                                   chỗ ở: ước tính + link kiểm tra phòng
 B8  check_plan (code)           → cứng: ngoài giờ mở cửa đã biết, chồng giờ, vượt ngân sách
                                    mềm: giờ chưa xác minh, đi xa, ngày quá dày
 B9  Sửa 1 lần (model)           → nếu có vi phạm cứng: gửi danh sách vi phạm, model đổi mã/thứ tự; quay lại B7–B8
@@ -138,10 +180,20 @@ B10 Trả kết quả                 → còn vi phạm cứng: infeasible + l�
 
 - Model được gọi 2 lần, hoặc 3 lần nếu phải sửa. Mọi giờ, tiền, thời gian đi do code tính (`AGENTS.md` mục 8).
 - `reason` của mỗi mục do code ghép từ dữ liệu (vd "đang hot trên TikTok: 3 video, 1,2 triệu lượt xem"), không để model tự viết số.
-- Điểm đến không có trong kho: `get_trending_spots` trả rỗng, Roa vẫn xếp từ Geoapify và nói rõ "chưa có dữ liệu quán hot cho nơi này".
+- Điểm đến chưa thu kho: `get_trending_spots`, `get_place_facts` trả rỗng. Roa vẫn xếp từ Geoapify, đánh dấu giá và giờ là chưa xác minh, nói rõ "chưa có dữ liệu quán hot cho nơi này". Có tra web lúc chạy cho trường hợp này hay không là Q8 (OQ-22).
 - `ask` dùng cùng công cụ đọc, trên plan hiện tại. Công cụ tìm web cho câu hỏi ngoài dữ liệu (thời tiết, sự kiện) là đề xuất riêng, chưa thêm (Q7).
 
-## 6. Cache
+## 6. Lưu trữ và cache
+
+Ba lớp, mỗi lớp một việc:
+
+| Lớp | Nội dung | Ở đâu | Chia sẻ |
+|---|---|---|---|
+| **Kho** (đã lọc, có nguồn) | Danh mục Geoapify rút gọn, mức hot, giá và giờ đã tra, theo thành phố | `data/places/<city>.jsonl`, `data/trending/<city>.json`, mô tả ở `data/DATA_CARD.md` | Commit vào repo: teammate `git pull` là có, eval chạy lại ra cùng dữ liệu. Backend nạp vào DB bằng script seed. Dữ liệu OSM theo ODbL, phải ghi nguồn (Q5) |
+| **Cache** (response thô) | Response Geoapify, Tavily, routing; có khoá, hạn dùng, lưu cả lần tra thất bại | `data/cache/` (git bỏ qua), bảng `places_cache` ở backend | Không chia sẻ; xoá đi chạy lại được |
+| **DB** | Dữ liệu app (chuyến đi, plan, phiên bản, phiếu) và bản sao của kho | Supabase | Qua backend |
+
+Cache khác kho: cache là bản sao response thô, có hạn và vứt đi được; kho là dữ liệu đã lọc, đã khớp, mỗi dòng có `source_url` và ngày tra, được quản lý phiên bản bằng git.
 
 Cache để giảm credit và để eval lặp lại được. Không cache câu trả lời của model.
 
@@ -151,6 +203,7 @@ Cache để giảm credit và để eval lặp lại được. Không cache câu
 | `places` | `city_ref` + nhóm loại + `limit` | danh sách đã rút gọn (mục 4) | 14 ngày |
 | `details` | `ref` | giờ mở cửa, website | 14 ngày |
 | `route` | `ref` đi + `ref` đến + phương tiện | giây, mét | 30 ngày |
+| `facts` (Tavily, chỉ lúc thu đợt) | `ref` | snippet, URL; hoặc `not_found` | giờ ~30 ngày, thất bại ~7 ngày *(tự ước tính)* |
 | Kho hot | `trending_spots` | mục 3 | thu lại theo đợt; chỉ dùng mục trong 6 tháng (đã có) |
 
 - **Backend:** dùng bảng `places_cache` đã có (`key`, `kind`, `response`, `fetched_at`, `expires_at`), thêm `kind = geocode`. Hết hạn thì gọi lại và ghi đè.
@@ -166,9 +219,10 @@ Cache để giảm credit và để eval lặp lại được. Không cache câu
 2. Chiều B: `spike_tiktok_trending.py --city X` → model tách tên → khớp Geoapify (`spike_geoapify.py --candidates`).
 3. Chiều A: `spike_tiktok_trending.py --city X --from-catalog <file geoapify> --top N`. Mỗi nơi 1 lượt Tavily; ra file `.catalog-hits.json` (mỗi nơi: số video tìm thấy, số video có nhắc tên, mã video) và gắn `catalog_refs` (mã OSM) vào dòng ứng viên. Với Đà Lạt có 605 nơi đủ điều kiện (33 tham quan, 236 cà phê, 336 quán ăn), nên phải chọn N (tối đa ~40 nơi mỗi điểm đến *(tự ước tính)*). Script xen kẽ các nhóm, ưu tiên nơi OSM có website hoặc giờ mở cửa (cách chọn tạm, chưa kiểm).
 4. Gộp theo `ref`, tính mức hot, người duyệt viết `summary` và kiểm khớp tên.
-5. Nạp vào `trending_spots`, ghi điểm đến và ngày thu vào `data/DATA_CARD.md`.
+5. Tra giá và giờ bằng Tavily cho quán hot, top-N mỗi loại và nơi trong bộ câu thử (mục 3.1). Script chưa viết.
+6. Ghi kho `data/places/<city>.jsonl`, `data/trending/<city>.json`; nạp vào `trending_spots`; ghi điểm đến và ngày thu vào `data/DATA_CARD.md`.
 
-Hai script hiện tại làm bước 1, 2, 3 và phần khớp. Bước 4 (gộp, tính mức hot) chưa viết. Giới hạn đã biết của chiều A:
+Hai script hiện tại làm bước 1, 2, 3 và phần khớp. Bước 4 (gộp, tính mức hot) và bước 5 (tra giá, giờ) chưa viết. Giới hạn đã biết của chiều A:
 
 - Tên nơi trùng chữ thường (vd quán tên "bình thường") sẽ khớp nhầm caption; người duyệt phải kiểm.
 - Lọc chuỗi theo số chi nhánh trong danh mục OSM; chuỗi chỉ có 1 chi nhánh trên OSM (vd Highlands Coffee ở Đà Lạt) vẫn lọt.
@@ -190,12 +244,15 @@ Hai script hiện tại làm bước 1, 2, 3 và phần khớp. Bước 4 (gộp
 | # | Câu hỏi | Gợi ý |
 |---|---|---|
 | Q1 | Đổi nguồn địa điểm từ Google sang Geoapify: ai duyệt và ghi ADR? | Khương đã thử gọi được; cần người quyết ghi ADR |
-| Q2 | Giờ mở cửa thiếu gần hết: lấp bằng gì? (a) giờ trong caption TikTok, thu theo đợt; (b) giờ mặc định theo loại, có cảnh báo; (c) giữ Google Place Details chỉ cho các nơi đã chọn | (a) cho quán trong kho, (b) cho phần còn lại. Bộ câu thử phải tính tới nơi "giờ chưa xác minh" |
-| Q3 | Giá gần như không có: kiểm ngân sách bằng gì? | Giá từ caption (kho) + mức mặc định theo loại, ghi là ước tính |
+| Q2 | Giờ mở cửa thiếu gần hết: lấp bằng gì? (a) giờ trong caption TikTok, thu theo đợt; (b) giờ mặc định theo loại, có cảnh báo; (c) giữ Google Place Details chỉ cho các nơi đã chọn; (d) tra Tavily theo đợt (mục 3.1) | (d) cho các nơi được tra, còn lại ghi "chưa xác minh" kèm link Maps. Bộ câu thử phải tính tới nơi "giờ chưa xác minh" |
+| Q3 | Giá gần như không có: kiểm ngân sách bằng gì? | Giá tra Tavily theo đợt (mục 3.1) + mức mặc định theo loại, ghi là ước tính |
 | Q4 | Có muốn thu hot ngay lúc chạy cho điểm đến chưa có trong kho không? | Không cho bản nộp; nếu muốn thì đi CR vì trái quyết định đã chốt |
 | Q5 | Có được lưu và commit ảnh chụp dữ liệu Geoapify/OSM cho eval không? | Hỏi Geoapify hoặc đọc kỹ ODbL trước khi commit |
 | Q6 | Kho thu cho những điểm đến nào trước (OQ-11)? | Các điểm đến xuất hiện trong bộ câu thử |
 | Q7 | Thêm công cụ tìm web (Tavily) cho `ask`? | Để sau CP3 |
+| Q8 | Điểm đến chưa thu kho (OQ-09 cho phép bất kỳ đâu): (a) xếp từ Geoapify, đánh dấu giá giờ chưa xác minh; (b) tra web lúc chạy, chấp nhận chậm | (a), giữ độ trễ thấp. Đã ghi OQ-22 |
+| Q9 | Có được dùng Tavily Extract đọc trang Foody không? | Kiểm điều khoản Foody trước; trong lúc chờ chỉ dùng snippet kèm URL |
+| Q10 | Nguồn hot đổi từ TikTok sang bài viết web (khớp với danh mục, điểm hot = số nguồn khác nhau)? | Cần CR vì trái quyết định đã chốt ở `ARCHITECTURE.md` mục 5 |
 
 ## Lịch sử thay đổi
 
@@ -204,3 +261,4 @@ Hai script hiện tại làm bước 1, 2, 3 và phần khớp. Bước 4 (gộp
 | 0.1 | 27/11/2026 | Khương (cùng coding agent) | Bản nháp đầu |
 | 0.2 | 27/11/2026 | Khương (cùng coding agent) | Thêm số liệu lần chạy `spike_geoapify.py` đầu (mục 2.1); bỏ `name=` khỏi chiều B; cách xử lý quán không có trên OSM |
 | 0.3 | 27/11/2026 | Khương (cùng coding agent) | Số liệu lần chạy đủ danh mục (mục 2.1): `name=` hỏng, khớp TikTok 1/6, nhóm tham quan thiếu loại; chiều A có script (`--from-catalog`), câu tìm TikTok luôn kết thúc bằng tên thành phố |
+| 0.4 | 28/11/2026 | Khương (cùng coding agent) | Thu giá, giờ bằng Tavily theo đợt, không tra web lúc chạy (mục 3.1); ba lớp lưu trữ kho/cache/DB, Roa chỉ gọi công cụ qua repository (mục 4, 6); công cụ `get_place_facts`; khách sạn chỉ gợi ý khu và link kiểm tra phòng; Q8–Q10 |

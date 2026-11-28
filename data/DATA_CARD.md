@@ -16,17 +16,17 @@
 | Nhãn | thật |
 | Giới hạn | Mẫu thiên về sinh viên/người trẻ hay đi du lịch tự túc; đang bổ sung nguồn đào review công khai (`evidence/data-mining.md`) để kiểm chéo trước CP3. |
 
-## Dataset 2 · Dữ liệu địa điểm Đà Lạt cho bản chạy thử (`MOCK_PLACES` & `osm_places`)
+## Dataset 2 · Kho địa điểm Đà Lạt cho bản chạy thử (`data/places/da-lat.json`)
 
 | | |
 |---|---|
 | Dùng để làm gì | Nguồn cho các công cụ tra cứu của Roa trong `codebase/tools.py` (`search_places`, `get_trending_spots`, `get_opening_hours`, `get_travel_time`, `check_itinerary`). |
-| Từ đâu | Tại CP2: bộ dữ liệu mẫu có cấu trúc (`MOCK_PLACES`, 8 địa điểm Đà Lạt `DL-01`–`DL-08`) dựa trên thông tin địa điểm thật tại Đà Lạt để kiểm thử luồng agent và tính toán giờ/ngân sách bằng code. Chuẩn bị cho CP3: module `codebase/osm_places.py` (OpenStreetMap Overpass/Nominatim) và script Geoapify/Google Places. |
-| Xử lý những bước gì | Chuẩn hoá các trường `id`, `name`, `city`, `category`, `area`, `open_hour`, `close_hour`, `avg_price_vnd`, `vegetarian_friendly`, `is_hot` để hàm `check_itinerary` kiểm tra ràng buộc bằng code. Với OSM (`osm_places.py`), giữ `opening_hours=null` khi thiếu dữ liệu để không tự bịa giờ (R-36). |
-| Số dòng / số đoạn | 8 địa điểm mẫu (`DL-01`–`DL-08`) trong `codebase/tools.py` tại CP2; truy vấn động khi nối OSM/Geoapify ở CP3. |
-| Phiên bản / ngày lấy | v0.1 (CP2) — 2026-11-27. |
-| Nhãn | `synthetic` *(bộ mẫu có cấu trúc cho bản chạy thử CP2; không dùng làm bằng chứng pain)* · thật *(OSM ở `osm_places.py` khi tích hợp CP3)* |
-| Giới hạn | Tại CP2 chỉ mới phủ 8 điểm đại diện ở Đà Lạt (chưa có dữ liệu các thành phố khác ngoài Đà Lạt, dùng để kiểm chứng hành vi báo `[Cần kiểm tra & điền tay]` khi thiếu dữ liệu). |
+| Từ đâu | (1) Bộ mẫu CP2 `DL-01`–`DL-08` (nhóm tự đặt giờ, giá; nhãn `mau_cp2`), giữ nguyên vì bộ câu thử B01–B10 viết theo nó. (2) Danh mục OpenStreetMap qua Geoapify Places, tải ngày 2026-11-27 cho Đà Lạt (cafe, ăn uống, tham quan; nhãn `osm_geoapify`). File tải thô để ở `data/raw/` (không commit); kho dựng bằng `scripts/build_place_store.py`, không gọi mạng. |
+| Xử lý những bước gì | Chuẩn hoá về `id`, `name`, `city`, `category`, `area`, `open_min`, `close_min` (phút từ 0h), `avg_price_vnd`, `vegetarian_friendly`, `is_hot`, `lat`, `lon`, `source`, `source_note`, `fetched_at`. Với OSM chỉ giữ nơi có tên, không có dấu hiệu đóng cửa và giờ mở cửa dạng một khung cho mọi ngày (`07:00-22:00`, `Mo-Su …`, `24/7`); dạng chia ca hay theo thứ bị bỏ để không đọc sai giờ. Không đoán giá: nơi OSM có `avg_price_vnd = null`; khu lấy từ "Phường …" trong địa chỉ. |
+| Số dòng / số đoạn | 94 nơi: 8 mẫu CP2 (cafe 2, ăn 4, tham quan 2) + 86 từ OSM (cafe 39, ăn 43, tham quan 4). |
+| Phiên bản / ngày lấy | v0.2 (CP3) — OSM tải 2026-11-27, kho dựng 2026-11-28. |
+| Nhãn | `mau_cp2`: tự đặt *(không có nguồn; Roa ghi "chưa xác minh" khi dùng)* · `osm_geoapify`: thật, © OpenStreetMap contributors (ODbL), Powered by Geoapify — ghi công ở khoá `attribution` của file kho. |
+| Giới hạn | Chỉ có Đà Lạt; thành phố khác Roa báo chưa có dữ liệu và trả khung `[Cần kiểm tra & điền tay]` (OQ-22). Nơi OSM chưa có giá nên khi nhóm nêu ngân sách Roa chỉ xếp nơi có giá; giờ OSM do người đóng góp, có thể cũ. Chưa có cột độ hot thật (đang chỉ từ bộ mẫu). Giá, giờ tra theo đợt bằng Tavily để sau CP3 (`docs/roa-agent-design.md` §3.1). |
 
 ## Dataset 3 · Kho quán hot Đà Lạt (`trending_spots` — chuẩn bị cho CP3)
 

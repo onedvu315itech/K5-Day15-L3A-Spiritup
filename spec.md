@@ -72,7 +72,7 @@ flowchart TD
   | `search_places` | thành phố, sở thích/loại hình | danh sách địa điểm kèm mã, tên, khu vực, giá ước tính/người | Không (chỉ đọc) |
   | `get_trending_spots` | thành phố | danh sách quán hot từ kho thu trước | Không (chỉ đọc) |
   | `get_opening_hours` | danh sách mã địa điểm | giờ mở cửa, giờ đóng cửa của từng điểm | Không (chỉ đọc) |
-  | `get_travel_time` | khu vực A, khu vực B | thời gian di chuyển ước tính (phút) | Không (chỉ đọc) |
+  | `get_travel_time` | mã địa điểm A, mã địa điểm B | thời gian đi xe máy ước tính (phút): theo toạ độ nếu có, không thì theo khu vực | Không (chỉ đọc) |
   | `check_itinerary` | danh sách điểm theo khung giờ, ngân sách/người | danh sách vi phạm (đóng cửa, chồng giờ, vượt ngân sách) + tổng tiền tính bằng code | Không (chỉ đọc) |
 
 - **Mức tự động:** [x] AI gợi ý, người quyết · [ ] AI tự làm khi chắc, chuyển người khi không · [ ] AI tự làm — Lý do: nếu lịch sai giờ mở cửa hoặc vượt ngân sách, cả nhóm đi cùng sẽ bị mất thời gian, hụt quán và nhóm trưởng là người chịu trách nhiệm với bạn bè; do đó Roa chỉ tạo bản nháp, nhóm trưởng luôn là người duyệt cuối.
@@ -132,7 +132,8 @@ flowchart TD
 
 | Thời điểm | Đổi gì | Vì sao (trỏ về câu thử / lỗi / bằng chứng nào) |
 |---|---|---|
-|  |  |  |
+| 28/11 sáng | Công cụ đọc kho file `data/places/da-lat.json` (94 nơi: 8 mẫu CP2 + 86 OSM) thay cho `MOCK_PLACES`; giờ tính theo phút; `get_travel_time` nhận mã địa điểm; `check_itinerary` kiểm thêm thời gian di chuyển giữa hai điểm và khung giờ người dùng nêu | B10 cần tính thời gian đi giữa các điểm; kho thật để câu thử `data_that` dùng được (Dataset 2) |
+| 28/11 sáng | `agent.py` thành luồng nhiều bước: model tách yêu cầu (regex dự phòng) → mẫu code cho từ chối, hỏi lại, chưa có dữ liệu, mâu thuẫn ngân sách → kiểm khả thi bằng code → code dựng bản nháp → model chọn lại theo mã ứng viên → `check_itinerary` → sửa một lần → code in kết quả | Bản CP2 chỉ gọi model một lần với lịch mẫu cứng, không kiểm được B06–B12; thiết kế ở `docs/roa-agent-design.md` mục 4 |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 
