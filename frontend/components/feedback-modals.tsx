@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { formatDateTime, formatSignedVnd } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import type {
   PlanData,
   PlanItem,
@@ -11,12 +12,12 @@ import type {
 } from "@/lib/types";
 import { StatusBanner } from "./status-banner";
 
-const CATEGORY_LABELS: Record<SuggestionCategory, string> = {
-  replace: "Thay địa điểm",
-  change_time: "Đổi giờ",
-  add: "Thêm mới",
-  remove: "Bớt mục",
-  other: "Khác",
+const CATEGORY_LABELS: Record<SuggestionCategory, { vi: string; en: string }> = {
+  replace: { vi: "Thay địa điểm", en: "Replace place" },
+  change_time: { vi: "Đổi giờ", en: "Change time" },
+  add: { vi: "Thêm mới", en: "Add item" },
+  remove: { vi: "Bớt mục", en: "Remove item" },
+  other: { vi: "Khác", en: "Other" },
 };
 
 interface SuggestionFormDialogProps {
@@ -46,6 +47,7 @@ export function SuggestionFormDialog({
   onClose,
   onSubmit,
 }: SuggestionFormDialogProps) {
+  const { locale, t } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [day, setDay] = useState<number>(defaultDay);
@@ -105,14 +107,14 @@ export function SuggestionFormDialog({
       <form onSubmit={(e) => void handleSubmit(e)} className="p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <h1 id={titleId} className="type-heading-3 text-ink">
-            Gửi góp ý cho nhóm trưởng
+            {t("Gửi góp ý cho nhóm trưởng", "Send feedback to leader")}
           </h1>
           <button
             type="button"
             onClick={onClose}
             className="rounded-[8px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-ink-muted hover:text-ink hover:bg-canvas-soft"
           >
-            Đóng
+            {t("Đóng", "Close")}
           </button>
         </div>
 
@@ -124,7 +126,7 @@ export function SuggestionFormDialog({
               htmlFor="sug-day"
               className="block text-[13px] font-semibold text-ink mb-1"
             >
-              Ngày liên quan
+              {t("Ngày liên quan", "Related day")}
             </label>
             <select
               id="sug-day"
@@ -133,11 +135,11 @@ export function SuggestionFormDialog({
                 setDay(Number(e.target.value));
                 setItemId("");
               }}
-              className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+              className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
             >
               {plan.days.map((d) => (
                 <option key={d.day} value={d.day}>
-                  Ngày {d.day}: {d.title}
+                  {t("Ngày", "Day")} {d.day}: {d.title}
                 </option>
               ))}
             </select>
@@ -147,17 +149,17 @@ export function SuggestionFormDialog({
               htmlFor="sug-cat"
               className="block text-[13px] font-semibold text-ink mb-1"
             >
-              Loại góp ý
+              {t("Loại góp ý", "Category")}
             </label>
             <select
               id="sug-cat"
               value={category}
               onChange={(e) => setCategory(e.target.value as SuggestionCategory)}
-              className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+              className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
             >
               {Object.entries(CATEGORY_LABELS).map(([k, label]) => (
                 <option key={k} value={k}>
-                  {label}
+                  {locale === "en" ? label.en : label.vi}
                 </option>
               ))}
             </select>
@@ -169,15 +171,17 @@ export function SuggestionFormDialog({
             htmlFor="sug-item"
             className="block text-[13px] font-semibold text-ink mb-1"
           >
-            Mục trong ngày (tuỳ chọn)
+            {t("Mục trong ngày (tuỳ chọn)", "Item in day (optional)")}
           </label>
           <select
             id="sug-item"
             value={itemId}
             onChange={(e) => setItemId(e.target.value)}
-            className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+            className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
           >
-            <option value="">Cả ngày / không chọn mục cụ thể</option>
+            <option value="">
+              {t("Cả ngày / không chọn mục cụ thể", "Whole day / no specific item")}
+            </option>
             {itemsInDay.map((it) => (
               <option key={it.id} value={it.id}>
                 {it.start} · {it.name}
@@ -191,7 +195,7 @@ export function SuggestionFormDialog({
             htmlFor="sug-content"
             className="block text-[13px] font-semibold text-ink mb-1"
           >
-            Nội dung góp ý *
+            {t("Nội dung góp ý *", "Feedback details *")}
           </label>
           <textarea
             id="sug-content"
@@ -200,8 +204,11 @@ export function SuggestionFormDialog({
             maxLength={1000}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Ví dụ: Đổi bữa trưa ngày 2 sang quán chay vì Toàn ăn chay…"
-            className="notion-input w-full px-3 py-2 text-[15px]"
+            placeholder={t(
+              "Ví dụ: Đổi bữa trưa ngày 2 sang quán chay vì Toàn ăn chay…",
+              "Example: Swap Day 2 lunch to a vegetarian spot…",
+            )}
+            className="nomad-input w-full px-3 py-2 text-[15px]"
           />
         </div>
 
@@ -209,16 +216,18 @@ export function SuggestionFormDialog({
           <button
             type="button"
             onClick={onClose}
-            className="min-h-11 rounded-[8px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft"
+            className="min-h-11 rounded-[5px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft"
           >
-            Huỷ
+            {t("Huỷ", "Cancel")}
           </button>
           <button
             type="submit"
             disabled={submitting}
-            className="min-h-11 rounded-[8px] bg-primary active:bg-primary-active px-4 py-2 text-[15px] font-medium text-on-primary disabled:opacity-60"
+            className="min-h-11 rounded-[5px] bg-primary active:bg-primary-active px-4 py-2 text-[15px] font-semibold text-on-primary disabled:opacity-60"
           >
-            {submitting ? "Đang gửi…" : "Gửi góp ý"}
+            {submitting
+              ? t("Đang gửi…", "Sending…")
+              : t("Gửi góp ý", "Submit feedback")}
           </button>
         </div>
       </form>
@@ -245,6 +254,7 @@ export function SuggestionInboxDialog({
   onConvertToEdit,
   onHandle,
 }: SuggestionInboxDialogProps) {
+  const { locale, t } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -289,15 +299,15 @@ export function SuggestionInboxDialog({
       <div className="p-6 space-y-4">
         <div className="flex items-start justify-between gap-3">
           <h1 id={titleId} className="type-heading-3 text-ink">
-            Hộp góp ý của thành viên
+            {t("Hộp góp ý của thành viên", "Member feedback inbox")}
           </h1>
           <button
             type="button"
             autoFocus
             onClick={onClose}
-            className="rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
+            className="rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
           >
-            Đóng
+            {t("Đóng", "Close")}
           </button>
         </div>
 
@@ -305,7 +315,7 @@ export function SuggestionInboxDialog({
 
         {suggestions.length === 0 ? (
           <p className="py-6 text-center text-[15px] text-ink-muted">
-            Chưa có góp ý nào từ thành viên.
+            {t("Chưa có góp ý nào từ thành viên.", "No feedback from members yet.")}
           </p>
         ) : (
           <ul className="space-y-3 max-h-[60dvh] overflow-y-auto pr-1">
@@ -316,16 +326,19 @@ export function SuggestionInboxDialog({
               >
                 <div className="flex items-center justify-between gap-2 text-[12px] text-ink-muted">
                   <span className="font-semibold text-ink">
-                    {sug.author.display_name} · {CATEGORY_LABELS[sug.category]}
-                    {sug.day ? ` · Ngày ${sug.day}` : ""}
+                    {sug.author.display_name} ·{" "}
+                    {locale === "en"
+                      ? CATEGORY_LABELS[sug.category].en
+                      : CATEGORY_LABELS[sug.category].vi}
+                    {sug.day ? ` · ${t("Ngày", "Day")} ${sug.day}` : ""}
                   </span>
                   <span className="tabular-nums text-ink-faint">
                     {formatDateTime(sug.created_at)}
                   </span>
                 </div>
                 {sug.item_name ? (
-                  <p className="text-[12px] font-semibold text-primary">
-                    Mục: {sug.item_name}
+                  <p className="text-[12px] font-semibold text-secondary">
+                    {t("Mục:", "Item:")} {sug.item_name}
                   </p>
                 ) : null}
                 <p className="text-ink-secondary break-words">{sug.content}</p>
@@ -336,17 +349,17 @@ export function SuggestionInboxDialog({
                       type="button"
                       disabled={busyId === sug.id}
                       onClick={() => onConvertToEdit(sug)}
-                      className="min-h-9 rounded-[8px] bg-primary active:bg-primary-active px-3 py-1.5 text-[13px] font-medium text-on-primary"
+                      className="min-h-9 rounded-[5px] bg-primary active:bg-primary-active px-3 py-1.5 text-[13px] font-semibold text-on-primary"
                     >
-                      Tạo đề xuất từ góp ý này
+                      {t("Tạo đề xuất từ góp ý này", "Create proposal")}
                     </button>
                     <button
                       type="button"
                       disabled={busyId === sug.id}
                       onClick={() => void handleAction(sug.id, "noted")}
-                      className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
+                      className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
                     >
-                      Ghi nhận
+                      {t("Ghi nhận", "Mark noted")}
                     </button>
                     <button
                       type="button"
@@ -355,18 +368,23 @@ export function SuggestionInboxDialog({
                         void handleAction(
                           sug.id,
                           "declined",
-                          "Chưa phù hợp với lịch chung",
+                          t(
+                            "Chưa phù hợp với lịch chung",
+                            "Does not fit current schedule",
+                          ),
                         )
                       }
-                      className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-accent-orange-deep hover:bg-canvas-soft"
+                      className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-error hover:bg-canvas-soft"
                     >
-                      Từ chối
+                      {t("Từ chối", "Decline")}
                     </button>
                   </div>
                 ) : (
                   <p className="text-[12px] text-ink-muted">
-                    Trạng thái: <strong>{sug.status}</strong>
-                    {sug.proposal ? ` (Đề xuất #${sug.proposal.number})` : ""}
+                    {t("Trạng thái:", "Status:")} <strong>{sug.status}</strong>
+                    {sug.proposal
+                      ? ` (${t("Đề xuất", "Proposal")} #${sug.proposal.number})`
+                      : ""}
                     {sug.leader_note ? ` — ${sug.leader_note}` : ""}
                   </p>
                 )}
@@ -385,6 +403,7 @@ interface VersionDiffDialogProps {
 }
 
 export function VersionDiffDialog({ diff, onClose }: VersionDiffDialogProps) {
+  const { t } = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -412,30 +431,33 @@ export function VersionDiffDialog({ diff, onClose }: VersionDiffDialogProps) {
         <div className="flex items-start justify-between gap-3">
           <h1 id={titleId} className="type-heading-3 text-ink">
             {diff
-              ? `So sánh v${diff.from} với v${diff.to}`
-              : "So sánh phiên bản"}
+              ? `${t("So sánh", "Compare")} v${diff.from} ${t("với", "vs")} v${diff.to}`
+              : t("So sánh phiên bản", "Compare versions")}
           </h1>
           <button
             type="button"
             autoFocus
             onClick={onClose}
-            className="rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
+            className="rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
           >
-            Đóng
+            {t("Đóng", "Close")}
           </button>
         </div>
 
         {diff ? (
           <>
             <p className="text-[14px] text-ink-muted tabular-nums">
-              Chênh lệch chi phí:{" "}
+              {t("Chênh lệch chi phí:", "Cost difference:")}{" "}
               <strong className="text-ink">
                 {formatSignedVnd(diff.cost_delta_per_person)}
               </strong>
             </p>
             {diff.changes.length === 0 ? (
               <p className="text-[14px] text-ink-muted">
-                Hai phiên bản không có khác biệt về mục lịch trình.
+                {t(
+                  "Hai phiên bản không có khác biệt về mục lịch trình.",
+                  "No itinerary differences between these two versions.",
+                )}
               </p>
             ) : (
               <ul className="space-y-2 text-[14px]">
@@ -444,12 +466,17 @@ export function VersionDiffDialog({ diff, onClose }: VersionDiffDialogProps) {
                     key={`${c.item_id}-${idx}`}
                     className="rounded-[8px] border border-hairline bg-canvas-soft px-3 py-2 text-ink-secondary"
                   >
-                    {c.type === "added" && `Thêm "${c.name}" (Ngày ${c.day})`}
-                    {c.type === "removed" && `Xoá "${c.name}" (Ngày ${c.day})`}
+                    {c.type === "added" &&
+                      t(`Thêm "${c.name}" (Ngày ${c.day})`, `Add "${c.name}" (Day ${c.day})`)}
+                    {c.type === "removed" &&
+                      t(`Xoá "${c.name}" (Ngày ${c.day})`, `Remove "${c.name}" (Day ${c.day})`)}
                     {c.type === "moved" &&
-                      `Dời "${c.name}" từ Ngày ${c.from.day} (${c.from.start}) sang Ngày ${c.to.day} (${c.to.start})`}
+                      t(
+                        `Dời "${c.name}" từ Ngày ${c.from.day} (${c.from.start}) sang Ngày ${c.to.day} (${c.to.start})`,
+                        `Move "${c.name}" from Day ${c.from.day} (${c.from.start}) to Day ${c.to.day} (${c.to.start})`,
+                      )}
                     {c.type === "updated" &&
-                      `Cập nhật "${c.name ?? c.item_id}"`}
+                      t(`Cập nhật "${c.name ?? c.item_id}"`, `Update "${c.name ?? c.item_id}"`)}
                   </li>
                 ))}
               </ul>
