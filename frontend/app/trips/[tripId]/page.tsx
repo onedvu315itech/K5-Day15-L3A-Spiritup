@@ -23,6 +23,7 @@ import { StatusBanner } from "@/components/status-banner";
 import { TripSidebar } from "@/components/trip-sidebar";
 import { TripTimeline } from "@/components/trip-timeline";
 import { api } from "@/lib/api";
+import { useLocale } from "@/lib/i18n";
 import { mockApi } from "@/lib/mock-data";
 import {
   ensureDemoSession,
@@ -69,6 +70,7 @@ async function fetchWorkspaceBundle(
 
 function WorkspaceContent() {
   const params = useParams<{ tripId: string }>();
+  const { t } = useLocale();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -236,7 +238,7 @@ function WorkspaceContent() {
   if (sessionChecked && !session) {
     return (
       <div className="mx-auto max-w-lg px-4 py-12">
-        <div className="rounded-[16px] border border-hairline bg-surface p-8 shadow-notion-1 space-y-4">
+        <div className="rounded-[16px] border border-hairline bg-surface p-8 shadow-card space-y-4">
           <h1 className="type-heading-2 text-ink">
             Chưa có phiên truy cập chuyến đi này
           </h1>
@@ -246,7 +248,7 @@ function WorkspaceContent() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/"
-              className="inline-flex min-h-11 items-center rounded-full bg-primary active:bg-primary-active px-5 py-2 text-[15px] font-medium text-on-primary transition-colors"
+              className="inline-flex min-h-11 items-center rounded-[5px] bg-primary active:bg-primary-active px-5 py-2 text-[15px] font-semibold text-on-primary transition-colors"
             >
               Về trang chủ nhập mã mời
             </Link>
@@ -258,12 +260,29 @@ function WorkspaceContent() {
 
   if (loading || !tripDetail || !planVersion || !session) {
     return (
-      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-4">
+      <div className="mx-auto max-w-[1280px] px-4 py-8 sm:px-6 space-y-5">
         {errorMsg ? (
           <StatusBanner tone="error" message={errorMsg} />
         ) : (
-          <div className="rounded-[16px] border border-hairline bg-surface p-8 text-center text-[15px] text-ink-muted">
-            Đang tải không gian chuyến đi…
+          <div aria-label="Đang tải không gian chuyến đi" className="space-y-5 animate-pulse">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
+              <div className="space-y-2">
+                <div className="h-7 w-56 rounded-[8px] bg-canvas-soft" />
+                <div className="h-4 w-72 rounded-[6px] bg-canvas-soft" />
+              </div>
+              <div className="h-10 w-44 rounded-[8px] bg-canvas-soft" />
+            </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[260px_minmax(0,1fr)_360px]">
+              <div className="hidden lg:block space-y-4">
+                <div className="h-44 rounded-[12px] border border-hairline bg-surface" />
+                <div className="h-36 rounded-[12px] border border-hairline bg-surface" />
+              </div>
+              <div className="space-y-4">
+                <div className="h-24 rounded-[12px] border border-hairline bg-surface" />
+                <div className="h-64 rounded-[12px] border border-hairline bg-surface" />
+              </div>
+              <div className="hidden lg:block h-80 rounded-[12px] border border-hairline bg-surface" />
+            </div>
           </div>
         )}
       </div>
@@ -418,11 +437,12 @@ function WorkspaceContent() {
             {tripDetail.trip.title}
           </h1>
           <p className="mt-0.5 text-[13px] text-ink-muted">
-            Đang đăng nhập tên{" "}
+            {t("Đang đăng nhập tên", "Signed in as")}{" "}
             <strong className="font-semibold text-ink">
               {session.displayName}
             </strong>{" "}
-            · {isLeader ? "Nhóm trưởng" : "Thành viên"} · Đang xem{" "}
+            · {isLeader ? t("Nhóm trưởng", "Leader") : t("Thành viên", "Member")} ·{" "}
+            {t("Đang xem", "Viewing")}{" "}
             <span className="tabular-nums font-semibold text-ink">
               v{planVersion.version_no}
             </span>
@@ -433,7 +453,7 @@ function WorkspaceContent() {
           {tripId === "demo-dalat-3n2d" ? (
             <div className="inline-flex items-center rounded-[8px] border border-hairline bg-surface p-1 text-[13px]">
               <span className="px-2 text-ink-muted hidden sm:inline">
-                Thử vai trò:
+                {t("Thử vai trò:", "Try role:")}
               </span>
               <button
                 type="button"
@@ -444,7 +464,7 @@ function WorkspaceContent() {
                     : "text-ink hover:bg-canvas-soft"
                 }`}
               >
-                Nhóm trưởng
+                {t("Nhóm trưởng", "Leader")}
               </button>
               <button
                 type="button"
@@ -455,7 +475,7 @@ function WorkspaceContent() {
                     : "text-ink hover:bg-canvas-soft"
                 }`}
               >
-                Thành viên
+                {t("Thành viên", "Member")}
               </button>
             </div>
           ) : null}
@@ -463,9 +483,9 @@ function WorkspaceContent() {
           <button
             type="button"
             onClick={() => setInfoSheetOpen(true)}
-            className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3.5 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft lg:hidden"
+            className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3.5 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft lg:hidden"
           >
-            Thông tin &amp; Lịch sử
+            {t("Thông tin & Lịch sử", "Info & History")}
           </button>
         </div>
       </div>
@@ -498,7 +518,7 @@ function WorkspaceContent() {
               : "text-ink-muted"
           }`}
         >
-          Lịch trình
+          {t("Lịch trình", "Itinerary")}
         </button>
         <button
           type="button"
@@ -515,7 +535,7 @@ function WorkspaceContent() {
               : "text-ink-muted"
           }`}
         >
-          Đề xuất ({tripDetail.counts.open_proposals})
+          {t("Đề xuất", "Proposals")} ({tripDetail.counts.open_proposals})
         </button>
         <button
           type="button"
@@ -532,7 +552,7 @@ function WorkspaceContent() {
               : "text-ink-muted"
           }`}
         >
-          Hỏi Roa
+          {t("Hỏi Roa", "Ask Roa")}
         </button>
       </div>
 
@@ -589,11 +609,11 @@ function WorkspaceContent() {
                 }}
                 className={`min-h-9 rounded-[5px] text-[13px] font-medium transition-colors tabular-nums ${
                   rightTab === "proposals"
-                    ? "bg-surface text-ink shadow-notion-1"
+                    ? "bg-surface text-ink shadow-card"
                     : "text-ink-muted hover:text-ink"
                 }`}
               >
-                Đề xuất ({tripDetail.counts.open_proposals})
+                {t("Đề xuất", "Proposals")} ({tripDetail.counts.open_proposals})
               </button>
               <button
                 type="button"
@@ -605,11 +625,11 @@ function WorkspaceContent() {
                 }}
                 className={`min-h-9 rounded-[5px] text-[13px] font-medium transition-colors ${
                   rightTab === "chat"
-                    ? "bg-surface text-ink shadow-notion-1"
+                    ? "bg-surface text-ink shadow-card"
                     : "text-ink-muted hover:text-ink"
                 }`}
               >
-                Trò chuyện với Roa
+                {t("Trò chuyện với Roa", "Chat with Roa")}
               </button>
             </div>
 
@@ -651,7 +671,7 @@ function WorkspaceContent() {
               type="button"
               autoFocus
               onClick={() => setInfoSheetOpen(false)}
-              className="rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
+              className="rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-canvas-soft"
             >
               Đóng
             </button>

@@ -131,6 +131,50 @@ class RoaAgentTest(unittest.TestCase):
         self.assertEqual(agent._must_visit("Đà Lạt", s, "quán cà phê view đẹp"), [])
 
 
+
+def db_rows():
+    """Kho giả của một thành phố chỉ có trong DB: 2 nơi có giờ, 3 nơi chưa có giờ (OQ-22)."""
+    base = {"city": "Quy Nhơn", "area": "Phường Ghềnh Ráng", "lat": 13.75, "lon": 109.22, "is_hot": False,
+            "vegetarian_friendly": None, "source": "osm_geoapify"}
+    rows = [
+        {"id": "osm:1", "name": "Cafe Có Giờ", "category": "cafe", "open_min": 420, "close_min": 1320, "avg_price_vnd": 40000},
+        {"id": "osm:2", "name": "Quán Ăn Có Giờ", "category": "food", "open_min": 600, "close_min": 1260, "avg_price_vnd": 80000},
+        {"id": "osm:3", "name": "Bãi Biển Chưa Giờ", "category": "sightseeing", "open_min": None, "close_min": None,
+         "avg_price_vnd": 0},
+        {"id": "osm:4", "name": "Tháp Chưa Giờ", "category": "sightseeing", "open_min": None, "close_min": None,
+         "avg_price_vnd": None},
+        {"id": "osm:5", "name": "Quán Chiều Chưa Giờ", "category": "food", "open_min": None, "close_min": None,
+         "avg_price_vnd": 60000},
+    ]
+    return [dict(base, **r) for r in rows]
+
+
+class DbStoreTest(unittest.TestCase):
+    def test_use_store_overrides_file_store_only_inside_block(self):
+        with tools.use_store(db_rows()):
+            self.assertEqual(tools.supported_cities(), ["Quy Nhơn"])
+            found = tools.search_places("Quy Nhơn", category="sightseeing")
+            self.assertTrue(all(p["hours_unverified"] for p in found))
+            self.assertTrue(any(p["price_unverified"] for p in found))
+        self.assertIn("Đà Lạt", tools.supported_cities())
+
+    def test_check_itinerary_warns_unverified_hours_without_violation(self):
+        with tools.use_store(db_rows()):
+            res = tools.check_itinerary([{"id": "osm:3", "day": 1, "start": "09:00", "end": "10:00"}], 0)
+        self.assertEqual(res["violations"], [])
+        self.assertTrue(any("chưa xác minh" in w for w in res["warnings"]))
+
+    def test_generate_from_db_store_labels_unverified_places(self):
+        with tools.use_store(db_rows()), patch.object(agent, "call_model", side_effect=model_says()[0]):
+            out = agent.answer("Nhóm 4 người đi Quy Nhơn 1 ngày, thích cafe, ăn uống và tham quan.")["output"]
+        self.assertIn("Quy Nhơn", out)
+        names = [n for _, _, n in items_of(out)]
+        self.assertIn("Cafe Có Giờ", names)
+        self.assertIn("Quán Ăn Có Giờ", names)
+        if any("Chưa Giờ" in n for n in names):
+            self.assertIn("giờ chưa xác minh", out)
+
+
 class GeminiTokenTest(unittest.TestCase):
     def test_gemini_token_accounting_includes_thoughts(self):
         fake_resp = {

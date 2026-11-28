@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { formatDate, formatDateTime, formatVnd } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import type { TripInfo, TripMember, VersionListItem } from "@/lib/types";
 
 interface TripSidebarProps {
@@ -31,6 +32,7 @@ export function TripSidebar({
   onRevertVersion,
   onOpenSuggestionInbox,
 }: TripSidebarProps) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
 
   const handleCopyInvite = async () => {
@@ -48,26 +50,31 @@ export function TripSidebar({
   };
 
   return (
-    <aside aria-label="Thông tin và lịch sử chuyến đi" className="space-y-4">
+    <aside aria-label={t("Thông tin và lịch sử chuyến đi", "Trip info and history")} className="space-y-4">
       {/* Trip overview card */}
-      <div className="rounded-[12px] border border-hairline bg-surface p-5 space-y-3.5">
+      <div className="rounded-[12px] border border-hairline bg-surface p-5 space-y-3.5 shadow-card">
         <div>
           <h2 className="type-title text-ink break-words">{trip.destination}</h2>
           <p className="mt-0.5 text-[13px] text-ink-muted tabular-nums">
-            {formatDate(trip.start_date)} – {formatDate(trip.end_date)} · Dự kiến {trip.group_size} người
+            {formatDate(trip.start_date)} – {formatDate(trip.end_date)} ·{" "}
+            {t("Dự kiến", "Expected")} {trip.group_size} {t("người", "people")}
           </p>
         </div>
 
         <div className="rounded-[8px] border border-hairline bg-canvas-soft p-3 text-[13px] space-y-1.5">
           <div className="flex justify-between gap-2">
-            <span className="text-ink-muted">Ngân sách mục tiêu</span>
+            <span className="text-ink-muted">
+              {t("Ngân sách mục tiêu", "Target budget")}
+            </span>
             <span className="font-semibold text-ink tabular-nums">
               {formatVnd(trip.budget_per_person)}
             </span>
           </div>
           <div className="flex justify-between gap-2">
-            <span className="text-ink-muted">Phiên bản hiện tại</span>
-            <span className="font-semibold text-primary tabular-nums">
+            <span className="text-ink-muted">
+              {t("Phiên bản hiện tại", "Current version")}
+            </span>
+            <span className="font-semibold text-secondary tabular-nums">
               v{trip.current_version}
             </span>
           </div>
@@ -77,16 +84,18 @@ export function TripSidebar({
           <button
             type="button"
             onClick={() => void handleCopyInvite()}
-            className="min-h-10 w-full rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-primary hover:bg-canvas-soft transition-colors"
+            className="min-h-10 w-full rounded-[5px] border border-secondary/35 bg-surface px-3 py-1.5 text-[13px] font-medium text-secondary hover:bg-canvas-soft transition-colors"
           >
-            {copied ? "Đã chép link mời" : "Sao chép link mời nhóm"}
+            {copied
+              ? t("Đã chép link mời", "Invite link copied")
+              : t("Sao chép link mời nhóm", "Copy group invite link")}
           </button>
           <p
             role="status"
             aria-live="polite"
             className="text-[12px] text-ink-muted text-center"
           >
-            Mã mời:{" "}
+            {t("Mã mời:", "Invite code:")}{" "}
             <span translate="no" className="font-mono font-semibold text-ink">
               {trip.invite_code}
             </span>
@@ -97,9 +106,9 @@ export function TripSidebar({
           <button
             type="button"
             onClick={onOpenSuggestionInbox}
-            className="min-h-10 w-full rounded-[8px] border border-hairline bg-canvas-soft px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-hairline/50 transition-colors flex items-center justify-between"
+            className="min-h-10 w-full rounded-[5px] border border-hairline bg-canvas-soft px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-hairline/50 transition-colors flex items-center justify-between"
           >
-            <span>Hộp góp ý thành viên</span>
+            <span>{t("Hộp góp ý thành viên", "Member feedback inbox")}</span>
             <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-semibold text-on-primary tabular-nums">
               {newSuggestionsCount}
             </span>
@@ -108,9 +117,9 @@ export function TripSidebar({
       </div>
 
       {/* Members */}
-      <div className="rounded-[12px] border border-hairline bg-surface p-4 space-y-2.5">
+      <div className="rounded-[12px] border border-hairline bg-surface p-4 space-y-2.5 shadow-card">
         <h3 className="text-[14px] font-semibold text-ink">
-          Thành viên ({members.length})
+          {t("Thành viên", "Members")} ({members.length})
         </h3>
         <ul className="space-y-1.5 text-[13px]">
           {members.map((m) => (
@@ -120,16 +129,18 @@ export function TripSidebar({
             >
               <span className="truncate font-medium text-ink">
                 {m.display_name}
-                {m.id === myMemberId ? " (Bạn)" : ""}
+                {m.id === myMemberId ? ` (${t("Bạn", "You")})` : ""}
               </span>
               <span
                 className={`shrink-0 rounded-[5px] px-2 py-0.5 text-[11px] font-semibold ${
                   m.role === "leader"
-                    ? "bg-surface text-primary border border-hairline"
+                    ? "bg-surface text-secondary border border-secondary/25"
                     : "text-ink-muted"
                 }`}
               >
-                {m.role === "leader" ? "Nhóm trưởng" : "Thành viên"}
+                {m.role === "leader"
+                  ? t("Nhóm trưởng", "Leader")
+                  : t("Thành viên", "Member")}
               </span>
             </li>
           ))}
@@ -137,10 +148,14 @@ export function TripSidebar({
       </div>
 
       {/* Version history */}
-      <div className="rounded-[12px] border border-hairline bg-surface p-4 space-y-2.5">
-        <h3 className="text-[14px] font-semibold text-ink">Lịch sử phiên bản</h3>
+      <div className="rounded-[12px] border border-hairline bg-surface p-4 space-y-2.5 shadow-card">
+        <h3 className="text-[14px] font-semibold text-ink">
+          {t("Lịch sử phiên bản", "Version history")}
+        </h3>
         {versions.length === 0 ? (
-          <p className="text-[13px] text-ink-muted">Chưa có phiên bản nào.</p>
+          <p className="text-[13px] text-ink-muted">
+            {t("Chưa có phiên bản nào.", "No versions yet.")}
+          </p>
         ) : (
           <ul className="space-y-2">
             {versions.map((ver) => {
@@ -151,13 +166,14 @@ export function TripSidebar({
                   key={ver.version_no}
                   className={`rounded-[8px] border p-3 text-[13px] space-y-1.5 ${
                     isViewing
-                      ? "border-primary bg-surface shadow-notion-1"
+                      ? "border-primary bg-surface shadow-card"
                       : "border-hairline bg-canvas-soft"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-ink tabular-nums">
-                      v{ver.version_no} {isCurrent ? "(Hiện tại)" : ""}
+                      v{ver.version_no}{" "}
+                      {isCurrent ? `(${t("Hiện tại", "Current")})` : ""}
                     </span>
                     <span className="text-[11px] text-ink-faint tabular-nums">
                       {formatDateTime(ver.created_at)}
@@ -173,25 +189,25 @@ export function TripSidebar({
                         onClick={() => onSelectVersion(ver.version_no)}
                         className="rounded-[5px] border border-hairline bg-surface px-2.5 py-1 text-[12px] font-medium text-ink hover:bg-canvas-soft transition-colors"
                       >
-                        Xem bản này
+                        {t("Xem bản này", "View")}
                       </button>
                     ) : null}
                     {!isCurrent ? (
                       <button
                         type="button"
                         onClick={() => onCompareVersion(ver.version_no)}
-                        className="rounded-[5px] border border-hairline bg-surface px-2.5 py-1 text-[12px] font-medium text-primary hover:bg-canvas-soft transition-colors"
+                        className="rounded-[5px] border border-secondary/30 bg-surface px-2.5 py-1 text-[12px] font-medium text-secondary hover:bg-canvas-soft transition-colors"
                       >
-                        So với hiện tại
+                        {t("So với hiện tại", "Compare")}
                       </button>
                     ) : null}
                     {isLeader && !isCurrent ? (
                       <button
                         type="button"
                         onClick={() => onRevertVersion(ver.version_no)}
-                        className="rounded-[5px] border border-hairline bg-surface px-2.5 py-1 text-[12px] font-semibold text-primary hover:bg-primary hover:text-on-primary transition-colors"
+                        className="rounded-[5px] border border-hairline bg-surface px-2.5 py-1 text-[12px] font-semibold text-on-primary bg-primary/90 hover:bg-primary transition-colors"
                       >
-                        Khôi phục
+                        {t("Khôi phục", "Restore")}
                       </button>
                     ) : null}
                   </div>

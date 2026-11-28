@@ -6,12 +6,14 @@ import { Suspense, useEffect, useState } from "react";
 import { StatusBanner } from "@/components/status-banner";
 import { api } from "@/lib/api";
 import { formatDate } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import { getTripSession, saveTripSession } from "@/lib/storage";
 import { ApiError, type InvitePreviewResponse } from "@/lib/types";
 
 function JoinTripContent() {
   const params = useParams<{ inviteCode: string }>();
   const router = useRouter();
+  const { t } = useLocale();
   const inviteCode = decodeURIComponent(params?.inviteCode ?? "");
 
   const [preview, setPreview] = useState<InvitePreviewResponse | null>(null);
@@ -93,36 +95,48 @@ function JoinTripContent() {
   return (
     <div className="mx-auto max-w-lg px-4 py-12 sm:px-6 space-y-6">
       {loading ? (
-        <div className="rounded-[16px] border border-hairline bg-surface p-8 text-center text-[15px] text-ink-muted shadow-notion-1">
-          Đang tải thông tin lời mời…
+        <div
+          aria-label="Đang tải thông tin lời mời"
+          className="rounded-[16px] border border-hairline bg-surface p-6 sm:p-8 shadow-card space-y-5 animate-pulse"
+        >
+          <div className="space-y-2 border-b border-hairline pb-4">
+            <div className="h-6 w-40 rounded-full bg-canvas-soft" />
+            <div className="h-7 w-3/4 rounded-[8px] bg-canvas-soft" />
+            <div className="h-4 w-2/3 rounded-[6px] bg-canvas-soft" />
+          </div>
+          <div className="space-y-3">
+            <div className="h-4 w-36 rounded-[6px] bg-canvas-soft" />
+            <div className="h-11 w-full rounded-[6px] bg-canvas-soft" />
+            <div className="h-12 w-full rounded-full bg-canvas-soft" />
+          </div>
         </div>
       ) : loadError || !preview ? (
-        <div className="rounded-[16px] border border-hairline bg-surface p-6 shadow-notion-1 space-y-4">
+        <div className="rounded-[16px] border border-hairline bg-surface p-6 shadow-card space-y-4">
           <StatusBanner
             tone="error"
             message={loadError ?? "Không tìm thấy link mời."}
           />
           <Link
             href="/"
-            className="inline-flex min-h-11 items-center rounded-full bg-primary active:bg-primary-active px-5 py-2 text-[15px] font-medium text-on-primary transition-colors"
+            className="inline-flex min-h-11 items-center rounded-[5px] bg-primary active:bg-primary-active px-5 py-2 text-[15px] font-semibold text-on-primary transition-colors"
           >
             Quay về trang chủ
           </Link>
         </div>
       ) : (
-        <div className="rounded-[16px] border border-hairline bg-surface p-6 sm:p-8 shadow-notion-1 space-y-6">
+        <div className="rounded-[16px] border border-hairline bg-surface p-6 sm:p-8 shadow-card space-y-6">
           <div className="space-y-2 border-b border-hairline pb-4">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-canvas-soft px-3 py-1 type-eyebrow text-primary">
-              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-accent-teal" />
-              Lời mời tham gia chuyến đi
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline bg-canvas-soft px-3 py-1 type-eyebrow text-secondary">
+              <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-secondary" />
+              {t("Lời mời tham gia chuyến đi", "Trip invitation")}
             </span>
             <h1 className="type-heading-2 text-ink pt-1">
               {preview.trip.title}
             </h1>
             <p className="text-[14px] text-ink-muted tabular-nums">
               {preview.trip.destination} · {formatDate(preview.trip.start_date)} –{" "}
-              {formatDate(preview.trip.end_date)} · Hiện có{" "}
-              {preview.member_count} thành viên
+              {formatDate(preview.trip.end_date)} · {t("Hiện có", "Currently")}{" "}
+              {preview.member_count} {t("thành viên", "members")}
             </p>
           </div>
 
@@ -132,7 +146,7 @@ function JoinTripContent() {
                 htmlFor="join-display-name"
                 className="block text-[14px] font-semibold text-ink mb-1.5"
               >
-                Tên hiển thị của bạn *
+                {t("Tên hiển thị của bạn *", "Your display name *")}
               </label>
               <input
                 id="join-display-name"
@@ -147,21 +161,24 @@ function JoinTripContent() {
                 }}
                 aria-invalid={submitError ? "true" : "false"}
                 aria-describedby={submitError ? "join-error" : "join-hint"}
-                placeholder="Ví dụ: Minh Anh…"
-                className="notion-input min-h-11 w-full px-3 py-2 text-[15px]"
+                placeholder={t("Ví dụ: Minh Anh…", "Example: Minh Anh…")}
+                className="nomad-input min-h-11 w-full px-3 py-2 text-[15px]"
               />
               <span
                 id="join-hint"
                 className="mt-1.5 block text-[13px] text-ink-muted"
               >
-                Tên này dùng để hiển thị khi bạn bỏ phiếu đề xuất, gửi góp ý hoặc hỏi Roa.
+                {t(
+                  "Tên này dùng để hiển thị khi bạn bỏ phiếu đề xuất, gửi góp ý hoặc hỏi Roa.",
+                  "This name is shown when you vote on proposals, send feedback, or ask Roa.",
+                )}
               </span>
               {submitError ? (
                 <p
                   id="join-error"
                   role="status"
                   aria-live="polite"
-                  className="mt-1.5 text-[13px] font-medium text-accent-orange-deep"
+                  className="mt-1.5 text-[13px] font-medium text-error"
                 >
                   {submitError}
                 </p>
@@ -171,9 +188,11 @@ function JoinTripContent() {
             <button
               type="submit"
               disabled={submitting}
-              className="min-h-12 w-full rounded-full bg-primary active:bg-primary-active active:scale-[0.98] px-5 py-3 text-[16px] font-medium text-on-primary disabled:opacity-60 transition-[transform,background-color]"
+              className="min-h-12 w-full rounded-[5px] bg-primary active:bg-primary-active active:scale-[0.98] px-5 py-3 text-[16px] font-semibold text-on-primary disabled:opacity-60 transition-[transform,background-color]"
             >
-              {submitting ? "Đang tham gia…" : "Tham gia chuyến đi"}
+              {submitting
+                ? t("Đang tham gia…", "Joining…")
+                : t("Tham gia chuyến đi", "Join trip")}
             </button>
           </form>
         </div>
