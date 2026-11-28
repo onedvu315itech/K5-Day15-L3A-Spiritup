@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.4 |
+| Phiên bản | 0.5 |
 | Trạng thái | Đang dùng |
 | Người phụ trách | Đức (đội trưởng) |
-| Cập nhật | 2026-11-27 |
+| Cập nhật | 2026-11-28 |
 
 Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi còn **Mở** thì không làm (R-02). Trong tài liệu khác, chỗ chờ câu hỏi đánh dấu `[NEEDS CLARIFICATION: OQ-xx]`.
 
@@ -20,7 +20,7 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 
 | Mã | Câu hỏi | Đang nghiêng | Chặn | Người quyết | Hạn |
 |---|---|---|---|---|---|
-| OQ-01 | Dùng LLM nào (nhà cung cấp, model)? | Model gọi công cụ ổn định, tiếng Việt tốt, trả JSON đúng schema, có gói miễn phí hoặc rẻ. Để quyết sau; trong lúc chờ, code chỉ gọi model qua `call_model()` để đổi model không phải sửa chỗ khác | Agent `generate`, `draft`, `ask`; eval CP3; `cost/` | Toàn + Đức | Trước CP3 (10:00 28/11) |
+| OQ-01 | Dùng LLM nào (nhà cung cấp, model)? | Model gọi công cụ ổn định, tiếng Việt tốt, trả JSON đúng schema, có gói miễn phí hoặc rẻ. Để quyết sau; trong lúc chờ, code chỉ gọi model qua `call_model()` để đổi model không phải sửa chỗ khác. **28/11:** Lượt nộp CP3 (run-4) và Lượt 2 dùng `gpt-4o-mini`; chờ Toàn + Đức xác nhận để đóng | Agent `generate`, `draft`, `ask`; eval CP3; `cost/` | Toàn + Đức | Trước CP3 (10:00 28/11) |
 | OQ-04 | Đề xuất `reference` có được mở lại / áp dụng sau không? | Không mở lại; nhóm trưởng "tạo đề xuất mới từ đề xuất này" | UI tab "Đề xuất" | Đức | CP3 |
 | OQ-05 | Có cần bình chọn tự do (ví dụ "chọn 1 trong 3 quán") ngoài bỏ phiếu đề xuất? | Chưa làm ở MVP; nhóm trưởng tạo nhiều đề xuất | Phạm vi | Cả nhóm | CP2 |
 | OQ-08 | Lõi Roa đặt trong `codebase/` và backend import, để eval của BTC đo đúng lõi web dùng? | Có (ADR 0003, đề xuất) | Cấu trúc backend, deploy Render | Toàn + Khương | CP2 |
@@ -47,6 +47,7 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | OQ-17 | Phiếu công khai tên người bỏ hay ẩn danh? | Công khai tên người bỏ | 2026-11-27 | Khương | `docs/API_SPEC.md` mục 4 |
 | OQ-19 | Lát cắt nộp BTC và quyết định AI trung tâm | Quyết định trung tâm là `generate`: Roa xếp lịch trình theo ngày, thoả giờ mở cửa và ngân sách, hoặc nói rõ là không xếp được (kèm lý do). `answer(text)` gọi `generate`; bộ câu thử đo `generate`. `ask`, `draft` là phần phụ | 2026-11-27 | Khương (chờ Đức xác nhận) | `canvas.md`, ADR 0003, `ARCHITECTURE.md` 3.3 |
 | OQ-20 | Trước CP3, web app làm đến đâu? | Ưu tiên `codebase/` + eval đến CP3. Web app (Vercel, Render, đề xuất, bỏ phiếu) làm sau, hoặc song song khi lát cắt AI đã chạy | 2026-11-27 | Khương (chờ Đức xác nhận) | `docs/WORKFLOW.md` mục 3 |
+| OQ-22 | Điểm đến chưa thu kho (chưa có giá, giờ, quán hot): xếp từ dữ liệu chưa xác minh hay tra web lúc chạy? | Ghép (a) và (c): nhóm trưởng tạo chuyến đi tới thành phố chưa có kho thì backend chạy một đợt thu (Geoapify; giá, giờ chỉ tra trong đợt này), xong mới cho `generate`. Không tra web lúc `generate`. Nơi chưa có giờ hoặc giá vẫn giữ trong kho và vẫn được xếp, gắn nhãn "chưa xác minh". Đợt thu không lấy được thì để trống, không đoán | 2026-11-28 | Khương (chờ cả nhóm xác nhận) | `docs/DATABASE.md` 2.12, 2.13, mục 5; `docs/API_SPEC.md` `POST /trips`, mục 2a |
 | OQ-21 | Nguồn bằng chứng pain | Nguồn chính: review công khai. Nguồn kiểm lại: form khảo sát nhóm đã tạo cho người ngoài nhóm điền. Kết quả lưu ở `evidence/` | 2026-11-27 | Khương (chờ Đức xác nhận) | `canvas.md` dòng 4, `docs/WORKFLOW.md` |
 
 ## Đã bỏ
@@ -63,3 +64,6 @@ Câu hỏi chưa có người quyết. Phần việc phụ thuộc câu hỏi c�
 | 0.2 | 2026-11-27 | Khương | Thêm OQ-19 (lát cắt, quyết định AI trung tâm), OQ-20 (mức làm web app trước CP3), OQ-21 (nguồn bằng chứng pain) | Đối chiếu yêu cầu BTC |
 | 0.3 | 2026-11-27 | Khương | Chốt OQ-02, 03, 06, 07, 13, 14, 17, 19, 20, 21. OQ-01 để quyết sau. Các OQ còn lại giữ mở với phương án đang nghiêng | Quyết định của Khương, chờ Đức xác nhận |
 | 0.4 | 2026-11-27 | Khương | Chốt OQ-09: không giới hạn một thành phố, điểm đến bất kỳ trong Việt Nam. OQ-11 bỏ "~50 quán Đà Lạt", phạm vi thu cần quyết lại | Quyết định của Khương, chờ Đức xác nhận |
+| 0.5 | 2026-11-28 | Khương | Thêm OQ-22 (điểm đến chưa thu kho: có tra web lúc chạy không) | `docs/roa-agent-design.md` v0.4 |
+| 0.6 | 2026-11-28 | Khương | OQ-01: ghi model `gpt-4o-mini` của run-4 và Lượt 2, chưa đóng | Gộp nhánh agent vào `main` |
+| 0.7 | 2026-11-28 | Khương | Chốt OQ-22: ghép (a) và (c), thu kho theo đợt khi tạo chuyến đi tới thành phố mới, nơi chưa có giờ hoặc giá vẫn xếp và gắn nhãn chưa xác minh | Quyết định của Khương, chờ cả nhóm xác nhận |

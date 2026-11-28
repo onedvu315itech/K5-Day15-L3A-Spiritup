@@ -52,6 +52,9 @@ dist/
 # Dữ liệu thô thu thử (caption, URL có handle người đăng): chỉ để trên máy
 data/raw/
 
+# Backend: SQLite chạy thử, cache pytest
+backend/*.db
+.pytest_cache/
 # ================================
 # FE
 # ================================
