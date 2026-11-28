@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Phúc (frontend), Toàn (agent, cho các endpoint gọi Roa) |
@@ -62,11 +62,11 @@ FastAPI tự sinh OpenAPI tại `/docs`; file này là bản thoả thuận gi�
 | Xem chuyến đi, plan, mọi phiên bản, diff | ✅ | ✅ |
 | Nhờ Roa soạn bản nháp v1 (`generate`), duyệt v1 | ✅ | ❌ |
 | Nhờ Roa soạn `ops` (`proposals/draft`) | ✅ | ❌ |
-| Tạo đề xuất sửa, khôi phục; áp dụng, đóng, rút đề xuất | ✅ | ❌ |
-| Xem đề xuất, bỏ phiếu | ✅ (tự đồng ý khi tạo) | ✅ |
-| Gửi góp ý | ❌ (tự sửa qua đề xuất) | ✅ |
-| Xem góp ý | ✅ tất cả | ✅ của mình |
-| Xử lý góp ý | ✅ | ❌ |
+| Tạo thẻ đề xuất sửa, khôi phục (CR-001, chờ duyệt) | ✅ | ✅ |
+| Áp dụng, đóng đề xuất (sửa plan) | ✅ | ❌ |
+| Rút đề xuất | ✅ | ✅ của mình (CR-001, chờ duyệt) |
+| Xem đề xuất, bỏ phiếu | ✅ (người tạo tự đồng ý) | ✅ |
+| Gửi, xem, xử lý góp ý (mục 5) | Bỏ theo CR-001, chờ duyệt: thành viên tạo thẻ đề xuất thay form góp ý | |
 | Hỏi Roa | ✅ | ✅ |
 
 Kiểm ở service, không tin vai trò gửi từ frontend (R-20).
@@ -134,11 +134,11 @@ Người gọi trở thành nhóm trưởng.
   "store": {"city_slug": "da-lat", "status": "ready", "place_count": 135, "fetched_at": "…", "expires_at": "…"},
   "members": [{"id": "…", "display_name": "Đức", "role": "leader"}],
   "me": {"id": "…", "role": "member"},
-  "counts": {"open_proposals": 2, "new_suggestions": 3}
+  "counts": {"open_proposals": 2}
 }
 ```
 
-`counts.new_suggestions` chỉ trả cho nhóm trưởng.
+Trước khi trả, đề xuất mở đã quá `expires_at` được chuyển `reference` / `expired`. `counts.new_suggestions` bỏ cùng form góp ý (CR-001, chờ duyệt).
 
 ### `POST /trips/{trip_id}/store/retry` — thu lại kho (nhóm trưởng)
 
@@ -176,8 +176,15 @@ Body rỗng hoặc `{"extra_request": "ưu tiên quán local"}`. Chạy đồng 
 - `200` khi xếp được:
 
 ```json
-{"status": "ok", "draft": {"plan": {"schema_version": 1, "days": []}, "computed": {}, "warnings": []}, "agent_run_id": "…"}
+{"status": "ok", "draft": {"plan": {"schema_version": 1, "days": []}, "computed": {}, "warnings": [],
+  "lodging": {"name": "Khách sạn Hải Âu", "checkin": "14:00", "checkout": "12:00", "price_min_vnd": 600000, "price_max_vnd": 900000, "price_source_url": "…"},
+  "message": "bản lịch trình dạng chữ của Roa"}, "agent_run_id": "…"}
 ```
+
+- Chuyến đi qua đêm: plan có mục `hotel` nhận phòng ngày đầu và trả phòng ngày cuối. Yêu cầu không nêu giờ thì nhận phòng **14:00**, trả phòng **12:00** hôm sau (giờ tiêu chuẩn); nhóm trưởng nêu giờ (`preferences.checkin`, `preferences.checkout` hoặc `extra_request`, vd "nhận phòng lúc 16h") thì Roa xếp theo giờ đó.
+- Chỗ ở lấy từ kho (`category = lodging`). Khoảng giá phòng/đêm tra bằng Tavily lúc thu kho, luôn `price_unverified`, kèm `price_source_url`; không cộng vào tổng tiền/người. Kho không có chỗ ở thì `lodging = null`, plan ghi rõ cần tự tìm.
+- Thứ tự chọn quán: quán hot (kho thu trước) → món nhóm nêu → khu gần → có giá → rẻ. Không có quán hot thì tự rơi về các điều kiện sau.
+- `infeasible` kèm `agent_status`: `infeasible`, `need_info`, `no_data`, `refused`.
 
 - `200` khi không xếp được (ràng buộc mâu thuẫn, quá ngân sách, không đủ địa điểm mở cửa): `{"status": "infeasible", "draft": null, "reasons": ["Ngân sách 500.000đ/người không đủ cho 3 ngày 2 đêm ở Đà Lạt với khách sạn"], "agent_run_id": "…"}`. Roa nói rõ vì sao, không cố trả một plan sai ràng buộc.
 - **Không ghi `plan_versions`** (ADR 0004, OQ-13). Chỉ ghi `agent_runs` và `generation_status`.
@@ -285,24 +292,24 @@ So phiên bản `n` với `against` (mặc định `n - 1`).
 
 Không ghi gì vào DB ngoài `agent_runs` (R-31). Nhóm trưởng xem, sửa `ops` nếu cần, rồi gửi bằng endpoint dưới.
 
-### `POST /trips/{trip_id}/proposals` — tạo đề xuất (nhóm trưởng)
+### `POST /trips/{trip_id}/proposals` — tạo thẻ đề xuất (mọi thành viên, CR-001, chờ duyệt)
 
 ```json
-{"kind": "edit", "base_version": 12, "ops": [...], "summary": "…", "reason": "…", "origin": "agent", "suggestion_id": null, "expires_at": null}
+{"kind": "edit", "base_version": 12, "ops": [...], "summary": "…", "reason": "…", "origin": "manual"}
 ```
 
 Khôi phục: `{"kind": "revert", "base_version": 13, "target_version": 9, "summary": "Quay lại v9", "reason": "…"}`.
 
-- Kiểm `ops` trên `base_version` → 422 `invalid_ops` nếu lỗi.
+- `base_version` khác phiên bản hiện tại → 409 `version_conflict`.
+- Kiểm `ops` trên `base_version` → 422 `invalid_ops` nếu lỗi, `details.index` là thao tác lỗi.
 - Chạy `check_plan` trên kết quả, lưu `warnings`.
-- Ghi phiếu `agree` của nhóm trưởng. Không áp dụng ngay, kể cả khi nhóm chỉ có nhóm trưởng.
-- `expires_at` tuỳ chọn, phải ở tương lai; bỏ trống = không có hạn (OQ-03).
-- Có `suggestion_id` → góp ý chuyển `converted`.
+- Ghi phiếu `agree` của người tạo. Không áp dụng ngay, kể cả khi người tạo là nhóm trưởng.
+- `expires_at` = lúc tạo + `PROPOSAL_TTL_HOURS` (mặc định 48 giờ), không nhận từ body (CR-001, chờ duyệt).
 - `201` đối tượng đề xuất.
 
 ### `GET /trips/{trip_id}/proposals?status=`
 
-`status`: `open` (mặc định), `closed` (mọi trạng thái khác `open`), `all`. Mới nhất trước. Đề xuất mở có đặt hạn mà đã quá hạn được chuyển `reference` trước khi trả (`ARCHITECTURE.md` mục 6.4).
+`status`: `open` (mặc định), `closed` (mọi trạng thái khác `open`), `all`. Mới nhất trước. Đề xuất mở đã quá hạn 48 giờ được chuyển `reference` (`close_reason = expired`) trước khi trả; vẫn xem được, không bỏ phiếu được (`ARCHITECTURE.md` mục 6.4).
 
 ### `GET /proposals/{proposal_id}`
 
@@ -332,11 +339,13 @@ Body rỗng. Áp dụng được dù chưa đạt đa số; frontend hỏi xác 
 
 `{"note": "Chưa đủ người đồng ý, để sau"}` (tuỳ chọn). `200` đối tượng đề xuất với `status = reference`, `close_reason = leader_closed`, `votes_at_decision`. Đã đóng → 410.
 
-### `POST /proposals/{proposal_id}/withdraw` — rút (nhóm trưởng)
+### `POST /proposals/{proposal_id}/withdraw` — rút (người tạo hoặc nhóm trưởng, CR-001, chờ duyệt)
 
-`200` đối tượng đề xuất với `status = withdrawn`. Đã đóng → 410.
+`200` đối tượng đề xuất với `status = withdrawn`. Người khác → 403 `not_author`. Đã đóng → 410.
 
 ## 5. Góp ý
+
+> Bỏ theo CR-001, chờ duyệt: thành viên tạo thẻ đề xuất (mục 4) thay form góp ý. Chưa làm các endpoint dưới; xoá hẳn khi CR được duyệt.
 
 ### `POST /trips/{trip_id}/suggestions` (thành viên)
 
@@ -411,3 +420,4 @@ Tối đa 100 sự kiện mỗi lần. Frontend dựa vào `type` để tải l�
 | 0.1 | 2026-11-27 | Khương | Bản đầu: quy ước, lỗi, quyền, giới hạn; 21 endpoint cho chuyến đi, plan, đề xuất, góp ý, chat, cập nhật | ADR 0002 |
 | 0.2 | 2026-11-27 | Khương | `generate` trả bản nháp hoặc `infeasible`; thêm `POST /plan` (duyệt v1), `POST /proposals/{id}/apply`, `/close`; bỏ phiếu không còn `outcome`; `expires_at` tuỳ chọn; chốt OQ-06, 14, 17 | ADR 0004, OQ-19 |
 | 0.3 | 2026-11-28 | Khương | `POST /trips` bắt đầu đợt thu kho khi thành phố chưa có kho (`collecting_data`), trả `store`; thêm `GET /cities/{slug}/store`, `GET /cities/{slug}/places` (có `geo_category`), `POST /trips/{id}/store/retry` (hai endpoint `/cities` không cần token); `generate` trả 409 `data_collecting` / `store_failed`, plan item có cờ chưa xác minh; sự kiện `store_ready`, `store_failed`; `places_unavailable` đổi sang Geoapify | OQ-22, `docs/DATABASE.md` v0.3 |
+| 0.4 | 2026-11-28 | Khương | Mọi thành viên tạo thẻ đề xuất, hạn cố định 48 giờ rồi thành `reference`/`expired`; người tạo rút được (`not_author`); nhóm trưởng vẫn là người duy nhất áp dụng, đóng; bỏ form góp ý; `generate` trả `lodging`, `message`, `agent_status`, mục khách sạn nhận phòng 14:00 / trả phòng 12:00 mặc định; đã có code: `join`, `GET /trips/{id}`, `generate`, `plan`, `versions`, đề xuất, `updates` | CR-001 (chờ duyệt) |

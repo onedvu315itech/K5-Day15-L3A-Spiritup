@@ -10,7 +10,7 @@ import pytest
 import uvicorn
 
 from app.main import create_app
-from tests.conftest import FakeGeo
+from tests.conftest import STORE_SIZE, FakeGeo
 
 
 @pytest.fixture
@@ -60,7 +60,7 @@ def test_trip_store_flow(server):
         if store["status"] == "ready":
             break
         time.sleep(0.05)
-    assert store["status"] == "ready" and store["place_count"] == 6
+    assert store["status"] == "ready" and store["place_count"] == STORE_SIZE
     st, places = call(server, "GET", "/api/v1/cities/quy-nhon/places?geo_category=catering.cafe")
     assert st == 200 and len(places["items"]) == 2 and "OpenStreetMap" in places["attribution"]
     assert places["items"][1]["open"] is None and places["items"][1]["hours_unverified"] is True

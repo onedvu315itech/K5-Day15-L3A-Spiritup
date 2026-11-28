@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.9 |
+| Phiên bản | 0.10 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Cả nhóm |
@@ -46,7 +46,7 @@ flowchart LR
 ```
 
 - Frontend chỉ nói chuyện với backend. Không gọi thẳng Supabase, Google hay LLM từ trình duyệt (không lộ key).
-- Một tiến trình backend, một database. Không có hàng đợi hay worker riêng: việc theo thời gian (hạn đề xuất, nếu nhóm trưởng đặt) tính lười khi đọc (mục 6.4).
+- Một tiến trình backend, một database. Không có hàng đợi hay worker riêng: việc theo thời gian (hạn 48 giờ của thẻ đề xuất) tính lười khi đọc (mục 6.4).
 
 ## 3. Thành phần
 
@@ -169,6 +169,8 @@ Nhóm trưởng có hai cách tạo `ops`: sửa trực tiếp trên bản nháp
 
 ### 4.3 Góp ý của thành viên
 
+> CR-001 (chờ duyệt): bỏ form góp ý; thành viên tạo thẻ đề xuất trực tiếp, nhóm trưởng vẫn là người duy nhất áp dụng. Đoạn dưới giữ đến khi CR được quyết.
+
 Thành viên gửi form → `suggestions` (new). Nhóm trưởng mở hộp góp ý và chọn: **Tạo đề xuất** (mở chế độ sửa, điền sẵn nội dung góp ý; đề xuất tạo ra có `suggestion_id`), **Ghi nhận** hoặc **Từ chối** (kèm ghi chú). Góp ý không bao giờ tự sửa plan.
 
 ### 4.4 Hỏi Roa
@@ -208,7 +210,7 @@ Một thành viên một phiếu cho mỗi đề xuất (khoá chính `(proposal
 
 ### 6.4 Hạn đề xuất, tính lười
 
-Hạn là tuỳ chọn: chỉ đề xuất có `expires_at` (nhóm trưởng đặt khi tạo) mới hết hạn (OQ-03). Không có job chạy nền (Render gói miễn phí ngủ khi không có request). Mọi lần đọc, bỏ phiếu hoặc áp dụng một đề xuất có hạn, service kiểm `expires_at` trước; quá hạn thì chuyển `reference` trong cùng transaction.
+Mỗi thẻ đề xuất có `expires_at` = lúc tạo + `PROPOSAL_TTL_HOURS` (mặc định 48 giờ, CR-001, chờ duyệt; trước đây hạn là tuỳ chọn theo OQ-03). Quá hạn thì thành `reference` / `expired`: vẫn xem để tham khảo, không bỏ phiếu, không áp dụng. Không có job chạy nền (Render gói miễn phí ngủ khi không có request). Mọi lần đọc, bỏ phiếu hoặc áp dụng một đề xuất có hạn, service kiểm `expires_at` trước; quá hạn thì chuyển `reference` trong cùng transaction.
 
 ### 6.5 Ngưỡng phiếu
 
@@ -240,11 +242,13 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `GWAI_API_KEY` | Backend | Key riêng khi dùng `MODEL_PROVIDER=gwai`. `MODEL_NAME` bắt đầu bằng `gemini` thì gọi `generateContent` của GWAI, model khác gọi Chat Completions |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
 | `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
-| `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
+| `TAVILY_API_KEY` | Backend | Tra khoảng giá phòng/đêm của chỗ ở trong đợt thu kho (`app/services/tavily.py`), không gọi lúc `generate`. Để trống: chỗ ở ghi "giá chưa có" |
 | `GEOAPIFY_API_KEY` | Backend | Geocoding và Places của Geoapify cho đợt thu kho địa điểm theo thành phố (OQ-22, `docs/DATABASE.md` mục 5). Routing chưa dùng |
 | `FRONTEND_BASE_URL` | Backend | Gốc URL frontend để dựng `invite_url` |
 | `STORE_TTL_DAYS` | Backend | Hạn kho địa điểm (ngày). Để trống: kho không hết hạn [NEEDS CLARIFICATION: OQ-12] |
 | `STORE_MAX_CAFE`, `STORE_MAX_FOOD` | Backend | Số quán cafe, quán ăn tối đa mỗi thành phố, mặc định 60 *(tự ước tính)*; điểm tham quan không giới hạn |
+| `STORE_MAX_LODGING`, `STORE_PRICED_LODGING` | Backend | Số chỗ ở tối đa mỗi thành phố (30) và số chỗ ở đầu bảng được tra giá Tavily (10) *(tự ước tính)* |
+| `PROPOSAL_TTL_HOURS` | Backend | Thẻ đề xuất mở trong bao lâu, mặc định 48 (CR-001, chờ duyệt) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
 
@@ -285,3 +289,4 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.7 | 2026-11-28 | Khương | Gộp nhánh agent: lõi Roa đọc cả `data/places/` và `data/places_vn.json` (5 thành phố); bản chạy thử không gọi VIETMAP, Tavily, Google lúc chạy (chờ OQ-22), nên `VIETMAP_API_KEY`, `TAVILY_API_KEY` chưa dùng | Gộp `feat/kho-du-lieu-va-agent-roa` với `docs/cp2-benchmark-datacard` |
 | 0.8 | 2026-11-28 | Khương | `GWAI_API_KEY`: model Gemini đi đường `generateContent` của GWAI | Chạy eval CP3 bằng `gemini-3.8-flash` |
 | 0.9 | 2026-11-28 | Khương | Biến môi trường kho địa điểm (`STORE_*`, `FRONTEND_BASE_URL`); Geoapify dùng cho đợt thu kho; sửa ô phiên bản ở đầu file | OQ-22, code `backend/` |
+| 0.10 | 2026-11-28 | Khương | Thẻ đề xuất do mọi thành viên tạo, hạn 48 giờ (`PROPOSAL_TTL_HOURS`); Tavily dùng lúc thu kho để tra giá phòng; biến `STORE_MAX_LODGING`, `STORE_PRICED_LODGING` | CR-001 (chờ duyệt), OQ-22 |

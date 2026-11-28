@@ -24,13 +24,13 @@ import re
 if __package__:
     from .ai import call_model
     from .tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
-                        get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_nearby,
+                        get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_lodging, search_nearby,
                         search_places, slug, supported_cities, to_min)
     from .tracing import note
 else:
     from ai import call_model
     from tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
-                       get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_nearby,
+                       get_opening_hours, get_trending_spots, has_hours, hhmm, hours_unverified, search_lodging, search_nearby,
                        search_places, slug, supported_cities, to_min)
     from tracing import note
 
@@ -40,6 +40,8 @@ NEARBY_MIN = 15        # bán kính tìm điểm lấp khoảng trống (phút �
 MIN_STAY = 30          # ở một điểm chèn thêm ít nhất bao nhiêu phút *(tự ước tính)*
 # Nơi giờ chưa xác minh (OQ-22) chỉ lấp khung không còn nơi đã xác minh nào vừa: mỗi mục +10 điểm, trừ lại 9.
 UNVERIFIED_PENALTY = 9
+# Điểm cộng cho quán hot khi xếp: cao hơn khu gần (+4), thấp hơn món nhóm nêu đích danh (+8) *(tự đặt)*.
+HOT_SCORE = 6
 # Thời lượng mỗi loại điểm (phút) — nhóm tự đặt *(tự ước tính)*.
 DURATION = {"food": 60, "snack": 45, "cafe": 60, "sightseeing": 90, "activity": 90}
 CAT_VI = {"food": "ăn uống", "snack": "ăn vặt", "cafe": "cafe", "sightseeing": "tham quan", "activity": "vui chơi"}
@@ -98,6 +100,18 @@ LODGING = r"homestay|khách sạn|resort|chỗ ở|nhà nghỉ|villa"
 LODGING_NOTE = ("Công cụ của Roa **chưa có dữ liệu chỗ ở** (homestay, khách sạn: tên, giá phòng, ảnh phòng), nên mình "
                 "không gợi ý tên hay giá phòng. Chỗ ở: [Cần kiểm tra & điền tay] — nhóm trưởng tự tìm và đặt trên "
                 "trang đặt phòng.")
+LODGING_DATA_NOTE = ("Roa **không đặt phòng hay đặt cọc**. Khách sạn trong lịch lấy từ kho địa điểm; khoảng giá phòng/đêm "
+                     "tra trên web lúc dựng kho, **chưa xác minh** — nhóm trưởng kiểm lại giá và phòng trống trên trang "
+                     "đặt phòng trước khi chốt.")
+# Nhận phòng, trả phòng: giờ tiêu chuẩn khi nhóm không nêu; người dùng nêu giờ thì theo người dùng.
+CHECKIN_DEFAULT, CHECKOUT_DEFAULT = "14:00", "12:00"
+REST_MIN = 90        # nghỉ ở khách sạn sau khi nhận phòng *(tự ước tính)*
+CHECKOUT_MIN = 30    # thu dọn, trả phòng *(tự ước tính)*
+_TIME = r"(\d{1,2}[:h]\d{0,2}|\d{1,2}\s*giờ)"  # phải có "h", ":" hoặc "giờ" — "check-in 2 điểm" không phải giờ
+CHECKIN_RE = r"(?:nhận phòng|check[\s-]?in)\s*(?:lúc|vào|từ|khoảng)?\s*(?:lúc\s*)?" + _TIME
+CHECKOUT_RE = r"(?:trả phòng|check[\s-]?out)\s*(?:lúc|vào|trước|khoảng)?\s*(?:lúc\s*)?" + _TIME
+NO_LODGING = (r"không cần (?:khách sạn|chỗ ở|phòng|ở lại)|đã có chỗ ở|đã có phòng|ở nhà (?:bạn|người quen|người thân|"
+              r"họ hàng)|đi về trong ngày|không ở lại|không ngủ lại")
 
 KNOWN_CITIES = ["Đà Lạt", "Phú Quốc", "Hà Nội", "TP.HCM", "TPHCM", "Hồ Chí Minh", "Sài Gòn", "Đà Nẵng", "Hội An",
                 "Huế", "Nha Trang", "Sa Pa", "Sapa", "Hạ Long", "Vũng Tàu", "Cần Thơ", "Quy Nhơn", "Phan Thiết",
@@ -111,15 +125,30 @@ def vnd(n) -> str:
 
 # ---------------------------------------------------------------- B1: tách yêu cầu
 
+def _clock(raw: str):
+    """"14", "14h", "14:30", "14h30" → "HH:MM" (None nếu không hợp lệ)."""
+    raw = raw.replace("giờ", "h").replace(" ", "")
+    try:
+        m = to_min(raw if re.search(r"[:h]", raw) else raw + "h")
+    except ValueError:
+        return None
+    return hhmm(m) if 0 <= m < 24 * 60 else None
+
+
 def parse_regex(text: str) -> dict:
     low = text.lower()
     s = slug(text)
+    ci, co = re.search(CHECKIN_RE, low), re.search(CHECKOUT_RE, low)
+    checkin, checkout = (_clock(ci.group(1)) if ci else None), (_clock(co.group(1)) if co else None)
+    # Bỏ cụm nhận/trả phòng khỏi câu trước khi đọc khung giờ trong ngày ("nhận phòng từ 14:00" không phải giờ xuất phát).
+    low = re.sub(CHECKIN_RE + "|" + CHECKOUT_RE, " ", low)
     req = {"city": None, "days": None, "people": None, "budgets_per_person_vnd": [], "window_start": None,
            "window_end": None, "early_start": None, "vegetarian": "chay" in low,
            "wants_hot": bool(re.search(r"\bhot\b|tiktok|nổi tiếng|đang hot", low)), "meals": None, "must_visit": [],
            "indoor": bool(re.search(r"\bmưa\b|trong nhà", low)), "areas": [], "lodging": bool(re.search(LODGING, low)),
            "wanted": [c for c, pat in WANTED.items() if re.search(pat, low)],
-           "morning_dish": bool(re.search(r"sáng\s*(?:thì\s*)?ăn|ăn sáng", low))}
+           "morning_dish": bool(re.search(r"sáng\s*(?:thì\s*)?ăn|ăn sáng", low)),
+           "checkin": checkin, "checkout": checkout, "no_lodging": bool(re.search(NO_LODGING, low))}
     for c in supported_cities() + KNOWN_CITIES:
         if slug(c) and re.search(rf"(^|-){re.escape(slug(c))}(-|$)", s):
             req["city"] = city_name(c) or c
@@ -150,7 +179,12 @@ def parse_regex(text: str) -> dict:
     m = re.search(r"(\d+)\s*bữa", low)
     req["meals"] = int(m.group(1)) if m else None
     if req["city"]:
-        req["must_visit"] = _must_visit(req["city"], s, text)
+        must = _must_visit(req["city"], s, text)
+        by_id = _all_places()
+        # Khách sạn được nêu tên thì dùng làm chỗ ở, không xếp như một điểm ăn chơi.
+        stay = [i for i in must if by_id.get(i, {}).get("category") == "lodging"]
+        req["hotel_id"] = stay[0] if stay else None
+        req["must_visit"] = [i for i in must if i not in stay]
         areas = {p["area"] for p in search_places(req["city"]) if p.get("area")}
         req["areas"] = sorted(a for a in areas if len(slug(a)) >= 4 and re.search(rf"(^|-){re.escape(slug(a))}(-|$)", s))
     return req
@@ -214,6 +248,11 @@ def parse(text: str, calls: list) -> dict:
 
 # ---------------------------------------------------------------- B2: các trường hợp trả lời bằng mẫu
 
+def lodging_note(city) -> str:
+    """Kho có chỗ ở cho thành phố thì nói rõ Roa không đặt phòng, giá chưa xác minh; không có thì báo chưa có dữ liệu."""
+    return LODGING_DATA_NOTE if city and search_places(city, category="lodging") else LODGING_NOTE
+
+
 def refusal(text: str):
     """Trả (lời từ chối, có chặn hẳn không) hoặc None."""
     low = text.lower()
@@ -223,7 +262,7 @@ def refusal(text: str):
     kinds = {k for k, _ in hits}
     reasons = [msg for _, msg in hits]
     if re.search(LODGING, low):
-        reasons.append(LODGING_NOTE)
+        reasons.append(lodging_note(parse_regex(text)["city"]))
     head = "Xin lỗi, mình không làm được yêu cầu này." if kinds - {"booking"} else "Phần này mình không làm được:"
     body = head + "\n\n" + "\n".join(f"- {r}" for r in reasons)
     blocking = bool(kinds - {"booking"})
@@ -343,11 +382,14 @@ def candidates(req: dict, budget: int, text: str = "") -> list:
     out = []
     for p in rows:
         full = by_id[p["id"]]
+        if full["category"] == "lodging":
+            continue  # chỗ ở chỉ vào khối nhận/trả phòng (choose_lodging)
         if p["id"] not in must:
             if not has_hours(full) and not full.get("hours_unverified"):
                 continue  # kho file thiếu giờ: không xếp. Kho DB gắn cờ chưa xác minh thì vẫn xếp (OQ-22)
-            if budget and p["avg_price_vnd"] is None:
-                continue  # có ngân sách thì chỉ dùng nơi có giá để tổng tiền kiểm được
+            if budget and p["avg_price_vnd"] is None and not full.get("price_unverified"):
+                continue  # kho file: có ngân sách thì chỉ dùng nơi có giá. Kho DB (Geoapify không có giá) gắn cờ
+                # giá chưa xác minh thì vẫn xếp, nơi có giá đứng trước, tổng chỉ cộng giá đã có (OQ-22)
             if req["indoor"] and full["category"] in ("sightseeing", "activity") and \
                     not re.search(INDOOR_NAME, full["name"].lower() + " "):
                 continue
@@ -361,7 +403,9 @@ def candidates(req: dict, budget: int, text: str = "") -> list:
         for pid in must:  # điểm bắt buộc vẫn giữ dù không rõ món chay
             if pid not in {p["id"] for p in out}:
                 out.append(dict(by_id[pid], hot=pid in hot_ids, liked=False, near=False, unverified=False))
-    out.sort(key=lambda p: (p["id"] not in must, p["unverified"], not p["liked"], not p["near"], not p["hot"],
+    # Quán hot (kho TikTok thu trước, cờ is_hot của kho) đứng đầu; kho không có quán hot thì thứ tự tự rơi về
+    # các điều kiện sau: món nhóm nêu, khu gần, có giá, rẻ.
+    out.sort(key=lambda p: (p["id"] not in must, p["unverified"], not p["hot"], not p["liked"], not p["near"],
                             p.get("avg_price_vnd") is None,
                             p.get("avg_price_vnd") or 0, p["name"]))
     out = out[:MAX_CANDIDATES]
@@ -460,8 +504,71 @@ def day_slots(req: dict, day: int):
     return slots, ws, we
 
 
-def plan_day(req, slots, ws, we, pool, must, budget_left):
-    """Tìm theo chiều sâu: mỗi khung chọn một nơi hoặc bỏ trống. Điểm: bắt buộc > số mục > món nhóm nêu > hot > rẻ."""
+def needs_lodging(req: dict) -> bool:
+    """Chuyến từ 2 ngày, hoặc nhóm nêu giờ nhận/trả phòng; trừ khi nhóm nói không cần chỗ ở."""
+    return not req.get("no_lodging") and ((req["days"] or 1) >= 2 or bool(req.get("checkin") or req.get("checkout")))
+
+
+def lodging_blocks(req: dict, day: int, ws: int, we: int) -> list:
+    """Khối cố định trong ngày: (nhãn, bắt đầu, kết thúc). Ngày đầu nhận phòng rồi nghỉ; ngày cuối trả phòng.
+    Giờ theo người dùng nêu, không nêu thì 14:00 nhận, 12:00 trả (giờ tiêu chuẩn)."""
+    if not needs_lodging(req):
+        return []
+    days = req["days"] or 1
+    blocks = []
+    if day == 1:
+        s = max(to_min(req.get("checkin") or CHECKIN_DEFAULT), ws)
+        if s + REST_MIN <= we:
+            blocks.append(("Nhận phòng, nghỉ ngơi", s, s + REST_MIN))
+    if day == days and (days >= 2 or req.get("checkout")):
+        e = to_min(req.get("checkout") or CHECKOUT_DEFAULT)
+        if ws <= e - CHECKOUT_MIN and e <= we and not (blocks and e - CHECKOUT_MIN < blocks[0][2]):
+            blocks.append(("Trả phòng", e - CHECKOUT_MIN, e))
+    return blocks
+
+
+def with_fixed(slots: list, blocks: list) -> list:
+    """Chèn khối cố định vào danh sách khung: khung vừa trước khối thì giữ (bắt đầu muộn nhất lùi lại),
+    khung có thể sau khối thì dời bắt đầu sớm nhất ra sau khối, còn lại bỏ."""
+    out = list(slots)
+    for label, bs, be in blocks:
+        kept = []
+        for sl in out:
+            if isinstance(sl, dict):
+                kept.append(sl)
+                continue
+            name, a, b, cats, dur = sl
+            if a + dur <= bs:
+                kept.append((name, a, min(b, bs - dur), cats, dur))
+            elif b >= be:
+                kept.append((name, max(a, be), b, cats, dur))
+        kept.append({"label": label, "start": bs, "end": be})
+        out = kept
+    return sorted(out, key=lambda sl: sl["start"] if isinstance(sl, dict) else sl[1])
+
+
+def choose_lodging(req: dict, cands: list):
+    """Chọn chỗ ở: nơi nhóm nêu tên, không thì search_lodging (có giá trước, gần tâm các ứng viên).
+    Trả (nơi chọn, các phương án khác). Kho chưa có chỗ ở thì nơi chọn là chỗ trống [Cần kiểm tra & điền tay]."""
+    if not needs_lodging(req):
+        return None, []
+    rows = search_lodging(req["city"], [p["id"] for p in cands])
+    by_id = _all_places()
+    if req.get("hotel_id") in by_id:
+        chosen = dict(by_id[req["hotel_id"]])
+        rows = [r for r in rows if r["id"] != chosen["id"]]
+    elif rows:
+        chosen, rows = dict(by_id[rows[0]["id"]]), rows[1:]
+    else:
+        chosen = {"id": None, "name": "[Cần kiểm tra & điền tay]", "category": "lodging", "area": None,
+                  "lat": None, "lon": None, "address": None}
+    chosen.update(hot=False, avg_price_vnd=None, fixed=True)
+    return chosen, rows[:2]
+
+
+def plan_day(req, slots, ws, we, pool, must, budget_left, hotel=None):
+    """Tìm theo chiều sâu: mỗi khung chọn một nơi hoặc bỏ trống. Điểm: bắt buộc > số mục > món nhóm nêu > hot > rẻ.
+    Khung cố định (dict, nhận/trả phòng) bắt buộc giữ: điểm trước nó phải kịp đi về khách sạn trước giờ bắt đầu."""
     best = {"score": -1, "items": []}
 
     def score(items):
@@ -471,7 +578,7 @@ def plan_day(req, slots, ws, we, pool, must, budget_left):
                 sum(8 for it in items if it[0].get("liked")) + sum(4 for it in items if it[0].get("near")) +
                 12 * len(set(req.get("wanted", [])) & {it[0]["category"] for it in items}) +
                 sum(40 for it in items if req.get("morning_dish") and it[0].get("liked") and it[3].startswith("Bữa sáng")) +
-                sum(3 for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6 -
+                sum(HOT_SCORE for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6 -
                 UNVERIFIED_PENALTY * sum(1 for it in items if it[0].get("unverified")))
 
     def go(i, t, prev, items, cost, used):
@@ -479,6 +586,14 @@ def plan_day(req, slots, ws, we, pool, must, budget_left):
             sc = score(items)
             if sc > best["score"]:
                 best.update(score=sc, items=list(items))
+            return
+        if isinstance(slots[i], dict):
+            fx = slots[i]
+            if prev is not None and t + _travel(prev, hotel) > fx["start"]:
+                return  # không kịp về khách sạn: nhánh này hỏng
+            items.append((hotel, fx["start"], fx["end"], fx["label"]))
+            go(i + 1, fx["end"], hotel, items, cost, used)
+            items.pop()
             return
         name, a, b, cats, dur = slots[i]
         go(i + 1, t, prev, items, cost, used)
@@ -502,22 +617,43 @@ def plan_day(req, slots, ws, we, pool, must, budget_left):
     return best["items"]
 
 
-def draft(req: dict, cands: list, budget: int):
+def draft(req: dict, cands: list, budget: int, hotel=None):
+    """Trả (các mục ăn chơi, các khối nhận/trả phòng). Khối cố định không vào check_itinerary (không phải điểm ăn chơi)."""
     days = req["days"] or 1
     must = set(req["must_visit"])
-    used, plan, spent = set(), [], 0
+    used, plan, fixed, spent = set(), [], [], 0
     for d in range(1, days + 1):
         slots, ws, we = day_slots(req, d)
+        if hotel:
+            slots = with_fixed(slots, lodging_blocks(req, d, ws, we))
         pool = [p for p in cands if p["id"] not in used and has_hours(p)]
         left = None if not budget else (budget - spent) // (days - d + 1)
         if budget and d < days:
             left = max(left, (budget - spent) // 2)
-        items = plan_day(req, slots, ws, we, pool, must - used, left)
+        items = plan_day(req, slots, ws, we, pool, must - used, left, hotel)
         for p, s, e, name in items:
+            if p.get("fixed"):
+                fixed.append({"day": d, "id": p["id"], "start": hhmm(s), "end": hhmm(e), "label": name})
+                continue
             used.add(p["id"])
             spent += p["avg_price_vnd"] or 0
             plan.append({"day": d, "id": p["id"], "code": p["code"], "start": hhmm(s), "end": hhmm(e), "slot": name})
-    return plan
+    return plan, fixed
+
+
+def fixed_ok(items: list, fixed: list, hotel) -> bool:
+    """Lịch model trả không chồng lên khối nhận/trả phòng và còn đủ thời gian đi về khách sạn."""
+    by_id = _all_places()
+    for f in fixed:
+        fs, fe = to_min(f["start"]), to_min(f["end"])
+        for it in items:
+            if it["day"] != f["day"]:
+                continue
+            p = by_id[it["id"]]
+            s, e = to_min(it["start"]), to_min(it["end"])
+            if not (e + _travel(p, hotel) <= fs or s >= fe + _travel(hotel, p)):
+                return False
+    return True
 
 
 # ---------------------------------------------------------------- B6–B9: model chọn, code kiểm, sửa một lần
@@ -549,8 +685,11 @@ def check(items, req, budget):
                            req["window_start"] or "", req["window_end"] or "")
 
 
-def select(text, req, cands, plan, budget, calls):
-    prompt = (f"Yêu cầu nhóm:\n{text}\n\nỨng viên (chỉ được dùng các mã này):\n{cand_table(cands)}\n\n"
+def select(text, req, cands, plan, budget, calls, fixed=(), hotel=None):
+    blocks = "".join(f"\n- ngày {f['day']} {f['start']}-{f['end']}: {f['label']}" for f in fixed)
+    prompt = (f"Yêu cầu nhóm:\n{text}\n\nỨng viên (chỉ được dùng các mã này):\n{cand_table(cands)}\n\n" +
+              (f"Khối cố định ở khách sạn (giữ nguyên, không xếp mục nào chồng lên, chừa thời gian đi về):{blocks}\n\n"
+               if blocks else "") +
               f"Bản nháp do code xếp (đã hợp lệ):\n" +
               json.dumps([{k: it[k] for k in ("day", "code", "start", "end")} for it in plan], ensure_ascii=False) +
               "\n\nNếu bản nháp đã hợp lý, giữ nguyên. Nếu có thể hợp sở thích nhóm hơn, sửa lại. "
@@ -572,6 +711,9 @@ def select(text, req, cands, plan, budget, calls):
         got = got2 if items else got
         res = check(items, req, budget) if items else {"valid": False}
     must = set(req["must_visit"])
+    if res["valid"] and fixed and not fixed_ok(items, fixed, hotel):
+        note("B9: lịch của model chồng lên giờ nhận/trả phòng — giữ bản nháp của code")
+        return plan, None
     if not res["valid"] or not must.issubset({it["id"] for it in items}) and must.issubset({it["id"] for it in plan}):
         note("B9: lịch của model vẫn chưa hợp lệ — giữ bản nháp của code")
         return plan, None
@@ -590,10 +732,42 @@ def _line(it, p, hot, extra=""):
             f"{p.get('area') or 'chưa rõ khu'}; {hours}) — {price}{tag}{extra}")
 
 
-def render(req, plan, res, reasons, budget, cands) -> str:
+def room_price(h: dict) -> str:
+    lo, hi = h.get("price_min_vnd"), h.get("price_max_vnd")
+    if lo is None:
+        return "giá phòng chưa có — [Cần kiểm tra & điền tay]"
+    rng = vnd(lo) + (f"–{vnd(hi)}" if hi and hi != lo else "")
+    return f"giá phòng khoảng {rng}/phòng/đêm (chưa xác minh)"
+
+
+def _fixed_line(f, hotel) -> str:
+    where = hotel.get("address") or hotel.get("area") or "địa chỉ chưa rõ"
+    if hotel.get("id") is None:
+        return f"- {f['start']}–{f['end']}  {f['label']} — khách sạn: [Cần kiểm tra & điền tay]"
+    return f"- {f['start']}–{f['end']}  {f['label']} — {hotel['name']} ({where}) — {room_price(hotel)}"
+
+
+def lodging_section(req, hotel, others) -> list:
+    nights = max(1, (req["days"] or 1) - 1)
+    times = (f"nhận phòng {req.get('checkin') or CHECKIN_DEFAULT}, trả phòng {req.get('checkout') or CHECKOUT_DEFAULT}"
+             + (" (theo yêu cầu nhóm)" if req.get("checkin") or req.get("checkout")
+                else " (giờ tiêu chuẩn, kiểm lại với nơi ở)"))
+    if hotel.get("id") is None:
+        return [f"\n**Chỗ ở ({nights} đêm)**: kho chưa có khách sạn ở {req['city']} — [Cần kiểm tra & điền tay]; "
+                f"lịch đã chừa giờ {times}."]
+    lines = [f"\n**Chỗ ở đề xuất ({nights} đêm)**: {hotel['name']} — {room_price(hotel)}; {times}."]
+    if hotel.get("price_source_url"):
+        lines.append(f"Nguồn giá: {hotel['price_source_url']}")
+    if others:
+        lines.append("Phương án khác: " + "; ".join(f"{o['name']} ({room_price(o)})" for o in others) + ".")
+    lines.append(LODGING_DATA_NOTE)
+    return lines
+
+
+def render(req, plan, res, reasons, budget, cands, fixed=(), hotel=None, others=()) -> str:
     by_id = {p["id"]: p for p in cands} | _all_places()
     hot = {p["id"] for p in cands if p.get("hot")}
-    days = max((it["day"] for it in plan), default=1)
+    days = max([it["day"] for it in list(plan) + list(fixed)] + [1])
     head = f"**Bản nháp lịch trình {req['city']}"
     head += f" — {req['days']} ngày" if req["days"] else ""
     head += f", nhóm {req['people']} người" if req["people"] else ""
@@ -602,23 +776,33 @@ def render(req, plan, res, reasons, budget, cands) -> str:
     for d in range(1, days + 1):
         lines.append(f"\n**Ngày {d}**")
         prev = None
-        for it in sorted((x for x in plan if x["day"] == d), key=lambda x: to_min(x["start"])):
-            p = by_id[it["id"]]
+        day_items = [x for x in plan if x["day"] == d] + [dict(x, fixed=True) for x in fixed if x["day"] == d]
+        for it in sorted(day_items, key=lambda x: to_min(x["start"])):
+            p = hotel if it.get("fixed") else by_id[it["id"]]
             if prev:
                 lines.append(f"   ↓ di chuyển khoảng {_travel(prev, p)} phút")
-            lines.append(_line(it, p, it["id"] in hot))
+            lines.append(_fixed_line(it, hotel) if it.get("fixed") else _line(it, p, it["id"] in hot))
             prev = p
     total = res["total_per_person_vnd"]
     lines.append(f"\n**Tổng chi phí ước tính: {vnd(total)}/người**" +
                  (f" (≤ ngân sách {vnd(budget)}/người)" if budget and total <= budget else "") +
                  (" — chỉ cộng các mục có giá trong dữ liệu." if res["unpriced"] else ""))
-    lines.append("Chưa gồm khách sạn và tiền xe; thời gian di chuyển là ước tính bằng code.")
+    if hotel:
+        lines.append("Chưa gồm tiền phòng (tính theo phòng/đêm, xem mục Chỗ ở) và tiền xe; thời gian di chuyển là "
+                     "ước tính bằng code.")
+        lines += lodging_section(req, hotel, others)
+    else:
+        lines.append("Chưa gồm khách sạn và tiền xe; thời gian di chuyển là ước tính bằng code.")
     must_missing = [by_id[i]["name"] for i in req["must_visit"] if i not in {x["id"] for x in plan}]
     if must_missing:
         lines.append("Chưa xếp được: " + ", ".join(must_missing) + " (không vừa giờ mở cửa hoặc ngân sách).")
     why = [reasons] if reasons else []
-    if req["wants_hot"]:
+    if any(it["id"] in hot for it in plan):
         why.append("ưu tiên các quán đang hot trong kho thu trước")
+    elif not hot:
+        why.append(f"kho chưa có quán hot ở {req['city']} nên xếp theo giờ mở cửa, món nhóm nêu, khu gần và giá")
+    elif req["wants_hot"]:
+        why.append("các quán hot trong kho không vừa giờ mở cửa hoặc ngân sách nên chưa xếp vào")
     if req["vegetarian"]:
         why.append("chỉ chọn nơi được ghi là có món chay")
     if req["areas"]:
@@ -800,9 +984,62 @@ def fill_gaps(text: str, items: list, calls: list) -> str:
     return "\n".join(lines)
 
 
+
+
+# ---------------------------------------------------------------- bản nháp có cấu trúc (cho backend)
+
+# Loại địa điểm trong kho → `kind` của mục plan (docs/DATABASE.md mục 3.1).
+KIND = {"food": "food", "snack": "food", "cafe": "cafe", "sightseeing": "sight", "activity": "activity",
+        "lodging": "hotel"}
+
+
+def _item_json(it, p, hot: bool) -> dict:
+    sources = [{"type": "store", "ref": p["id"]}]
+    if hot:
+        sources.append({"type": "trending", "ref": p["id"]})
+    return {"start": it["start"], "end": it["end"], "kind": KIND.get(p["category"], "other"), "name": p["name"],
+            "place_id": p["id"], "address": p.get("address"), "lat": p.get("lat"), "lng": p.get("lon"),
+            "cost_per_person": p.get("avg_price_vnd"), "hours_unverified": hours_unverified(p),
+            "price_unverified": p.get("avg_price_vnd") is None or bool(p.get("price_unverified")),
+            "reason": "đang hot trong kho thu trước" if hot else "", "note": it.get("slot") or "", "sources": sources}
+
+
+def _fixed_json(f, hotel, req) -> dict:
+    known = hotel.get("id") is not None
+    std = not (req.get("checkin") or req.get("checkout"))
+    sources = [{"type": "store", "ref": hotel["id"]}] if known else []
+    if hotel.get("price_source_url"):
+        sources.append({"type": "web", "ref": hotel["price_source_url"]})
+    return {"start": f["start"], "end": f["end"], "kind": "hotel",
+            "name": f"{f['label']} — {hotel['name'] if known else '[Cần kiểm tra & điền tay]'}",
+            "place_id": hotel.get("id"), "address": hotel.get("address"), "lat": hotel.get("lat"),
+            "lng": hotel.get("lon"), "cost_per_person": None, "hours_unverified": std, "price_unverified": True,
+            "reason": "giờ nhận/trả phòng tiêu chuẩn" if std else "giờ nhận/trả phòng theo yêu cầu nhóm",
+            "note": room_price(hotel) if known else "kho chưa có khách sạn — nhóm trưởng tự tìm", "sources": sources}
+
+
+def plan_json(req, plan, fixed, hotel, cands, notes="") -> dict:
+    """Plan JSON (docs/DATABASE.md mục 3.1) không có `id` mục và `date`: backend cấp id, điền ngày theo chuyến đi."""
+    by_id = {p["id"]: p for p in cands} | _all_places()
+    hot = {p["id"] for p in cands if p.get("hot")}
+    n = max([it["day"] for it in list(plan) + list(fixed)] + [req["days"] or 1])
+    days = []
+    for d in range(1, n + 1):
+        rows = [x for x in plan if x["day"] == d] + [dict(x, fixed=True) for x in fixed if x["day"] == d]
+        items = [_fixed_json(x, hotel, req) if x.get("fixed") else _item_json(x, by_id[x["id"]], x["id"] in hot)
+                 for x in sorted(rows, key=lambda x: to_min(x["start"]))]
+        days.append({"day": d, "date": None, "title": f"Ngày {d}", "items": items})
+    return {"schema_version": 1, "transport": "", "notes": notes, "days": days}
+
+
+def _result(output, status, plan=None, computed=None, lodging=None) -> dict:
+    return {"output": output, "status": status, "plan": plan, "computed": computed, "lodging": lodging}
+
+
 # ---------------------------------------------------------------- answer
 
-def answer(text: str) -> dict:
+def _run(text: str) -> dict:
+    """Chạy cả luồng. status: ok (có plan JSON) | infeasible | need_info | no_data | refused | gap_fill."""
     calls = []
     prefix = []
     got = refusal(text)
@@ -810,28 +1047,28 @@ def answer(text: str) -> dict:
         msg, blocking = got
         if blocking:
             note("B2: từ chối bằng mẫu — ngoài phạm vi, tự áp dụng hoặc hỏi thông tin bí mật")
-            return {"output": msg}
+            return _result(msg, "refused")
         note("B2: từ chối phần đặt chỗ/thanh toán, vẫn soạn lịch")
         prefix.append(msg)
     base_items = parse_base_plan(text)
     if base_items:
         note("G: có plan gốc kèm mã điểm — nhánh lấp khoảng trống")
-        return {"output": fill_gaps(text, base_items, calls)}
+        return _result(fill_gaps(text, base_items, calls), "gap_fill")
     req = parse(text, calls)
     note(f"B1: {json.dumps({k: v for k, v in req.items() if v not in (None, [], False)}, ensure_ascii=False)}")
     if req["lodging"] and not prefix:
-        prefix.append(LODGING_NOTE)
+        prefix.append(lodging_note(req["city"]))
 
-    def out(body):
-        return {"output": "\n\n".join(prefix + [body])}
+    def out(body, status="infeasible"):
+        return _result("\n\n".join(prefix + [body]), status)
 
     if req["city"] and not search_places(req["city"]):
         note(f"B2: chưa có kho cho {req['city']} — trả khung điền tay")
-        return out(no_data(req))
+        return out(no_data(req), "no_data")
     msg = missing_info(req)
     if msg:
         note("B2: thiếu thông tin — hỏi lại")
-        return out(msg)
+        return out(msg, "need_info")
     unknown = split_unknown_must(req)
     if unknown:
         note(f"B2: {len(unknown)} điểm bắt buộc thiếu giờ hoặc chưa có trong kho — gắn nhãn điền tay")
@@ -839,7 +1076,7 @@ def answer(text: str) -> dict:
     budgets = req["budgets_per_person_vnd"]
     if len(budgets) > 1:
         note("B2: ngân sách mâu thuẫn trong nhóm — nêu phương án, hỏi nhóm trưởng")
-        return out(budget_conflict(req, candidates(req, 0, text)))
+        return out(budget_conflict(req, candidates(req, 0, text)), "need_info")
     budget = budgets[0] if budgets else 0
     over = must_cost_check(req, budget)
     if over:
@@ -847,8 +1084,8 @@ def answer(text: str) -> dict:
         return out(infeasible_must_budget(budget, *over))
     cands = candidates(req, budget, text)
     if not cands:
-        return out(no_data(req))
-    note(f"B3: {len(cands)} ứng viên")
+        return out(no_data(req), "no_data")
+    note(f"B3: {len(cands)} ứng viên, {sum(1 for p in cands if p['hot'])} quán hot")
     if budget:
         cost, parts = min_cost(req, cands)
         if cost is not None and cost > budget:
@@ -858,14 +1095,45 @@ def answer(text: str) -> dict:
     if not ok:
         note("B4: các điểm bắt buộc không vừa khung giờ")
         return out(infeasible_must(req, detail, best))
-    plan = draft(req, cands, budget)
+    hotel, others = choose_lodging(req, cands)
+    if hotel:
+        note(f"B5: chỗ ở {hotel['name']}, nhận {req.get('checkin') or CHECKIN_DEFAULT}, "
+             f"trả {req.get('checkout') or CHECKOUT_DEFAULT}")
+    plan, fixed = draft(req, cands, budget, hotel)
     if not plan:
         return out("Mình không tìm được điểm nào vừa giờ mở cửa và ngân sách trong khung nhóm nêu. "
                    "Nhóm thử nới khung giờ hoặc ngân sách giúp mình nhé.")
     get_opening_hours([it["id"] for it in plan])
-    plan, reasons = select(text, req, cands, plan, budget, calls)
+    plan, reasons = select(text, req, cands, plan, budget, calls, fixed, hotel)
     res = check(plan, req, budget)
     note(f"B8: check_itinerary valid={res['valid']}, tổng {res['total_per_person_vnd']}")
     if not res["valid"]:
         return out("Mình chưa xếp được lịch hợp lệ:\n- " + "\n- ".join(res["violations"]))
-    return out(render(req, plan, res, reasons, budget, cands))
+    by_id = _all_places()
+    per_day = {}
+    for it in plan:
+        per_day[it["day"]] = per_day.get(it["day"], 0) + (by_id[it["id"]].get("avg_price_vnd") or 0)
+    computed = {"total_cost_per_person": res["total_per_person_vnd"],
+                "per_day": [{"day": d, "cost_per_person": per_day.get(d, 0)} for d in sorted(per_day)],
+                "warnings": res["warnings"]}
+    lodging = None
+    if hotel:
+        lodging = {"chosen": None if hotel.get("id") is None else {
+                       k: hotel.get(k) for k in ("id", "name", "address", "price_min_vnd", "price_max_vnd",
+                                                 "price_source_url")},
+                   "others": [{k: o.get(k) for k in ("id", "name", "address", "price_min_vnd", "price_max_vnd",
+                                                     "price_source_url")} for o in others],
+                   "checkin": req.get("checkin") or CHECKIN_DEFAULT, "checkout": req.get("checkout") or CHECKOUT_DEFAULT}
+    body = render(req, plan, res, reasons, budget, cands, fixed, hotel, others)
+    return _result("\n\n".join(prefix + [body]), "ok",
+                   plan_json(req, plan, fixed, hotel, cands, reasons or ""), computed, lodging)
+
+
+def answer(text: str) -> dict:
+    return {"output": _run(text)["output"]}
+
+
+def generate_plan(text: str) -> dict:
+    """Cho backend (POST /trips/{id}/generate): cùng luồng với answer, trả thêm plan JSON khi xếp được.
+    Kết quả là bản nháp — Roa không ghi vào plan (R-31)."""
+    return _run(text)

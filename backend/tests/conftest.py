@@ -31,7 +31,26 @@ QUY_NHON = {
         feature(20, "Tháp Đôi", ["tourism.sights", "tourism.sights.tower"], hours="07:00-17:00"),
         feature(21, "Eo Gió", ["tourism.attraction", "tourism.attraction.viewpoint"]),
     ],
+    "accommodation.hotel,accommodation.guest_house,accommodation.hostel,accommodation.motel": [
+        feature(30, "Khách sạn Hải Âu", ["accommodation", "accommodation.hotel"], lat=13.771),
+        feature(31, "Nhà nghỉ Gió Biển", ["accommodation", "accommodation.guest_house"], lat=13.78),
+    ],
 }
+STORE_SIZE = 8  # số nơi kho Quy Nhơn giả giữ lại sau khi lọc
+
+
+class FakePrice:
+    """Nguồn giá phòng giả, cùng hàm như TavilyPriceSource."""
+
+    def __init__(self, prices=None):
+        self.prices = prices if prices is not None else {
+            "Khách sạn Hải Âu": {"price_min_vnd": 600000, "price_max_vnd": 900000,
+                                 "price_source_url": "https://example.test/hai-au"}}
+        self.calls = []
+
+    def room_price(self, name, city):
+        self.calls.append((name, city))
+        return self.prices.get(name)
 
 
 class FakeGeo:
@@ -58,7 +77,7 @@ class FakeGeo:
 @pytest.fixture
 def settings(tmp_path):
     return Settings(database_url=f"sqlite:///{(tmp_path / 't.db').as_posix()}", geoapify_api_key="",
-                    frontend_base_url="http://fe.test", store_ttl_days=None)
+                    frontend_base_url="http://fe.test", store_ttl_days=None, tavily_api_key="")
 
 
 @pytest.fixture

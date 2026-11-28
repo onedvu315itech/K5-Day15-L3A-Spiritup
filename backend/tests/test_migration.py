@@ -1,4 +1,4 @@
-"""Migration 0001 chạy được trên SQLite và tạo đủ 13 bảng (Postgres kiểm bằng `alembic upgrade head --sql`)."""
+"""Migration 0001–0002 chạy được trên SQLite và tạo đủ 13 bảng (Postgres kiểm bằng `alembic upgrade head --sql`)."""
 from pathlib import Path
 
 from alembic import command
@@ -19,7 +19,8 @@ def test_upgrade_and_downgrade(tmp_path):
     eng = create_engine(url)
     assert TABLES <= set(inspect(eng).get_table_names())
     cols = {c["name"] for c in inspect(eng).get_columns("places")}
-    assert {"geo_category", "geo_categories", "hours_unverified", "price_unverified", "rank"} <= cols
+    assert {"geo_category", "geo_categories", "hours_unverified", "price_unverified", "rank", "price_min_vnd", "price_max_vnd",
+            "price_source_url"} <= cols
     command.downgrade(cfg, "base")
     assert not TABLES & set(inspect(eng).get_table_names())
     eng.dispose()

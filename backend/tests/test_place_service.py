@@ -10,7 +10,7 @@ from app.errors import ApiError
 from app.roa import tools
 from app.services import place_service as ps
 from app.services import trip_service as ts
-from tests.conftest import FakeGeo
+from tests.conftest import STORE_SIZE, FakeGeo, FakePrice
 
 
 def body(dest="Quy Nhơn"):
@@ -32,10 +32,10 @@ def test_new_city_collects_then_ready(db_session, settings):
     collect(settings, geo)
     db_session.expire_all()
     store = db_session.get(CityStore, "quy-nhon")
-    assert store.status == "ready" and store.place_count == 6 and store.expires_at is None  # OQ-12 chưa chốt
+    assert store.status == "ready" and store.place_count == STORE_SIZE and store.expires_at is None  # OQ-12 chưa chốt
     assert db_session.get(type(trip), trip.id).generation_status == "idle"
     ev = db_session.scalars(select(TripEvent)).one()
-    assert ev.type == "store_ready" and ev.payload == {"city_slug": "quy-nhon", "place_count": 6}
+    assert ev.type == "store_ready" and ev.payload == {"city_slug": "quy-nhon", "place_count": STORE_SIZE}
     # Chuyến đi thứ hai cùng thành phố: dùng kho sẵn, không gọi Geoapify.
     geo2 = FakeGeo()
     trip2, *_, job2 = ts.create_trip(db_session, body("Quy Nhơn"), geo2, settings)
@@ -98,8 +98,8 @@ def test_expired_store_refreshes_in_background_keeping_old_rows(db_session, sett
     collect(settings, FakeGeo(fail=True), mode="refresh")  # làm mới lỗi: giữ kho cũ
     db_session.expire_all()
     store = db_session.get(CityStore, "quy-nhon")
-    assert store.status == "ready" and store.error and store.place_count == 6
-    assert len(db_session.scalars(select(Place)).all()) == 6
+    assert store.status == "ready" and store.error and store.place_count == STORE_SIZE
+    assert len(db_session.scalars(select(Place)).all()) == STORE_SIZE
 
 
 def test_list_places_filters_and_rows_for_agent(db_session, settings):

@@ -31,4 +31,9 @@ def schedule_store_job(request: Request, background, city_slug: str, job: str | 
         from app.services.place_service import run_collection
         from app.db.base import session_factory
         background.add_task(run_collection, city_slug, job, session_factory(), request.app.state.geo_factory,
-                            request.app.state.settings)
+                            request.app.state.settings, request.app.state.price_source)
+
+
+def token_member(authorization: str | None = Header(default=None), db=Depends(get_db)):
+    """Cho route `/proposals/{id}`: thành viên theo token; service kiểm đề xuất thuộc chuyến đi của token."""
+    return trip_service.member_by_token(db, authorization)

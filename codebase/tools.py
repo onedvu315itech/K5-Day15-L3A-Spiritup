@@ -34,7 +34,9 @@ STORE_DIR = os.path.join(DATA_DIR, "places")
 MULTI_CITY_FILE = "places_vn.json"
 TRENDING_FILE = "trending_spots.json"
 
-CATEGORIES = ("food", "snack", "cafe", "sightseeing", "activity")
+CATEGORIES = ("food", "snack", "cafe", "sightseeing", "activity", "lodging")
+# Loại xếp vào khung ăn, chơi; "lodging" (khách sạn, nhà nghỉ, homestay) chỉ dùng cho khối nhận/trả phòng.
+ACTIVITY_CATEGORIES = CATEGORIES[:5]
 # Tên gọi khác nhau của cùng một thành phố → khoá chung (slug).
 CITY_ALIASES = {"tp-hcm": "tp-hcm", "tphcm": "tp-hcm", "hcm": "tp-hcm", "ho-chi-minh": "tp-hcm",
                 "thanh-pho-ho-chi-minh": "tp-hcm", "tp-ho-chi-minh": "tp-hcm", "sai-gon": "tp-hcm",
@@ -82,7 +84,8 @@ def store_rows_to_catalog(rows) -> dict:
     out = {}
     for r in rows:
         row = dict(r)
-        for k in ("area", "lat", "lon", "address", "open_min", "close_min", "avg_price_vnd", "vegetarian_friendly"):
+        for k in ("area", "lat", "lon", "address", "open_min", "close_min", "avg_price_vnd", "vegetarian_friendly",
+                  "price_min_vnd", "price_max_vnd", "price_source_url"):
             row.setdefault(k, None)
         row.setdefault("is_hot", False)
         row.setdefault("source", "db")
@@ -181,7 +184,7 @@ def is_sample(p: dict) -> bool:
 
 
 def _public(p: dict) -> dict:
-    return {
+    row = {
         "id": p["id"], "name": p["name"], "city": p.get("city"), "category": p["category"], "area": p.get("area"),
         "open": hhmm(p["open_min"]) if has_hours(p) else None,
         "close": hhmm(p["close_min"]) if has_hours(p) else None,
@@ -190,6 +193,12 @@ def _public(p: dict) -> dict:
         "is_hot": bool(p.get("is_hot")), "source": p.get("source"),
         "hours_unverified": hours_unverified(p), "price_unverified": price_unverified(p),
     }
+    if p["category"] == "lodging":
+        # Giá phòng/đêm do đợt thu tra web (Tavily) — luôn "chưa xác minh", kèm link nguồn.
+        row.update(price_min_vnd=p.get("price_min_vnd"), price_max_vnd=p.get("price_max_vnd"),
+                   price_source_url=p.get("price_source_url"), address=p.get("address"),
+                   lat=p.get("lat"), lon=p.get("lon"))
+    return row
 
 
 def _wanted_categories(category) -> set:
@@ -203,7 +212,7 @@ def _wanted_categories(category) -> set:
 def search_places(city: str, preference: str = "", category: str = "") -> list:
     """Tra địa điểm trong kho theo thành phố, sở thích và loại.
     Input: city (str; "TP.HCM", "Sài Gòn", "Hồ Chí Minh" là một), preference (str, vd "chay"),
-    category ("food" | "snack" | "cafe" | "sightseeing" | "activity", có thể nhiều loại cách nhau dấu phẩy; "" = mọi loại).
+    category ("food" | "snack" | "cafe" | "sightseeing" | "activity" | "lodging", có thể nhiều loại cách nhau dấu phẩy; "" = mọi loại).
     Output: danh sách dict {id, name, city, category, area, open, close, avg_price_vnd, vegetarian_friendly, is_hot, source,
     hours_unverified, price_unverified}; open/close = None khi kho chưa có giờ; rỗng nếu thành phố chưa có kho. Không tác động ra ngoài."""
     rows = _store(city)
@@ -243,6 +252,29 @@ def get_trending_spots(city: str) -> list:
 
 
 @tool
+def search_lodging(city: str, near_place_ids: list = None) -> list:
+    """Tra chỗ ở (khách sạn, nhà nghỉ, homestay) trong kho theo thành phố, gần các điểm trong lịch.
+    Input: city (str), near_place_ids (list[str], tuỳ chọn: mã các điểm trong lịch để lấy tâm).
+    Output: danh sách dict cùng dạng search_places, thêm price_min_vnd, price_max_vnd (giá phòng/đêm, chưa xác minh),
+    price_source_url, address, lat, lon, distance_km (tới tâm các điểm; None nếu thiếu toạ độ); nơi có giá xếp trước,
+    rồi gần → xa. Rỗng nếu kho chưa có chỗ ở. Không đặt phòng, không tác động ra ngoài."""
+    by_id = _catalog()
+    pts = [by_id[i] for i in near_place_ids or [] if i in by_id and by_id[i].get("lat") is not None]
+    center = (sum(p["lat"] for p in pts) / len(pts), sum(p["lon"] for p in pts) / len(pts)) if pts else None
+    out = []
+    for p in _store(city):
+        if p["category"] != "lodging":
+            continue
+        row = _public(p)
+        row["distance_km"] = None
+        if center and p.get("lat") is not None:
+            row["distance_km"] = round(_km(center, (p["lat"], p["lon"])), 2)
+        out.append(row)
+    return sorted(out, key=lambda r: (r["price_min_vnd"] is None, r["distance_km"] is None,
+                                      r["distance_km"] or 0, r["name"]))
+
+
+@tool
 def get_opening_hours(place_ids: list) -> dict:
     """Tra giờ mở cửa và đóng cửa của các địa điểm theo mã.
     Input: place_ids (list[str]). Output: dict {id: {name, open, close}}; open/close = None khi kho chưa có giờ;
@@ -257,13 +289,17 @@ def get_opening_hours(place_ids: list) -> dict:
     return out
 
 
+def _km(a: tuple, b: tuple) -> float:
+    """Khoảng cách chim bay (km) giữa hai cặp (lat, lon)."""
+    p1, p2 = math.radians(a[0]), math.radians(b[0])
+    dp, dl = p2 - p1, math.radians(b[1] - a[1])
+    h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * 6371.0 * math.asin(math.sqrt(h))
+
+
 def _travel(a: dict, b: dict) -> int:
     if a.get("lat") is not None and b.get("lat") is not None:
-        r = 6371.0
-        p1, p2 = math.radians(a["lat"]), math.radians(b["lat"])
-        dp, dl = p2 - p1, math.radians(b["lon"] - a["lon"])
-        h = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-        km = 2 * r * math.asin(math.sqrt(h)) * ROAD_FACTOR
+        km = _km((a["lat"], a["lon"]), (b["lat"], b["lon"])) * ROAD_FACTOR
         return max(SAME_AREA_MIN, round(km / SCOOTER_KMH * 60) + PARKING_MIN)
     areas = (a.get("area"), b.get("area"))
     for name, minutes in AREA_MINUTES.items():

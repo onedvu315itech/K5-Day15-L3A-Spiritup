@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     store_page_size: int = 500        # Geoapify Places tối đa 500 nơi mỗi trang
     store_max_pages: int = 4          # mỗi nhóm loại, như scripts/spike_geoapify.py
     store_stuck_minutes: int = 10     # job collecting quá chừng này coi như treo *(tự ước tính)*
+    store_max_lodging: int = 30       # *(tự ước tính, chưa kiểm bằng eval)*
+    store_priced_lodging: int = 10    # số chỗ ở đầu bảng được tra giá Tavily mỗi đợt thu *(tự ước tính)*
+    tavily_api_key: str = ""          # để trống = không tra giá phòng, chỗ ở ghi "giá chưa có"
+
+    # Đề xuất (CR-001, chờ duyệt): thẻ đề xuất mở trong chừng này giờ rồi thành "tham khảo".
+    proposal_ttl_hours: int = 48
 
     def cors_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

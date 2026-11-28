@@ -13,8 +13,9 @@ GROUPS = {
     "cafe": "catering.cafe",
     "food": "catering.restaurant,catering.fast_food",
     "sight": "tourism.sights,tourism.attraction,entertainment",
+    "lodging": "accommodation.hotel,accommodation.guest_house,accommodation.hostel,accommodation.motel",
 }
-GROUP_TO_CATEGORY = {"cafe": "cafe", "food": "food", "sight": "sightseeing"}
+GROUP_TO_CATEGORY = {"cafe": "cafe", "food": "food", "sight": "sightseeing", "lodging": "lodging"}
 
 EVERYDAY = re.compile(r"^(?:Mo-Su\s+)?(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$")
 WARD = re.compile(r"((?:Phường|Xã|Thị trấn) [^,]+?)(?: - [^,]+)?,")
@@ -107,13 +108,14 @@ def _vegetarian(name: str, cuisine) -> bool | None:
 
 
 def select_places(groups: dict, center: tuple | None, hot_names: list, max_cafe: int, max_food: int,
-                  fetched_at) -> list[dict]:
-    """groups: {"cafe"|"food"|"sight": [slim(...)]}. Trả dòng `places` (chưa có city_slug) đã xếp `rank`.
+                  fetched_at, max_lodging: int = 30) -> list[dict]:
+    """groups: {"cafe"|"food"|"sight"|"lodging": [slim(...)]}. Trả dòng `places` (chưa có city_slug) đã xếp `rank`.
 
     1. Bỏ nơi không tên, không mã OSM, có dấu hiệu đóng cửa; trùng mã OSM giữa các nhóm thì giữ lần đầu.
     2. Thiếu giờ hoặc giá vẫn giữ, gắn cờ chưa xác minh. Không đoán giờ, không đoán giá.
     3. Xếp trong từng category: quán hot → có giờ đọc được → có website → gần tâm thành phố.
-    4. Giữ tối đa max_cafe cafe, max_food quán ăn, mọi điểm tham quan.
+    4. Giữ tối đa max_cafe cafe, max_food quán ăn, max_lodging chỗ ở, mọi điểm tham quan.
+    Chỗ ở không có giờ mở cửa nên luôn `hours_unverified`; giá phòng/đêm điền sau bằng Tavily (place_service).
     """
     seen, by_cat = set(), {}
     for group, items in groups.items():
@@ -154,7 +156,7 @@ def select_places(groups: dict, center: tuple | None, hot_names: list, max_cafe:
                 "fetched_at": fetched_at,
                 "_dist": dist,
             })
-    caps = {"cafe": max_cafe, "food": max_food}
+    caps = {"cafe": max_cafe, "food": max_food, "lodging": max_lodging}
     out = []
     for category in sorted(by_cat):
         rows = sorted(by_cat[category], key=lambda r: (not r["is_hot"], r["hours_unverified"], not r["website"],

@@ -14,7 +14,7 @@ def _in(col: str, values) -> str:
 
 GENERATION_STATUS = ("collecting_data", "idle", "running", "done", "failed")
 STORE_STATUS = ("collecting", "ready", "failed")
-PLACE_CATEGORIES = ("food", "snack", "cafe", "sightseeing", "activity")
+PLACE_CATEGORIES = ("food", "snack", "cafe", "sightseeing", "activity", "lodging")
 EVENT_TYPES = ("member_joined", "version_created", "proposal_created", "vote_cast", "proposal_applied",
                "proposal_closed", "suggestion_created", "suggestion_handled", "chat_message", "store_ready",
                "store_failed")
@@ -64,6 +64,10 @@ class Place(Base):
     opening_hours_raw: Mapped[str | None] = mapped_column(Text)
     hours_unverified: Mapped[bool] = mapped_column(Boolean, nullable=False)
     avg_price_vnd: Mapped[int | None] = mapped_column(Integer)
+    # Chỉ chỗ ở: khoảng giá phòng/đêm tra web lúc thu kho (Tavily), luôn chưa xác minh.
+    price_min_vnd: Mapped[int | None] = mapped_column(Integer)
+    price_max_vnd: Mapped[int | None] = mapped_column(Integer)
+    price_source_url: Mapped[str | None] = mapped_column(Text)
     price_unverified: Mapped[bool] = mapped_column(Boolean, nullable=False)
     vegetarian_friendly: Mapped[bool | None] = mapped_column(Boolean)
     is_hot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default=text("false"))

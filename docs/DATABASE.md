@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.3 |
+| Phiên bản | 0.4 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Toàn (agent, cho mục 3), Phúc (frontend, cho mục 3) |
@@ -102,7 +102,7 @@ Chỉ mục: unique một phần `(trip_id) WHERE role = 'leader'`.
 | `number` | int | not null, unique theo `trip_id` | Số hiện cho người dùng: #7 |
 | `kind` | text | `edit` / `revert` | |
 | `origin` | text | `manual` / `agent` / `suggestion` | Nhóm trưởng tự sửa, nhờ Roa, hay từ góp ý |
-| `author_id` | uuid | FK `trip_members` | Luôn là nhóm trưởng |
+| `author_id` | uuid | FK `trip_members` | Thành viên bất kỳ (CR-001, chờ duyệt); trước đây luôn là nhóm trưởng |
 | `base_version` | int | not null | Phiên bản lúc tạo |
 | `target_version` | int | null | Chỉ với `revert` |
 | `ops` | jsonb | null | Danh sách thao tác mục 3.2; null với `revert` |
@@ -115,7 +115,7 @@ Chỉ mục: unique một phần `(trip_id) WHERE role = 'leader'`.
 | `close_reason` | text | null | `leader_closed` / `expired` / `conflict` / `withdrawn` |
 | `applied_version` | int | null | Phiên bản tạo ra khi `applied` |
 | `votes_at_decision` | jsonb | null | Kết quả phiếu lúc nhóm trưởng áp dụng hoặc đóng: `{agree, disagree, pending, required, majority}` |
-| `expires_at` | timestamptz | null | Chỉ có khi nhóm trưởng đặt hạn lúc tạo; null = không hết hạn (OQ-03) |
+| `expires_at` | timestamptz | null | Lúc tạo + `PROPOSAL_TTL_HOURS` (mặc định 48 giờ, CR-001, chờ duyệt). Quá hạn → `reference` / `expired` khi đọc. Cột vẫn cho null để dòng cũ hợp lệ |
 | `created_at`, `closed_at` | timestamptz | | |
 
 ### 2.5 `votes`
@@ -213,7 +213,7 @@ Kho địa điểm đã lọc của một thành phố. Roa chỉ xếp lịch t
 | `city_slug` | text | FK `city_stores`, not null | |
 | `ref` | text | not null, unique theo `city_slug` | Mã ổn định: `osm:node123`, `DL-01`. Đây là `id` công cụ của Roa trả về |
 | `name` | text | not null | |
-| `category` | text | `food` / `snack` / `cafe` / `sightseeing` / `activity`, not null | Loại dùng xếp lịch (cùng tập với `codebase/tools.py` `CATEGORIES`) |
+| `category` | text | `food` / `snack` / `cafe` / `sightseeing` / `activity` / `lodging`, not null | Loại dùng xếp lịch (cùng tập với `codebase/tools.py` `CATEGORIES`) |
 | `geo_category` | text | null | Mã loại cụ thể nhất của Geoapify, vd `catering.cafe`, `tourism.sights.place_of_worship.temple`. Hiện cho người dùng (dịch sang tiếng Việt ở frontend) và lọc kho |
 | `geo_categories` | jsonb | not null, mặc định `[]` | Mọi mã loại Geoapify của nơi này (có dấu chấm), giữ nguyên thứ tự API trả |
 | `area` | text | null | Phường, khu |
@@ -224,6 +224,8 @@ Kho địa điểm đã lọc của một thành phố. Roa chỉ xếp lịch t
 | `hours_unverified` | bool | not null | true khi chưa có giờ, hoặc giờ chưa có nguồn (bộ mẫu CP2) |
 | `avg_price_vnd` | int | null | Không đoán giá; null = chưa có |
 | `price_unverified` | bool | not null | true khi chưa có giá, hoặc giá chưa có nguồn |
+| `price_min_vnd`, `price_max_vnd` | int | null | Chỉ với `lodging`: khoảng giá phòng/đêm đọc từ kết quả Tavily lúc thu kho. Luôn kèm `price_unverified = true` |
+| `price_source_url` | text | null | Link trang có giá phòng (Tavily trả) |
 | `vegetarian_friendly` | bool | null | |
 | `is_hot` | bool | not null, mặc định false | Khớp được với `trending_spots` |
 | `website` | text | null | |
@@ -311,11 +313,11 @@ Contract dùng chung giữa frontend, backend và Roa. Đổi cấu trúc là th
 
 ```mermaid
 stateDiagram-v2
-  [*] --> open: nhóm trưởng gửi
+  [*] --> open: thành viên gửi thẻ
   open --> applied: nhóm trưởng áp dụng, không đụng mục đã đổi
-  open --> reference: nhóm trưởng đóng, hoặc quá hạn đã đặt
+  open --> reference: nhóm trưởng đóng, hoặc quá 48 giờ
   open --> stale: phiên bản mới đụng cùng mục
-  open --> withdrawn: nhóm trưởng rút
+  open --> withdrawn: người tạo hoặc nhóm trưởng rút
   applied --> [*]
   reference --> [*]
   stale --> [*]
@@ -370,9 +372,10 @@ Geoapify trả hàng trăm nơi mỗi thành phố (Đà Lạt: 605 nơi đủ t
 1. Bỏ nơi không tên, không có mã OSM, hoặc có dấu hiệu đóng cửa (`disused:*`, `was:*`, `abandoned:*`).
 2. Nơi thiếu giờ hoặc giá **vẫn giữ**, gắn `hours_unverified` / `price_unverified` (OQ-22). Không đoán giờ, không đoán giá.
 3. Xếp ưu tiên trong từng `category`: có trong kho quán hot → có giờ đọc được → có website → gần tâm thành phố.
-4. Giữ tối đa `STORE_MAX_CAFE` = 60 cafe, `STORE_MAX_FOOD` = 60 quán ăn, toàn bộ điểm tham quan *(tự ước tính, chưa kiểm bằng eval)*. Ghi `rank` theo thứ tự này.
+4. Giữ tối đa `STORE_MAX_CAFE` = 60 cafe, `STORE_MAX_FOOD` = 60 quán ăn, `STORE_MAX_LODGING` = 30 chỗ ở, toàn bộ điểm tham quan *(tự ước tính, chưa kiểm bằng eval)*. Ghi `rank` theo thứ tự này.
+5. Có `TAVILY_API_KEY` thì tra khoảng giá phòng/đêm cho `STORE_PRICED_LODGING` = 10 chỗ ở đầu bảng *(tự ước tính)*; tra lỗi thì bỏ qua nơi đó, kho vẫn `ready`. Không tra web lúc `generate`.
 
-Ánh xạ nhóm Geoapify → `category`: `catering.cafe` → `cafe`; `catering.restaurant`, `catering.fast_food` → `food`; `tourism.sights`, `tourism.attraction`, `entertainment` → `sightseeing`. `geo_category` là mã có nhiều dấu chấm nhất trong `geo_categories`.
+Ánh xạ nhóm Geoapify → `category`: `catering.cafe` → `cafe`; `catering.restaurant`, `catering.fast_food` → `food`; `tourism.sights`, `tourism.attraction`, `entertainment` → `sightseeing`; `accommodation.hotel`, `accommodation.guest_house`, `accommodation.hostel`, `accommodation.motel` → `lodging`. `geo_category` là mã có nhiều dấu chấm nhất trong `geo_categories`.
 
 ## Lịch sử thay đổi
 
@@ -381,3 +384,4 @@ Geoapify trả hàng trăm nơi mỗi thành phố (Đà Lạt: 605 nơi đủ t
 | 0.1 | 2026-11-27 | Khương | Bản đầu: 11 bảng, plan JSON, `ops`, vòng đời đề xuất, bất biến I1–I8 | ADR 0002 |
 | 0.2 | 2026-11-27 | Khương | `expires_at` cho phép null; `close_reason` thay `not_enough_votes` bằng `leader_closed`; thêm `votes_at_decision`, sự kiện `proposal_applied`; v1 là bản nháp đã duyệt; hội thoại chung | ADR 0004, OQ-14 |
 | 0.3 | 2026-11-28 | Khương | Thêm `city_stores`, `places` (kho địa điểm theo thành phố, có `geo_category`, `geo_categories` từ Geoapify, cờ chưa xác minh); `trips.city_slug`, `generation_status` thêm `collecting_data`; `places_cache` thêm `geocode`, đổi chủ sang `place_service`; sự kiện `store_ready`, `store_failed`; plan item thêm `hours_unverified`, `price_unverified`; mục 5 vòng đời (làm mới kho quá hạn giữ `ready`) và cách chọn nơi vào kho; migration Alembic `0001` tạo 13 bảng | OQ-22 |
+| 0.4 | 2026-11-28 | Khương | `places.category` thêm `lodging`, thêm `price_min_vnd`, `price_max_vnd`, `price_source_url` (migration `0002`); mục 5.2 thêm chỗ ở và tra giá Tavily lúc thu kho; `proposals.author_id` là thành viên bất kỳ, `expires_at` mặc định 48 giờ | CR-001 (chờ duyệt), OQ-22 |

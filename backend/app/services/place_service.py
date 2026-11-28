@@ -41,7 +41,8 @@ def place_dict(p: Place) -> dict:
             "lon": p.lon, "open": hhmm(p.open_min) if has else None, "close": hhmm(p.close_min) if has else None,
             "opening_hours_raw": p.opening_hours_raw, "hours_unverified": p.hours_unverified,
             "avg_price_vnd": p.avg_price_vnd, "price_unverified": p.price_unverified, "is_hot": p.is_hot,
-            "website": p.website, "rank": p.rank, "source": p.source}
+            "website": p.website, "rank": p.rank, "source": p.source, "price_min_vnd": p.price_min_vnd,
+            "price_max_vnd": p.price_max_vnd, "price_source_url": p.price_source_url}
 
 
 def get_store(db, city_slug: str) -> CityStore | None:
@@ -147,8 +148,28 @@ def collect_groups(geo, store: CityStore, settings) -> dict:
     return groups
 
 
-def run_collection(city_slug: str, mode: str, make_session, geo_factory, settings) -> None:
-    """Job nền của một đợt thu (mục 5.1). mode "collect": kho mới hoặc thu lại sau lỗi; "refresh": kho quá hạn."""
+def price_lodging(rows: list[dict], city_name: str, price_source, limit: int) -> int:
+    """Điền khoảng giá phòng/đêm cho `limit` chỗ ở đầu bảng. Lỗi Tavily không làm hỏng đợt thu: để giá trống.
+    Trả số nơi có giá."""
+    if price_source is None:
+        return 0
+    from app.services.tavily import TavilyError
+    done = 0
+    for r in [r for r in rows if r["category"] == "lodging"][:limit]:
+        try:
+            got = price_source.room_price(r["name"], city_name)
+        except TavilyError as e:
+            log.warning("lodging price skipped city=%s: %s", city_name, e)
+            break
+        if got:
+            r.update(got)
+            done += 1
+    return done
+
+
+def run_collection(city_slug: str, mode: str, make_session, geo_factory, settings, price_source=None) -> None:
+    """Job nền của một đợt thu (mục 5.1). mode "collect": kho mới hoặc thu lại sau lỗi; "refresh": kho quá hạn.
+    `price_source`: nguồn giá phòng (Tavily); None = không tra giá."""
     db = make_session()
     try:
         store = db.get(CityStore, city_slug)
@@ -162,9 +183,10 @@ def run_collection(city_slug: str, mode: str, make_session, geo_factory, setting
         now = utcnow()
         center = (store.lat, store.lon) if store.lat is not None and store.lon is not None else None
         rows = pc.select_places(groups, center, hot_names(db, store), settings.store_max_cafe,
-                                settings.store_max_food, now)
+                                settings.store_max_food, now, settings.store_max_lodging)
         if not rows:
             raise CollectError("Geoapify không trả địa điểm nào dùng được cho thành phố này.")
+        price_lodging(rows, store.city_name, price_source, settings.store_priced_lodging)
         # Thay toàn bộ kho của thành phố trong một transaction; `ref` ổn định nên plan cũ vẫn trỏ đúng.
         db.execute(delete(Place).where(Place.city_slug == city_slug))
         db.add_all(Place(city_slug=city_slug, **r) for r in rows)
@@ -206,6 +228,8 @@ def rows_for_agent(db, store: CityStore) -> list[dict]:
     return [{"id": p.ref, "name": p.name, "city": store.city_name, "category": p.category, "area": p.area,
              "lat": p.lat, "lon": p.lon, "address": p.address, "open_min": p.open_min, "close_min": p.close_min,
              "avg_price_vnd": p.avg_price_vnd, "vegetarian_friendly": p.vegetarian_friendly, "is_hot": p.is_hot,
-             "source": p.source, "hours_unverified": p.hours_unverified, "price_unverified": p.price_unverified}
+             "source": p.source, "hours_unverified": p.hours_unverified, "price_unverified": p.price_unverified,
+             "price_min_vnd": p.price_min_vnd, "price_max_vnd": p.price_max_vnd,
+             "price_source_url": p.price_source_url}
             for p in db.scalars(select(Place).where(Place.city_slug == store.city_slug)
                                 .order_by(Place.category, Place.rank))]
