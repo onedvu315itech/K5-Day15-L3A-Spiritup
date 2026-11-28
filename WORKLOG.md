@@ -7,6 +7,15 @@ Nhật ký việc của nhóm. Mỗi việc xong (hoặc dừng) một dòng, gh
 - **Thời gian:** thời gian làm thật; ước lượng thì thêm `~` (ví dụ `~1h`)
 - Việc do coding agent làm vẫn ghi tên người giao việc.
 
+## 2026-11-28
+
+| Thành viên | Task | Trạng thái | Output | Thời gian |
+|---|---|---|---|---|
+| Chờ điền tên người giao việc (cùng Antigravity) | Chạy `eval/run-2.csv` (`openai/gpt-4o-mini`, `11/24`), `simulate --try` (`10/10` thành công), vá JSON mode + retry JSON lỗi + đệm di chuyển `fill_gaps`, chạy `eval/run-3.csv` (`2/24`, 21 câu lỗi `HTTP 402`), cập nhật báo cáo & tổng hợp CP3 | ✅ | `eval/run-2.csv`, `eval/run-3.csv`, `cost/simulate-try.csv`, `codebase/ai.py`, `codebase/agent.py`, `tests/test_agent.py`, `eval/report.md`, `docs/cp3-toan-summary.md` | ~ |
+| Chờ điền tên người giao việc (cùng Antigravity) | Mở rộng `eval/benchmark.csv` lên 24 câu (12 nguồn thật từ khảo sát & `data/`), cập nhật `data/DATA_CARD.md`, rà trace `B01` và vá chặn `check_itinerary` trong `codebase/agent.py`, cập nhật `eval/report.md` và `docs/ai-usage.md` | ✅ | `eval/benchmark.csv`, `data/DATA_CARD.md`, `codebase/agent.py`, `tests/test_agent.py`, `eval/report.md`, `docs/ai-usage.md` | ~ |
+| Chờ điền tên người giao việc (cùng Antigravity) | Nối Gemini REST API vào `codebase/ai.py`, nâng cấp vòng lặp agent 8 công cụ trong `codebase/agent.py` và bổ sung test lấp khoảng trống | ✅ | `codebase/ai.py`, `codebase/agent.py`, `tests/test_agent.py`, `eval/run-try.csv` | ~ |
+| Chờ điền tên người giao việc (cùng Codex) | Cài công cụ tra cứu hai tầng, kiểm lịch, phân tích khoảng trống và tìm điểm gần | ✅ | `codebase/tools.py`, `tests/test_tools.py`, `spec.md` §4 | ~ |
+
 ## 2026-11-27
 
 | Thành viên | Task | Trạng thái | Output | Thời gian |

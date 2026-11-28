@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.4 |
+| Phiên bản | 0.5 |
 | Trạng thái | Nháp |
 | Người phụ trách | Khương (backend) |
 | Người duyệt | Cả nhóm |
-| Cập nhật | 2026-11-27 |
+| Cập nhật | 2026-11-28 |
 | Đi kèm | `docs/DATABASE.md`, `docs/API_SPEC.md`, `docs/adr/` |
 
 Tài liệu mô tả hệ thống chạy thế nào và vì sao. Chi tiết bảng ở `docs/DATABASE.md`, chi tiết endpoint ở `docs/API_SPEC.md`. Chỗ còn mở đánh dấu `[NEEDS CLARIFICATION]` kèm mã `OQ-xx`.
@@ -235,6 +235,8 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
+| `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4 |
+| `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố |
 | `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
@@ -271,3 +273,4 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.2 | 2026-11-27 | Khương | Đánh dấu chế độ `answer(text)` gọi là chỗ chờ OQ-19 | Đối chiếu yêu cầu BTC |
 | 0.3 | 2026-11-27 | Khương | `answer(text)` gọi `generate` (lát cắt nộp BTC); `generate` trả bản nháp, nhóm trưởng duyệt v1; phiếu chỉ ghi nhận, nhóm trưởng áp dụng / đóng; hạn tuỳ chọn; bỏ `PROPOSAL_TTL_HOURS`; chốt xác thực | OQ-19, ADR 0004, OQ-06 |
 | 0.4 | 2026-11-27 | Khương | Bỏ giới hạn thành phố demo: điểm đến bất kỳ trong Việt Nam; kho quán hot chỉ phủ một số điểm đến | OQ-09 |
+| 0.5 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
