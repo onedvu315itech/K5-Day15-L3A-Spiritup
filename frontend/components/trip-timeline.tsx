@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { formatDate, formatDurationMinutes, formatVnd } from "@/lib/format";
+import { formatDate, formatDurationMinutes, formatItemCost, formatVnd } from "@/lib/format";
+import { useLocale } from "@/lib/i18n";
 import type {
   DraftProposalResponse,
   PlanComputed,
@@ -13,13 +14,13 @@ import type {
 import { StatusBanner } from "./status-banner";
 
 const KIND_META: Record<PlanItemKind, { label: string; dot: string }> = {
-  food: { label: "Ăn uống", dot: "bg-accent-orange" },
-  cafe: { label: "Cà phê", dot: "bg-accent-teal" },
-  sight: { label: "Tham quan", dot: "bg-accent-purple ring-1 ring-accent-purple-deep/30" },
-  hotel: { label: "Lưu trú", dot: "bg-accent-green" },
-  activity: { label: "Trải nghiệm", dot: "bg-accent-pink" },
-  move: { label: "Di chuyển", dot: "bg-accent-sky" },
-  other: { label: "Khác", dot: "bg-accent-brown" },
+  food: { label: "Ăn uống", dot: "bg-primary" },
+  cafe: { label: "Cà phê", dot: "bg-warning" },
+  sight: { label: "Tham quan", dot: "bg-secondary" },
+  hotel: { label: "Lưu trú", dot: "bg-tertiary" },
+  activity: { label: "Trải nghiệm", dot: "bg-secondary" },
+  move: { label: "Di chuyển", dot: "bg-info" },
+  other: { label: "Khác", dot: "bg-ink-muted" },
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -27,6 +28,8 @@ const SOURCE_LABELS: Record<string, string> = {
   tiktok: "TikTok",
   instagram: "Instagram",
   manual: "Nhóm thêm",
+  store: "Kho địa điểm",
+  web: "Web",
 };
 
 interface TripTimelineProps {
@@ -68,6 +71,7 @@ export function TripTimeline({
   onSubmitProposal,
   onOpenSuggestionModal,
 }: TripTimelineProps) {
+  const { t } = useLocale();
   const [selectedDay, setSelectedDay] = useState<number>(plan.days[0]?.day ?? 1);
   const [editMode, setEditMode] = useState<boolean>(Boolean(initialEditRequest));
   const [pendingOps, setPendingOps] = useState<PlanOp[]>([]);
@@ -117,7 +121,7 @@ export function TripTimeline({
     setEditingItemId(item.id);
     setEditStart(item.start);
     setEditEnd(item.end);
-    setEditCost(String(item.cost_per_person));
+    setEditCost(item.cost_per_person == null ? "" : String(item.cost_per_person));
     setEditNote(item.note);
     setEditTargetDay(dayNo);
     setErrorMsg(null);
@@ -296,9 +300,9 @@ export function TripTimeline({
   return (
     <section aria-label="Lịch trình chuyến đi" className="space-y-4 min-w-0">
       {!isCurrent ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-hairline bg-surface px-4 py-3 text-[14px] text-ink shadow-notion-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-hairline bg-surface px-4 py-3 text-[14px] text-ink shadow-card">
           <p className="flex items-center gap-2">
-            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent-orange" />
+            <span aria-hidden="true" className="h-2 w-2 rounded-full bg-warning" />
             <span>
               Đang xem lịch sử phiên bản <strong>v{versionNo}</strong> (chỉ đọc).
             </span>
@@ -307,7 +311,7 @@ export function TripTimeline({
             <button
               type="button"
               onClick={onReturnToCurrent}
-              className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3.5 py-1 text-[13px] font-medium text-ink hover:bg-canvas-soft transition-colors"
+              className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3.5 py-1 text-[13px] font-medium text-ink hover:bg-canvas-soft transition-colors"
             >
               Quay về bản hiện tại
             </button>
@@ -316,16 +320,19 @@ export function TripTimeline({
       ) : null}
 
       {/* Summary metrics from backend */}
-      <div className="grid grid-cols-1 gap-4 rounded-[12px] border border-hairline bg-surface p-5 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 rounded-[12px] border border-hairline bg-surface p-5 sm:grid-cols-3 shadow-card">
         <div>
-          <p className="text-[12px] text-ink-muted">Tổng chi phí / người</p>
+          <p className="text-[12px] text-ink-muted">
+            {t("Tổng chi phí / người", "Total cost / person")}
+          </p>
           <p className="mt-1 text-[20px] font-semibold tracking-[-0.125px] text-ink tabular-nums">
             {formatVnd(computed.total_cost_per_person)}
           </p>
         </div>
         <div>
           <p className="text-[12px] text-ink-muted">
-            Ngày {activeDayObj?.day ?? 1} · di chuyển ước tính
+            {t("Ngày", "Day")} {activeDayObj?.day ?? 1} ·{" "}
+            {t("di chuyển ước tính", "est. transit")}
           </p>
           <p className="mt-1 text-[20px] font-semibold tracking-[-0.125px] text-ink tabular-nums">
             {formatDurationMinutes(activeDayMetrics?.travel_minutes ?? 0)}
@@ -337,17 +344,17 @@ export function TripTimeline({
               <button
                 type="button"
                 onClick={exitEditMode}
-                className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3.5 py-2 text-[14px] font-medium text-ink hover:bg-canvas-soft transition-colors"
+                className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3.5 py-2 text-[14px] font-medium text-ink hover:bg-canvas-soft transition-colors"
               >
-                Thoát chế độ sửa
+                {t("Thoát chế độ sửa", "Exit edit mode")}
               </button>
             ) : (
               <button
                 type="button"
                 onClick={() => setEditMode(true)}
-                className="min-h-10 rounded-[8px] bg-primary active:bg-primary-active px-4 py-2 text-[14px] font-medium text-on-primary transition-colors"
+                className="min-h-10 rounded-[5px] bg-primary active:bg-primary-active px-4 py-2 text-[14px] font-semibold text-on-primary transition-colors"
               >
-                Sửa &amp; tạo đề xuất
+                {t("Sửa & tạo đề xuất", "Edit & propose")}
               </button>
             )
           ) : null}
@@ -355,9 +362,9 @@ export function TripTimeline({
             <button
               type="button"
               onClick={() => onOpenSuggestionModal(activeDayObj?.day ?? 1)}
-              className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3.5 py-2 text-[14px] font-medium text-ink hover:bg-canvas-soft transition-colors"
+              className="min-h-10 rounded-[5px] border border-secondary/35 bg-surface px-3.5 py-2 text-[14px] font-medium text-secondary hover:bg-canvas-soft transition-colors"
             >
-              Gửi góp ý ngày {activeDayObj?.day ?? 1}
+              {t("Gửi góp ý ngày", "Send feedback Day")} {activeDayObj?.day ?? 1}
             </button>
           ) : null}
         </div>
@@ -365,7 +372,7 @@ export function TripTimeline({
 
       {/* Leader Edit Mode Toolbar */}
       {isLeader && isCurrent && editMode ? (
-        <div className="rounded-[12px] border border-hairline bg-surface p-5 space-y-4 shadow-notion-1">
+        <div className="rounded-[12px] border border-hairline bg-surface p-5 space-y-4 shadow-card">
           <div className="flex flex-wrap items-center justify-between gap-2 border-l-2 border-primary pl-3">
             <div>
               <p className="text-[15px] font-semibold text-ink">
@@ -395,13 +402,13 @@ export function TripTimeline({
                 value={roaPrompt}
                 onChange={(e) => setRoaPrompt(e.target.value)}
                 placeholder="Ví dụ: Đưa Dinh Bảo Đại III sang sáng ngày 2…"
-                className="notion-input min-h-11 flex-1 px-3 py-1.5 text-[15px]"
+                className="nomad-input min-h-11 flex-1 px-3 py-1.5 text-[15px]"
               />
               <button
                 type="button"
                 disabled={roaDrafting}
                 onClick={() => void handleAskRoaDraft()}
-                className="min-h-11 shrink-0 rounded-[8px] border border-hairline bg-surface px-4 py-2 text-[14px] font-medium text-primary hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+                className="min-h-11 shrink-0 rounded-[5px] border border-hairline bg-surface px-4 py-2 text-[14px] font-medium text-primary hover:bg-canvas-soft disabled:opacity-60 transition-colors"
               >
                 {roaDrafting ? "Roa đang soạn…" : "Nhờ Roa soạn"}
               </button>
@@ -428,7 +435,7 @@ export function TripTimeline({
                 <button
                   type="button"
                   onClick={() => setPendingOps([])}
-                  className="text-[13px] font-medium text-accent-orange-deep hover:underline"
+                  className="text-[13px] font-medium text-warning hover:underline"
                 >
                   Xoá hết thao tác
                 </button>
@@ -454,7 +461,7 @@ export function TripTimeline({
                           prev.filter((_, idx) => idx !== index),
                         )
                       }
-                      className="shrink-0 text-[12px] text-ink-muted hover:text-accent-orange-deep"
+                      className="shrink-0 text-[12px] text-ink-muted hover:text-warning"
                     >
                       Bỏ
                     </button>
@@ -477,7 +484,7 @@ export function TripTimeline({
                     value={summary}
                     onChange={(e) => setSummary(e.target.value)}
                     placeholder="Ví dụ: Chuyển Dinh Bảo Đại III sang ngày 2…"
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                   />
                 </div>
                 <div>
@@ -492,7 +499,7 @@ export function TripTimeline({
                     type="datetime-local"
                     value={expiresAt}
                     onChange={(e) => setExpiresAt(e.target.value)}
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                   />
                 </div>
               </div>
@@ -510,7 +517,7 @@ export function TripTimeline({
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Vì sao đề xuất thay đổi này…"
-                  className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                  className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                 />
               </div>
 
@@ -518,7 +525,7 @@ export function TripTimeline({
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="min-h-11 rounded-[8px] bg-primary active:bg-primary-active px-4 py-2 text-[15px] font-medium text-on-primary disabled:opacity-60 transition-colors"
+                  className="min-h-11 rounded-[5px] bg-primary active:bg-primary-active px-4 py-2 text-[15px] font-medium text-on-primary disabled:opacity-60 transition-colors"
                 >
                   {submitting
                     ? "Đang gửi đề xuất…"
@@ -560,7 +567,7 @@ export function TripTimeline({
               role="tab"
               aria-selected={isActive}
               onClick={() => setSelectedDay(day.day)}
-              className={`min-h-11 shrink-0 rounded-[8px] border px-4 py-2 text-left transition-colors ${
+              className={`min-h-11 shrink-0 rounded-[5px] border px-4 py-2 text-left transition-colors ${
                 isActive
                   ? "border-primary bg-primary text-on-primary"
                   : "border-hairline bg-surface text-ink hover:bg-canvas-soft"
@@ -590,14 +597,15 @@ export function TripTimeline({
                 Ngày {activeDayObj.day}: {activeDayObj.title}
               </h2>
               <p className="mt-0.5 text-[14px] text-ink-muted">
-                {formatDate(activeDayObj.date)} · Phương tiện: {plan.transport}
+                {formatDate(activeDayObj.date)}
+                {plan.transport ? ` · Phương tiện: ${plan.transport}` : ""}
               </p>
             </div>
             {isLeader && isCurrent && editMode ? (
               <button
                 type="button"
                 onClick={() => setAddingItem((v) => !v)}
-                className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3.5 py-1.5 text-[14px] font-medium text-primary hover:bg-canvas-soft transition-colors"
+                className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3.5 py-1.5 text-[14px] font-medium text-primary hover:bg-canvas-soft transition-colors"
               >
                 {addingItem ? "Đóng form thêm" : "+ Thêm điểm mới"}
               </button>
@@ -623,7 +631,7 @@ export function TripTimeline({
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="Ví dụ: Quán nướng Chu…"
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                   />
                 </div>
                 <div>
@@ -637,7 +645,7 @@ export function TripTimeline({
                     id="new-item-kind"
                     value={newKind}
                     onChange={(e) => setNewKind(e.target.value as PlanItemKind)}
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                   >
                     {Object.entries(KIND_META).map(([k, meta]) => (
                       <option key={k} value={k}>
@@ -658,7 +666,7 @@ export function TripTimeline({
                     type="time"
                     value={newStart}
                     onChange={(e) => setNewStart(e.target.value)}
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
                   />
                 </div>
                 <div>
@@ -673,7 +681,7 @@ export function TripTimeline({
                     type="time"
                     value={newEnd}
                     onChange={(e) => setNewEnd(e.target.value)}
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
                   />
                 </div>
                 <div>
@@ -689,7 +697,7 @@ export function TripTimeline({
                     inputMode="numeric"
                     value={newCost}
                     onChange={(e) => setNewCost(e.target.value)}
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px] tabular-nums"
                   />
                 </div>
                 <div>
@@ -705,7 +713,7 @@ export function TripTimeline({
                     value={newAddress}
                     onChange={(e) => setNewAddress(e.target.value)}
                     placeholder="Số nhà, đường, phường…"
-                    className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                    className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                   />
                 </div>
               </div>
@@ -722,14 +730,14 @@ export function TripTimeline({
                   value={newReason}
                   onChange={(e) => setNewReason(e.target.value)}
                   placeholder="Phù hợp ngân sách, gần điểm trước…"
-                  className="notion-input min-h-11 w-full px-3 py-1.5 text-[15px]"
+                  className="nomad-input min-h-11 w-full px-3 py-1.5 text-[15px]"
                 />
               </div>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={handleAddNewItem}
-                  className="min-h-10 rounded-[8px] bg-primary active:bg-primary-active px-4 py-2 text-[14px] font-medium text-on-primary transition-colors"
+                  className="min-h-10 rounded-[5px] bg-primary active:bg-primary-active px-4 py-2 text-[14px] font-medium text-on-primary transition-colors"
                 >
                   Thêm vào bản nháp đề xuất
                 </button>
@@ -790,11 +798,13 @@ export function TripTimeline({
 
                         <div className="text-right shrink-0">
                           <span className="text-[15px] font-semibold text-ink tabular-nums">
-                            {formatVnd(item.cost_per_person)}
+                            {formatItemCost(item)}
                           </span>
-                          <span className="block text-[12px] text-ink-faint">
-                            / người
-                          </span>
+                          {item.cost_per_person != null ? (
+                            <span className="block text-[12px] text-ink-faint">
+                              / người
+                            </span>
+                          ) : null}
                         </div>
                       </div>
 
@@ -814,11 +824,11 @@ export function TripTimeline({
                       {itemWarnings.map((w, idx) => (
                         <p
                           key={idx}
-                          className="flex items-center gap-2 rounded-[5px] border border-hairline bg-canvas-soft px-3 py-1.5 text-[13px] font-medium text-accent-orange-deep"
+                          className="flex items-center gap-2 rounded-[5px] border border-hairline bg-canvas-soft px-3 py-1.5 text-[13px] font-medium text-warning"
                         >
                           <span
                             aria-hidden="true"
-                            className="h-2 w-2 shrink-0 rounded-full bg-accent-orange"
+                            className="h-2 w-2 shrink-0 rounded-full bg-warning"
                           />
                           <span>{w.message}</span>
                         </p>
@@ -833,14 +843,14 @@ export function TripTimeline({
                                 onClick={() =>
                                   openEditorForItem(item, activeDayObj.day)
                                 }
-                                className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-ink hover:bg-canvas-soft transition-colors"
+                                className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-ink hover:bg-canvas-soft transition-colors"
                               >
                                 Chỉnh mục này
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleRemoveItem(item)}
-                                className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-accent-orange-deep hover:bg-canvas-soft transition-colors"
+                                className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-warning hover:bg-canvas-soft transition-colors"
                               >
                                 Đánh dấu xoá
                               </button>
@@ -853,7 +863,7 @@ export function TripTimeline({
                               onClick={() =>
                                 onOpenSuggestionModal(activeDayObj.day, item)
                               }
-                              className="min-h-9 rounded-[8px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-ink-muted hover:text-primary hover:bg-canvas-soft transition-colors"
+                              className="min-h-9 rounded-[5px] border border-hairline bg-surface px-3 py-1 text-[13px] font-medium text-ink-muted hover:text-primary hover:bg-canvas-soft transition-colors"
                             >
                               Góp ý mục này
                             </button>
@@ -876,7 +886,7 @@ export function TripTimeline({
                                 type="time"
                                 value={editStart}
                                 onChange={(e) => setEditStart(e.target.value)}
-                                className="notion-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
+                                className="nomad-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
                               />
                             </div>
                             <div>
@@ -891,7 +901,7 @@ export function TripTimeline({
                                 type="time"
                                 value={editEnd}
                                 onChange={(e) => setEditEnd(e.target.value)}
-                                className="notion-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
+                                className="nomad-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
                               />
                             </div>
                             <div>
@@ -907,7 +917,7 @@ export function TripTimeline({
                                 inputMode="numeric"
                                 value={editCost}
                                 onChange={(e) => setEditCost(e.target.value)}
-                                className="notion-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
+                                className="nomad-input min-h-10 w-full px-2.5 py-1.5 text-[14px] tabular-nums"
                               />
                             </div>
                             <div>
@@ -923,7 +933,7 @@ export function TripTimeline({
                                 onChange={(e) =>
                                   setEditTargetDay(Number(e.target.value))
                                 }
-                                className="notion-input min-h-10 w-full px-2.5 py-1.5 text-[14px]"
+                                className="nomad-input min-h-10 w-full px-2.5 py-1.5 text-[14px]"
                               >
                                 {plan.days.map((d) => (
                                   <option key={d.day} value={d.day}>
@@ -946,7 +956,7 @@ export function TripTimeline({
                               type="text"
                               value={editNote}
                               onChange={(e) => setEditNote(e.target.value)}
-                              className="notion-input min-h-10 w-full px-2.5 py-1.5 text-[14px]"
+                              className="nomad-input min-h-10 w-full px-2.5 py-1.5 text-[14px]"
                             />
                           </div>
 
@@ -954,7 +964,7 @@ export function TripTimeline({
                             <button
                               type="button"
                               onClick={() => setEditingItemId(null)}
-                              className="min-h-10 rounded-[8px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-muted hover:text-ink transition-colors"
+                              className="min-h-10 rounded-[5px] border border-hairline bg-surface px-3 py-1.5 text-[13px] font-medium text-ink-muted hover:text-ink transition-colors"
                             >
                               Đóng
                             </button>
@@ -963,7 +973,7 @@ export function TripTimeline({
                               onClick={() =>
                                 handleSaveItemOps(item, activeDayObj.day)
                               }
-                              className="min-h-10 rounded-[8px] bg-primary active:bg-primary-active px-3.5 py-1.5 text-[13px] font-medium text-on-primary transition-colors"
+                              className="min-h-10 rounded-[5px] bg-primary active:bg-primary-active px-3.5 py-1.5 text-[13px] font-medium text-on-primary transition-colors"
                             >
                               Lưu vào nháp đề xuất
                             </button>

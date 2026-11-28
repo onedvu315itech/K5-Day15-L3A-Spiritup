@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { useLocale } from "@/lib/i18n";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -19,12 +20,14 @@ export function ConfirmDialog({
   title,
   description,
   confirmLabel,
-  cancelLabel = "Huỷ",
+  cancelLabel,
   tone = "primary",
   busy = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const { t } = useLocale();
+  const resolvedCancelLabel = cancelLabel ?? t("Huỷ", "Cancel");
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const descId = useId();
@@ -65,7 +68,7 @@ export function ConfirmDialog({
 
   const confirmClass =
     tone === "danger"
-      ? "bg-accent-orange active:bg-accent-orange-deep text-on-primary"
+      ? "bg-error active:opacity-90 text-white"
       : "bg-primary active:bg-primary-active text-on-primary";
 
   return (
@@ -89,15 +92,15 @@ export function ConfirmDialog({
             autoFocus
             disabled={busy}
             onClick={onCancel}
-            className="min-h-11 rounded-[8px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
+            className="min-h-11 rounded-[5px] border border-hairline bg-surface px-4 py-2 text-[15px] font-medium text-ink hover:bg-canvas-soft disabled:opacity-60 transition-colors"
           >
-            {cancelLabel}
+            {resolvedCancelLabel}
           </button>
           <button
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className={`min-h-11 rounded-[8px] px-4 py-2 text-[15px] font-medium disabled:opacity-60 transition-colors ${confirmClass}`}
+            className={`min-h-11 rounded-[5px] px-4 py-2 text-[15px] font-medium disabled:opacity-60 transition-colors ${confirmClass}`}
           >
             {busy ? "Đang xử lý…" : confirmLabel}
           </button>

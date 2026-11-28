@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.2 |
+| Phiên bản | 0.4 |
 | Trạng thái | Nháp |
 | Người phụ trách | Phúc (frontend) |
 | Người duyệt | Đức, Khương |
-| Cập nhật | 2026-11-27 |
+| Cập nhật | 2026-11-28 |
 | Nhánh | `feat/frontend-screens` |
 
 ## 1. Bối cảnh
@@ -43,7 +43,7 @@ Theo `ARCHITECTURE.md` mục 3.1, `docs/API_SPEC.md` và `docs/OPEN-QUESTIONS.md
 | Mã | Quy tắc |
 |---|---|
 | BR-FE-01 | Không có tài khoản: phiên làm việc của từng chuyến đi lưu trong `localStorage` (`partaway:v1:sessions`) gồm `tripId`, `token`, `memberId`, `displayName`, `role`, `inviteCode`. |
-| BR-FE-02 | Mọi yêu cầu API đi qua `frontend/lib/api.ts` kèm `Authorization: Bearer <token>` trừ các endpoint tạo/mời (`R-40`). Khi `NEXT_PUBLIC_USE_MOCK=true` hoặc `tripId === "demo-dalat-3n2d"`, sử dụng dữ liệu mẫu có trạng thái trong bộ nhớ. |
+| BR-FE-02 | Mọi yêu cầu API đi qua `frontend/lib/api.ts` kèm `Authorization: Bearer <token>` trừ các endpoint tạo/mời (`R-40`). Khi `NEXT_PUBLIC_USE_MOCK=true` hoặc `tripId === "demo-dalat-3n2d"`, sử dụng dữ liệu mẫu có trạng thái trong bộ nhớ. Với chuyến đi thật, chức năng backend chưa có (hỏi Roa `/chat`, Roa soạn đề xuất `/proposals/draft`, góp ý `/suggestions` đang chờ CR-001) được tắt bằng cờ `BACKEND_HAS` trong `api.ts`: đọc trả danh sách rỗng, ghi báo lỗi 501 `not_implemented`. Tạo chuyến đi chờ kho địa điểm (`store.status`) sẵn sàng rồi mới gọi `generate`. |
 | BR-FE-03 | Frontend không tự tính tổng chi phí/người, tổng thời gian di chuyển, số phiếu, ngưỡng đa số hay trạng thái đề xuất; hiển thị đúng giá trị từ `computed` và `votes` của backend (`R-41`). |
 | BR-FE-04 | Ẩn toàn bộ nút chỉ nhóm trưởng dùng được (duyệt v1, bật chế độ sửa, nhờ Roa soạn đề xuất, gửi/áp dụng/đóng/rút đề xuất, xử lý góp ý, khôi phục phiên bản) khi `me.role !== "leader"` (`R-42`). |
 | BR-FE-05 | Khi nhóm trưởng sửa trên giao diện, thao tác chỉ ghi tạm vào danh sách `ops` cục bộ (`add_item`, `update_item`, `remove_item`, `move_item`) trên `base_version` đang xem; không sửa trực tiếp plan trên server. Chuyển mục giữa các ngày bằng `<select>` thay cho kéo thả. |
@@ -110,13 +110,11 @@ flowchart LR
 +------------------+--------------------------------+-------------------+
 ```
 
-### 7.2 Hệ thống thiết kế (theo `DESIGN.md` — Notion-style Warm Paper & Blue)
+### 7.2 Hệ thống thiết kế & dẫn chiếu
 
-- **Bảng màu (`frontend/app/globals.css`):** Nền giấy ấm `#f6f5f4` (`--color-canvas-soft`), bề mặt thẻ/nav/input `#ffffff` (`--color-surface`), viền mảnh `#e6e6e6` (`#dddddd` trên ô nhập), chữ đen mực `#000000` / than ấm `#31302e` / đá `#615d59` / tro `#a39e98`. Màu nhấn hành động duy nhất là xanh dương `#0075de` (hover/nhấn `#005bab`). Dải hero trên `/` dùng nền chàm đậm `#213183` làm điểm nhấn tối duy nhất. Bảng màu sticker (`#62aef0`, `#d6b6f6`, `#ff64c8`, `#dd5b00`, `#2a9d99`, `#1aae39`, `#523410`) chỉ dùng trang trí (chấm phân loại, huy hiệu trạng thái, cụm sticker hero), không tô nút CTA.
-- **Kiểu chữ (`next/font/google`):** Chỉ dùng một họ chữ `Inter` (bật `lnum` và `locl`), tiêu đề đậm `700` với tracking âm chặt (`.type-display-1`, `.type-heading-1`..`3`), nội dung `400` thoáng mắt, số liệu giờ/VND/phiếu dùng `tabular-nums`.
-- **Bo góc & độ nổi:** Nút CTA chính/phụ dạng pill (`9999px`), nút tiện ích/workspace `8px`, thẻ `12px`, modal/trạng thái rỗng `16px`, ô nhập `4px`; đổ bóng đa lớp rất nhẹ (`.shadow-notion-1`, `.shadow-notion-2`).
-- **Trạng thái rỗng, đang tải, lỗi:** Mỗi danh sách có khung rỗng gợi ý hành động tiếp theo; nút bấm hiển thị nhãn đang xử lý kết thúc bằng `…`; lỗi API hiện trong banner có vai trò `status` / `aria-live="polite"`.
-- **API & Dữ liệu dẫn chiếu:** `docs/API_SPEC.md` (mục 1–7), `docs/DATABASE.md` (mục 2–3).
+- **Hệ thống thiết kế:** Tuân theo [`../DESIGN.md`](../DESIGN.md) (NomadKit Design System).
+- **Trạng thái rỗng, đang tải, lỗi:** Mỗi danh sách có khung rỗng/skeleton gợi ý hành động tiếp theo; nút bấm hiển thị nhãn đang xử lý kết thúc bằng `…`; lỗi API hiện trong banner có vai trò `status` / `aria-live="polite"`.
+- **API & Dữ liệu dẫn chiếu:** [`../../docs/API_SPEC.md`](../../docs/API_SPEC.md) (mục 1–7), [`../../docs/DATABASE.md`](../../docs/DATABASE.md) (mục 2–3).
 
 ## 8. Kế hoạch
 
@@ -162,4 +160,6 @@ flowchart LR
 | Phiên bản | Ngày | Người sửa | Nội dung | Căn cứ |
 |---|---|---|---|---|
 | 0.1 | 2026-11-27 | Phúc | Bản đầu: đặc tả 4 route MVP (`/`, `/trips/new`, `/join/[inviteCode]`, `/trips/[tripId]`), hệ thống thiết kế và tiêu chí nghiệm thu | `ARCHITECTURE.md`, `docs/API_SPEC.md`, `docs/OPEN-QUESTIONS.md` |
-| 0.2 | 2026-11-27 | Phúc | Cập nhật hệ thống thiết kế mục 7.2 sang Warm Paper `#f6f5f4`, `Inter`, `#0075de` và bảng màu sticker theo `DESIGN.md` | `DESIGN.md` |
+| 0.2 | 2026-11-27 | Phúc | Cập nhật hệ thống thiết kế mục 7.2 | `DESIGN.md` |
+| 0.3 | 2026-11-28 | AI | Chuyển spec sang `frontend/docs/frontend-screens.md`, bỏ style cũ ở mục 7.2 và dẫn chiếu sang `frontend/DESIGN.md` | `frontend/DESIGN.md` |
+| 0.4 | 2026-11-28 | Khương (cùng Claude Code) | Nối backend thật: BR-FE-02 thêm cờ `BACKEND_HAS`, chờ kho địa điểm trước `generate`, workspace khi chưa có v1; mục plan có `cost_per_person` null khi chưa có giá (hiện "Chưa rõ giá"), nguồn `store`, `web` | `docs/API_SPEC.md`, `docs/DATABASE.md` mục 3.1 |

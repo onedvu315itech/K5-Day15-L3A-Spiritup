@@ -69,7 +69,7 @@ function clone<T>(value: T): T {
 
 function computePlanMetrics(plan: PlanData, budgetPerPerson: number | null): PlanComputed {
   const per_day = plan.days.map((day) => {
-    const dayCost = day.items.reduce((sum, item) => sum + item.cost_per_person, 0);
+    const dayCost = day.items.reduce((sum, item) => sum + (item.cost_per_person ?? 0), 0);
     const travel = Math.max(25, (day.items.length - 1) * 18);
     return {
       day: day.day,

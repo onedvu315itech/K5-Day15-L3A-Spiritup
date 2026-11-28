@@ -61,13 +61,7 @@ Mức: **Phải** = vi phạm thì PR không được merge. **Nên** = lệch �
 
 ## 5. Frontend (R-40 – R-44)
 
-| Mã | Mức | Quy tắc |
-|---|---|---|
-| R-40 | Phải | Mọi lần gọi backend đi qua `frontend/lib/api.ts`; kiểu dữ liệu khớp `docs/API_SPEC.md`. |
-| R-41 | Phải | Frontend không tự tính tổng chi phí, số phiếu, ngưỡng, trạng thái đề xuất; hiện đúng số backend trả. |
-| R-42 | Phải | Nút chỉ nhóm trưởng dùng được (sửa, gửi đề xuất, rút, xử lý góp ý) ẩn với thành viên theo `me.role`. |
-| R-43 | Nên | Mọi thao tác gọi backend có trạng thái đang tải và thông báo lỗi bằng `error.message`. |
-| R-44 | Nên | Giao diện dùng được trên điện thoại (màn hình 375px). |
+Quy tắc chi tiết dành riêng cho Frontend được chuyển sang [`frontend/RULES.md`](../frontend/RULES.md) (xem thêm [`frontend/AGENTS.md`](../frontend/AGENTS.md) và [`frontend/DESIGN.md`](../frontend/DESIGN.md)).
 
 ## 6. Dữ liệu (R-50 – R-53)
 

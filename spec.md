@@ -71,6 +71,7 @@ flowchart TD
   |---|---|---|---|
   | `search_places` | thành phố, sở thích/loại hình | địa điểm trong kho file (`data/places/`, `data/places_vn.json`) lọc theo sở thích, loại; thành phố ngoài kho trả rỗng | Không (chỉ đọc) |
   | `get_trending_spots` | thành phố | danh sách quán hot từ kho thu trước | Không (chỉ đọc) |
+  | `search_lodging` | thành phố, mã các điểm trong lịch (tuỳ chọn) | chỗ ở trong kho kèm khoảng giá phòng/đêm (tra lúc thu kho, chưa xác minh, có link nguồn) và khoảng cách tới tâm các điểm; nơi có giá trước, gần trước. Lịch qua đêm có mục nhận phòng 14:00 và trả phòng 12:00 hôm sau, trừ khi nhóm nêu giờ khác | Không (chỉ đọc, không đặt phòng) |
   | `get_opening_hours` | danh sách mã địa điểm | giờ mở cửa, giờ đóng cửa của từng điểm | Không (chỉ đọc) |
   | `get_travel_time` | mã địa điểm A, mã địa điểm B | số phút đi xe máy: theo toạ độ (Haversine × hệ số đường, cộng phút gửi xe) *(tự ước tính)*, không có toạ độ thì theo khu vực; mã lạ trả mức mặc định | Không (chỉ tính) |
   | `analyze_plan_gaps` | các mục trong plan gốc (ngày, mã, giờ) | khoảng trống giữa hai mục liền nhau cùng ngày sau khi trừ thời gian đi, loại theo mốc 45, 90 phút và loại hoạt động hợp | Không (chỉ đọc) |
@@ -146,4 +147,5 @@ flowchart TD
 
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
-|  |  |  |
+| 28/11 chiều | Bản nháp bằng code (B5): câu không nêu giờ cho từng việc thì dùng khung giờ mặc định; câu nêu giờ ("9h-11h đi chợ", "12h ăn trưa ở …", "15h-17h tự do", "ngày 2 lúc …") thì code đọc bằng regex, thay khung mặc định cùng loại trùng giờ, cắt hoặc dời khung khác; model ở B6–B9 không được dời các mục này. Mô tả ở `docs/roa-agent-flow.md` mục 3 | Nhóm trưởng thường chốt sẵn vài mốc giờ; khung cố định bỏ qua các mốc đó. Kiểm hồi quy `eval/run-7.csv` (`gemini-3.8-flash`) 24/24 như run-5: không câu thử nào nêu giờ cho từng việc nên cách đọc khung ngày, sáng sớm (B03, B04, B05, B14, B16) giữ như cũ |
+| 28/11 sau CP4 | Thêm bộ nhớ hội thoại trượt (`ASK_MEMORY_WINDOW = 10` tin gần nhất) cho chế độ `ask` (`ask_about_plan` trong `codebase/agent.py`, phiên CLI `codebase/app.py`, và endpoint `POST/GET /api/v1/trips/{id}/chat` lưu bảng `chat_messages`). Không sửa `generate_plan` hay `answer(text)` | Hỗ trợ hỏi đáp nối tiếp nhiều lượt và nối khớp frontend tab Trò chuyện (`API_SPEC` mục 6) mà không ảnh hưởng kết quả `eval/run-6.csv` |
