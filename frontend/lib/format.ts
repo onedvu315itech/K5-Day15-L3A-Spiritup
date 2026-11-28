@@ -19,6 +19,16 @@ export function formatVnd(amount: number | null | undefined): string {
   return `${vndFormatter.format(amount)}\u00A0đ`;
 }
 
+/** Giá một mục trong plan: giá null nghĩa là kho chưa có giá. */
+export function formatItemCost(item: {
+  cost_per_person: number | null;
+  price_unverified?: boolean;
+}): string {
+  if (item.cost_per_person == null) return "Chưa rõ giá";
+  const text = formatVnd(item.cost_per_person);
+  return item.price_unverified ? `${text} (chưa xác minh)` : text;
+}
+
 export function formatSignedVnd(delta: number): string {
   if (delta === 0) return "Không đổi chi phí";
   const sign = delta > 0 ? "+" : "-";

@@ -41,6 +41,7 @@ Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu c
 | 4 | `run-4@20261128-093112` | `gpt-4o-mini` | Lượt nộp CP3; luồng agent của nhánh `docs/cp2-benchmark-datacard`; 0 lỗi API | `11/24` | `46%` | chưa |
 | 5 | `run-5@20261128-135617` | `gemini-3.8-flash` (GWAI) | Agent Lượt 2 chạy bằng model khác để so; không có lượt Gemini 3.8 trước cải tiến | `24/24` | `100%` | đạt |
 | 6 | `run-6@20261128-140113` | `gpt-4o-mini` | **Lượt 2 nộp CP4**: code điều phối (model chỉ đọc yêu cầu và chọn mã điểm; code xếp giờ, cộng tiền, tự bớt/dời cho vừa); 0 lỗi API | `24/24` | `100%` | đạt |
+| 7 | `run-7@20261128-151436` | `gemini-3.8-flash` (GWAI) | Sau CP4: khung giờ nhóm nêu thay khung mặc định trùng giờ (không câu thử nào nêu giờ cho từng việc, nên đây là kiểm hồi quy); 0 lỗi API | `24/24` | `100%` | đạt |
 
 Lượt chạy lại vì lỗi kỹ thuật, lượt sau CP4: ghi thêm dòng, không sửa dòng cũ.
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { formatDate, formatDurationMinutes, formatVnd } from "@/lib/format";
+import { formatDate, formatDurationMinutes, formatItemCost, formatVnd } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import type {
   DraftProposalResponse,
@@ -28,6 +28,8 @@ const SOURCE_LABELS: Record<string, string> = {
   tiktok: "TikTok",
   instagram: "Instagram",
   manual: "Nhóm thêm",
+  store: "Kho địa điểm",
+  web: "Web",
 };
 
 interface TripTimelineProps {
@@ -119,7 +121,7 @@ export function TripTimeline({
     setEditingItemId(item.id);
     setEditStart(item.start);
     setEditEnd(item.end);
-    setEditCost(String(item.cost_per_person));
+    setEditCost(item.cost_per_person == null ? "" : String(item.cost_per_person));
     setEditNote(item.note);
     setEditTargetDay(dayNo);
     setErrorMsg(null);
@@ -595,7 +597,8 @@ export function TripTimeline({
                 Ngày {activeDayObj.day}: {activeDayObj.title}
               </h2>
               <p className="mt-0.5 text-[14px] text-ink-muted">
-                {formatDate(activeDayObj.date)} · Phương tiện: {plan.transport}
+                {formatDate(activeDayObj.date)}
+                {plan.transport ? ` · Phương tiện: ${plan.transport}` : ""}
               </p>
             </div>
             {isLeader && isCurrent && editMode ? (
@@ -795,11 +798,13 @@ export function TripTimeline({
 
                         <div className="text-right shrink-0">
                           <span className="text-[15px] font-semibold text-ink tabular-nums">
-                            {formatVnd(item.cost_per_person)}
+                            {formatItemCost(item)}
                           </span>
-                          <span className="block text-[12px] text-ink-faint">
-                            / người
-                          </span>
+                          {item.cost_per_person != null ? (
+                            <span className="block text-[12px] text-ink-faint">
+                              / người
+                            </span>
+                          ) : null}
                         </div>
                       </div>
 

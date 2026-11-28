@@ -30,6 +30,28 @@ const BASE_URL = (
 
 const USE_MOCK_ENV = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
+/**
+ * Endpoint có trong API_SPEC nhưng backend chưa làm. Với chuyến đi thật, không gọi
+ * (tránh 404 làm hỏng cả trang): danh sách trả rỗng, thao tác báo "chưa có".
+ * - chat: Roa chế độ hỏi đáp (API_SPEC mục 6) chưa làm.
+ * - proposalDraft: nhờ Roa soạn `ops` (mục 4) chưa làm.
+ * - suggestions: form góp ý, bỏ theo CR-001 (chờ duyệt).
+ * Backend làm xong mục nào thì đổi mục đó thành `true`.
+ */
+const BACKEND_HAS = {
+  chat: false,
+  proposalDraft: false,
+  suggestions: false,
+} as const;
+
+function notAvailable(feature: string): ApiError {
+  return new ApiError(
+    501,
+    "not_implemented",
+    `${feature} chưa có ở máy chủ. Tính năng này đang được làm.`,
+  );
+}
+
 function shouldUseMockByTrip(tripId?: string): boolean {
   if (USE_MOCK_ENV) return true;
   if (tripId && isMockTripId(tripId)) return true;
@@ -207,6 +229,9 @@ export const api = {
     if (shouldUseMockByTrip(tripId)) {
       return mockApi.draftProposal(tripId, token, requestText);
     }
+    if (!BACKEND_HAS.proposalDraft) {
+      return Promise.reject(notAvailable("Nhờ Roa soạn đề xuất"));
+    }
     return request<DraftProposalResponse>(
       `/trips/${encodeURIComponent(tripId)}/proposals/draft`,
       {
@@ -347,6 +372,9 @@ export const api = {
     if (shouldUseMockByTrip(tripId)) {
       return mockApi.createSuggestion(tripId, token, payload);
     }
+    if (!BACKEND_HAS.suggestions) {
+      return Promise.reject(notAvailable("Gửi góp ý"));
+    }
     return request<Suggestion>(
       `/trips/${encodeURIComponent(tripId)}/suggestions`,
       {
@@ -365,6 +393,7 @@ export const api = {
     if (shouldUseMockByTrip(tripId)) {
       return mockApi.getSuggestions(tripId, token, status);
     }
+    if (!BACKEND_HAS.suggestions) return Promise.resolve({ items: [] });
     const query = status ? `?status=${status}` : "";
     return request<{ items: Suggestion[] }>(
       `/trips/${encodeURIComponent(tripId)}/suggestions${query}`,
@@ -380,6 +409,9 @@ export const api = {
   ): Promise<Suggestion> {
     if (shouldUseMockByTrip(tripId)) {
       return mockApi.updateSuggestion(tripId, suggestionId, token, payload);
+    }
+    if (!BACKEND_HAS.suggestions) {
+      return Promise.reject(notAvailable("Xử lý góp ý"));
     }
     return request<Suggestion>(
       `/suggestions/${encodeURIComponent(suggestionId)}`,
@@ -399,6 +431,9 @@ export const api = {
     if (shouldUseMockByTrip(tripId)) {
       return mockApi.sendChat(tripId, token, message);
     }
+    if (!BACKEND_HAS.chat) {
+      return Promise.reject(notAvailable("Hỏi Roa"));
+    }
     return request<SendChatResponse>(
       `/trips/${encodeURIComponent(tripId)}/chat`,
       {
@@ -411,6 +446,7 @@ export const api = {
 
   getChat(tripId: string, token: string): Promise<{ items: ChatMessage[] }> {
     if (shouldUseMockByTrip(tripId)) return mockApi.getChat(tripId, token);
+    if (!BACKEND_HAS.chat) return Promise.resolve({ items: [] });
     return request<{ items: ChatMessage[] }>(
       `/trips/${encodeURIComponent(tripId)}/chat`,
       { token },

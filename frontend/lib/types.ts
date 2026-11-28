@@ -10,7 +10,7 @@ export type PlanItemKind =
   | "other";
 
 export interface PlanSource {
-  type: "google" | "tiktok" | "instagram" | "manual";
+  type: "google" | "tiktok" | "instagram" | "manual" | "store" | "web";
   ref: string;
 }
 
@@ -24,7 +24,10 @@ export interface PlanItem {
   address: string;
   lat: number | null;
   lng: number | null;
-  cost_per_person: number;
+  /** null khi kho chưa có giá (price_unverified = true). */
+  cost_per_person: number | null;
+  hours_unverified?: boolean;
+  price_unverified?: boolean;
   reason: string;
   note: string;
   sources: PlanSource[];
@@ -97,7 +100,23 @@ export interface TripMember {
   role: MemberRole;
 }
 
-export type GenerationStatus = "idle" | "running" | "done" | "failed";
+export type GenerationStatus =
+  | "idle"
+  | "collecting_data"
+  | "running"
+  | "done"
+  | "failed";
+
+/** Kho địa điểm của thành phố (API_SPEC mục 2a). Mock không trả trường này. */
+export interface CityStoreInfo {
+  city_slug: string;
+  city_name?: string;
+  status: "collecting" | "ready" | "failed";
+  place_count: number;
+  fetched_at: string | null;
+  expires_at: string | null;
+  error?: string | null;
+}
 
 export interface TripInfo {
   id: string;
@@ -129,6 +148,7 @@ export interface CreateTripResponse {
     TripInfo,
     "id" | "title" | "current_version" | "generation_status" | "invite_code"
   >;
+  store?: CityStoreInfo;
   member: TripMember;
   token: string;
   invite_url: string;
@@ -152,6 +172,7 @@ export interface JoinTripResponse {
 
 export interface TripDetailResponse {
   trip: TripInfo;
+  store?: CityStoreInfo;
   members: TripMember[];
   me: {
     id: string;

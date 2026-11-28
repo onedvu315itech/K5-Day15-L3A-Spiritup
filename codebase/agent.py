@@ -64,6 +64,25 @@ INDOOR_NAME = r"bảo tàng|nhà hát|trung tâm thương mại|bưu điện|din
 # Loại điểm nhóm nêu trong câu → bản nháp cố có ít nhất một điểm loại đó.
 WANTED = {"sightseeing": r"tham quan|di tích|bảo tàng|check-in|ngắm", "cafe": r"cà phê|cafe|coffee",
           "snack": r"ăn vặt|chè|kem", "activity": r"vui chơi|múa rối|chợ đêm"}
+# Khung giờ người dùng nêu kèm việc ("9h-11h đi chợ", "12h ăn trưa ở Phở Thìn", "15h-17h tự do"): đè lên SLOTS.
+_HM = r"\d{1,2}(?:[:h]\d{0,2}|\s*giờ)(?!\w)"
+_PART = r"(?:\s*(sáng|trưa|chiều|tối|đêm)\b)?"
+USER_TIME = (rf"(lúc|vào lúc|vào|từ|khoảng)?\s*({_HM}){_PART}"
+             rf"(?:\s*(?:đến|tới|-|–|—)\s*({_HM}){_PART})?")
+DAY_MARK = r"(?<!\d\s)(?<!\d)ngày\s*(?:thứ\s*)?(\d{1,2})(?!\s*(?:đêm|ngày|\d))"
+# Việc → loại điểm cho phép. Ăn vặt xét trước ăn uống ("ăn chè" là ăn vặt).
+USER_ACT = [(r"ăn vặt|\bchè\b|\bkem\b|bánh tráng", ("snack",)),
+            (r"cà phê|cafe|coffee", ("cafe",)),
+            (r"ăn sáng|ăn trưa|ăn tối|bữa|\băn\b|nhậu|lẩu|\bbún\b|\bphở\b|\bcơm\b", ("food",)),
+            (r"tham quan|ngắm|check-in|săn mây|dạo|bảo tàng|chụp ảnh", ("sightseeing",)),
+            (r"\bchợ\b", ("sightseeing", "activity")),
+            (r"vui chơi|\bchơi\b|múa rối|trải nghiệm", ("activity",))]
+# Việc riêng của nhóm, không cần điểm trong kho: giữ trống khung đó.
+FREE_ACT = r"(tự do|nghỉ|ngủ|họp|làm việc|gặp|về\b|đi\b)"
+USER_SLACK = 15   # khung người dùng nêu được lệch muộn tối đa bấy nhiêu phút (đi xe, chờ mở cửa) *(tự ước tính)*
+USER_SCORE = 60   # điểm cộng khi lấp được khung người dùng nêu (cao hơn mọi điểm cộng khác, trừ điểm bắt buộc)
+# Chỗ giữ trong lịch cho khung nhóm tự sắp xếp (không phải điểm trong kho).
+FREE_PLACE = {"id": None, "fixed": True, "free": True, "category": "free", "hot": False, "avg_price_vnd": None}
 
 SYSTEM = """Bạn là Roa — trợ lý lập lịch trình du lịch nhóm của ứng dụng Partaway tại Việt Nam.
 Quy tắc bắt buộc (CHỐNG BỊA ĐẶT):
@@ -135,13 +154,87 @@ def _clock(raw: str):
     return hhmm(m) if 0 <= m < 24 * 60 else None
 
 
+def _activity(city, act: str):
+    """Việc đi kèm một giờ người dùng nêu → (loại cho phép, mã nơi ghim, nhãn) hoặc None nếu không phải việc."""
+    act = act.strip(" :–-")
+    lo = act.lower()
+    if not act or re.match(r"(cho|nhé|nha|thôi|và\s+\d|ngày|mỗi|hằng|hàng)\b", lo):
+        return None
+    if city:
+        pins = [i for i in _must_visit(city, slug(act), act) if not i.startswith("tiktok:")]
+        if pins:
+            p = _all_places()[pins[0]]
+            if p["category"] in DURATION:
+                return (p["category"],), p["id"], act
+    for pat, cats in USER_ACT:
+        if re.search(pat, lo):
+            return cats, None, act
+    if re.match(FREE_ACT, lo):
+        return (), None, act
+    return None
+
+
+def _user_clock(raw: str, part):
+    """Giờ người dùng nêu + buổi ("3h chiều" → 15:00) → phút, hoặc None."""
+    c = _clock(raw)
+    if not c:
+        return None
+    m = to_min(c)
+    if part in ("chiều", "tối", "đêm") and m < 12 * 60:
+        m += 12 * 60
+    return m if m < 24 * 60 else None
+
+
+def user_blocks(text: str, city):
+    """Khung giờ người dùng nêu kèm việc cụ thể ("9h-11h đi chợ", "ngày 2 lúc 12h ăn trưa ở Phở Thìn").
+    Trả (các khung, các đoạn chữ đã dùng). Khung: day (None = mọi ngày), start, end (phút), cats, pin, label, free."""
+    low = re.sub(CHECKIN_RE + "|" + CHECKOUT_RE, lambda m: " " * len(m.group(0)), text.lower())
+    if len(low) != len(text):
+        return [], []
+    marks = sorted([("day", m.start(), m.end(), int(m.group(1))) for m in re.finditer(DAY_MARK, low)] +
+                   [("time", m.start(), m.end(), m) for m in re.finditer(USER_TIME, low)], key=lambda x: x[1])
+    blocks, spans, day = [], [], None
+    every = bool(re.search(r"mỗi ngày|hằng ngày|hàng ngày", low))
+    for i, (kind, a, b, m) in enumerate(marks):
+        if kind == "day":
+            day = m
+            continue
+        nxt = marks[i + 1][1] if i + 1 < len(marks) else len(low)
+        act = re.split(r"[,.;\n]|\s+(?:rồi|sau đó|xong)\s+", low[b:nxt], maxsplit=1)[0]
+        got = _activity(city, text[b:b + len(act)])
+        if not got and m.group(1) in ("lúc", "vào lúc") and not m.group(4):
+            # "ăn trưa ở Phở Thìn lúc 12h": việc đứng trước giờ.
+            prv = marks[i - 1][2] if i else 0
+            before = re.split(r"[,.;\n]", low[prv:a])[-1]
+            got = _activity(city, text[a - len(before):a])
+        s1 = _user_clock(m.group(2), m.group(3))
+        s2 = _user_clock(m.group(4), m.group(5) or m.group(3)) if m.group(4) else None
+        if s1 is not None and s2 is not None and not m.group(3) and s1 + 12 * 60 <= s2:
+            s1 += 12 * 60  # "3h-5h chiều": buổi ở cuối áp cho cả hai giờ
+        if not got or s1 is None or (m.group(4) and s2 is None):
+            continue
+        cats, pin, label = got
+        if s2 is not None:
+            end = s2
+        elif cats:
+            end = s1 + DURATION[cats[0]]
+        else:
+            continue  # việc riêng của nhóm cần đủ giờ bắt đầu và kết thúc
+        if end <= s1:
+            continue
+        blocks.append({"day": day if day else (None if every or not pin else 1), "start": s1, "end": end,
+                       "cats": cats, "pin": pin, "label": label.strip(" :–-"), "free": not cats})
+        spans.append((a, b))
+    return blocks, spans
+
+
 def parse_regex(text: str) -> dict:
     low = text.lower()
     s = slug(text)
     ci, co = re.search(CHECKIN_RE, low), re.search(CHECKOUT_RE, low)
     checkin, checkout = (_clock(ci.group(1)) if ci else None), (_clock(co.group(1)) if co else None)
     # Bỏ cụm nhận/trả phòng khỏi câu trước khi đọc khung giờ trong ngày ("nhận phòng từ 14:00" không phải giờ xuất phát).
-    low = re.sub(CHECKIN_RE + "|" + CHECKOUT_RE, " ", low)
+    low = re.sub(CHECKIN_RE + "|" + CHECKOUT_RE, lambda m: " " * len(m.group(0)), low)
     req = {"city": None, "days": None, "people": None, "budgets_per_person_vnd": [], "window_start": None,
            "window_end": None, "early_start": None, "vegetarian": "chay" in low,
            "wants_hot": bool(re.search(r"\bhot\b|tiktok|nổi tiếng|đang hot", low)), "meals": None, "must_visit": [],
@@ -169,6 +262,10 @@ def parse_regex(text: str) -> dict:
         if v not in budgets:
             budgets.append(v)
     req["budgets_per_person_vnd"] = budgets
+    # Giờ đi kèm việc cụ thể là khung người dùng nêu, không phải khung cả ngày: bỏ khỏi câu trước khi đọc khung ngày.
+    req["user_blocks"], spans = user_blocks(text, req["city"])
+    for a, b in spans:
+        low = low[:a] + " " * (b - a) + low[b:]
     m = re.search(r"(\d{1,2}[:h]\d{2})\s*(?:đến|tới|-|–)\s*(\d{1,2}[:h]\d{2})", low)
     if m:
         req["window_start"], req["window_end"] = hhmm(to_min(m.group(1))), hhmm(to_min(m.group(2)))
@@ -228,6 +325,7 @@ def _json(text: str):
 
 def parse(text: str, calls: list) -> dict:
     req = parse_regex(text)
+    had_city = bool(req["city"])
     calls.append(1)
     got = _json(call_model(SYSTEM, PARSE_PROMPT + text)["text"])
     if not isinstance(got, dict):
@@ -235,10 +333,14 @@ def parse(text: str, calls: list) -> dict:
         return req
     # Số (ngày, người, tiền, giờ) ưu tiên regex vì đọc thẳng từ câu; model chỉ lấp chỗ trống.
     for key in ("city", "days", "people", "window_start", "window_end", "meals"):
+        if key.startswith("window") and req["user_blocks"]:
+            continue  # giờ người dùng nêu đã thành khung theo yêu cầu, model không dựng lại thành khung cả ngày
         if req.get(key) in (None, []) and got.get(key) not in (None, "", []):
             req[key] = got[key]
     if req["city"]:
         req["city"] = city_name(req["city"]) or req["city"]
+        if not had_city:
+            req["user_blocks"] = user_blocks(text, req["city"])[0]  # thành phố do model lấp: đọc lại tên nơi trong khung
     if not req["budgets_per_person_vnd"] and isinstance(got.get("budgets_per_person_vnd"), list):
         req["budgets_per_person_vnd"] = [int(b) for b in got["budgets_per_person_vnd"] if str(b).isdigit()]
     req["vegetarian"] = req["vegetarian"] or bool(got.get("vegetarian"))
@@ -429,7 +531,7 @@ def must_cost_check(req: dict, budget: int):
 def min_cost(req: dict, cands: list):
     """Chi phí tối thiểu/người theo giá rẻ nhất trong dữ liệu (mỗi bữa một quán khác nhau)."""
     days = req["days"] or 1
-    food_slots = sum(1 for sl in day_slots(req, 2)[0] if sl[3] == ("food",))
+    food_slots = sum(1 for sl in day_slots(req, 2)[0] if not isinstance(sl, dict) and sl[3] == ("food",))
     meals = req["meals"] or max(1, food_slots) * days
     foods = sorted(p["avg_price_vnd"] for p in cands if p["category"] == "food" and p["avg_price_vnd"] is not None)
     cafes = sorted(p["avg_price_vnd"] for p in cands if p["category"] == "cafe" and p["avg_price_vnd"] is not None)
@@ -500,8 +602,49 @@ def day_slots(req: dict, day: int):
             continue
         if b < ws or a + dur > we + 30:
             continue
-        slots.append((name, max(a, ws), b, cats, dur))
-    return slots, ws, we
+        slots.append((name, max(a, ws), b, cats, dur, None))
+    # Người dùng nêu giờ cho việc cụ thể: đối chiếu với khung mặc định, thay khung trùng giờ bằng khung theo yêu cầu.
+    mine = [u for u in req.get("user_blocks") or [] if u["day"] in (None, day)]
+    for u in mine:
+        slots = _carve(slots, u["start"], u["end"], u["cats"])
+        if u["free"]:
+            slots.append({"label": u["label"], "start": u["start"], "end": u["end"], "free": True})
+        else:
+            slots.append((USER_SLOT + u["label"], u["start"], u["start"] + USER_SLACK, u["cats"],
+                          u["end"] - u["start"], u["pin"]))
+    if mine:
+        ws = min([ws] + [u["start"] for u in mine])
+        we = max([we] + [u["end"] + (0 if u["free"] else USER_SLACK) for u in mine])
+    return _sorted(slots), ws, we
+
+
+USER_SLOT = "Theo yêu cầu: "
+
+
+def _is_user(sl) -> bool:
+    return not isinstance(sl, dict) and sl[0].startswith(USER_SLOT)
+
+
+def _sorted(slots: list) -> list:
+    return sorted(slots, key=lambda sl: sl["start"] if isinstance(sl, dict) else sl[1])
+
+
+def _carve(slots: list, bs: int, be: int, cats=(), keep_user=True) -> list:
+    """Chừa khoảng [bs, be) trong danh sách khung. Khung mặc định cùng loại và trùng giờ thì bị thay (bỏ);
+    khung khác vừa trước khoảng thì giữ (bắt đầu muộn nhất lùi lại), có thể sau khoảng thì dời ra sau, còn lại bỏ."""
+    kept = []
+    for sl in slots:
+        if isinstance(sl, dict) or (keep_user and _is_user(sl)):
+            kept.append(sl)
+            continue
+        name, a, b, scats, dur, pin = sl
+        if set(scats) & set(cats) and a < be and b + dur > bs:
+            continue
+        if a + dur <= bs:
+            kept.append((name, a, min(b, bs - dur), scats, dur, pin))
+        elif b >= be:
+            kept.append((name, max(a, be), b, scats, dur, pin))
+    return kept
 
 
 def needs_lodging(req: dict) -> bool:
@@ -532,19 +675,13 @@ def with_fixed(slots: list, blocks: list) -> list:
     khung có thể sau khối thì dời bắt đầu sớm nhất ra sau khối, còn lại bỏ."""
     out = list(slots)
     for label, bs, be in blocks:
-        kept = []
-        for sl in out:
-            if isinstance(sl, dict):
-                kept.append(sl)
-                continue
-            name, a, b, cats, dur = sl
-            if a + dur <= bs:
-                kept.append((name, a, min(b, bs - dur), cats, dur))
-            elif b >= be:
-                kept.append((name, max(a, be), b, cats, dur))
-        kept.append({"label": label, "start": bs, "end": be})
-        out = kept
-    return sorted(out, key=lambda sl: sl["start"] if isinstance(sl, dict) else sl[1])
+        # Khung nhóm tự sắp xếp chồng lên khối khách sạn (vd. "15h-16h30 nghỉ ngơi" khi nhận phòng 14:00): gộp làm một.
+        free = [sl for sl in out if isinstance(sl, dict) and sl.get("free") and sl["start"] < be and bs < sl["end"]]
+        for sl in free:
+            bs, be = min(bs, sl["start"]), max(be, sl["end"])
+        out = [sl for sl in out if not any(sl is f for f in free)]
+        out = _carve(out, bs, be, keep_user=False) + [{"label": label, "start": bs, "end": be}]
+    return _sorted(out)
 
 
 def choose_lodging(req: dict, cands: list):
@@ -579,13 +716,25 @@ def plan_day(req, slots, ws, we, pool, must, budget_left, hotel=None):
                 12 * len(set(req.get("wanted", [])) & {it[0]["category"] for it in items}) +
                 sum(40 for it in items if req.get("morning_dish") and it[0].get("liked") and it[3].startswith("Bữa sáng")) +
                 sum(HOT_SCORE for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6 -
-                UNVERIFIED_PENALTY * sum(1 for it in items if it[0].get("unverified")))
+                UNVERIFIED_PENALTY * sum(1 for it in items if it[0].get("unverified")) +
+                sum(USER_SCORE - (it[1] - want[it[3]]) for it in items if it[3] in want))
+
+    pinned = {sl[5] for sl in slots if not isinstance(sl, dict) and sl[5]}
+    want = {sl[0]: sl[1] for sl in slots if _is_user(sl)}  # khung người dùng nêu: trễ mỗi phút trừ 1 điểm
 
     def go(i, t, prev, items, cost, used):
         if i == len(slots):
             sc = score(items)
             if sc > best["score"]:
                 best.update(score=sc, items=list(items))
+            return
+        if isinstance(slots[i], dict) and slots[i].get("free"):
+            fx = slots[i]
+            if t > fx["start"]:
+                return  # khung nhóm tự sắp xếp bị chồng: nhánh này hỏng
+            items.append((FREE_PLACE, fx["start"], fx["end"], fx["label"]))
+            go(i + 1, fx["end"], prev, items, cost, used)
+            items.pop()
             return
         if isinstance(slots[i], dict):
             fx = slots[i]
@@ -595,11 +744,13 @@ def plan_day(req, slots, ws, we, pool, must, budget_left, hotel=None):
             go(i + 1, fx["end"], hotel, items, cost, used)
             items.pop()
             return
-        name, a, b, cats, dur = slots[i]
+        name, a, b, cats, dur, pin = slots[i]
         go(i + 1, t, prev, items, cost, used)
         for p in pool:
             if p["category"] not in cats or p["id"] in used:
                 continue
+            if (pin and p["id"] != pin) or (not pin and p["id"] in pinned):
+                continue  # nơi người dùng ghim giờ chỉ vào khung đó
             price = p["avg_price_vnd"] or 0
             if budget_left is not None and cost + price > budget_left:
                 continue
@@ -626,14 +777,17 @@ def draft(req: dict, cands: list, budget: int, hotel=None):
         slots, ws, we = day_slots(req, d)
         if hotel:
             slots = with_fixed(slots, lodging_blocks(req, d, ws, we))
-        pool = [p for p in cands if p["id"] not in used and has_hours(p)]
+        # Nơi người dùng ghim giờ ở ngày khác thì để dành cho ngày đó.
+        later = {u["pin"] for u in req.get("user_blocks") or [] if u["pin"] and u["day"] not in (None, d)}
+        pool = [p for p in cands if p["id"] not in used and p["id"] not in later and has_hours(p)]
         left = None if not budget else (budget - spent) // (days - d + 1)
         if budget and d < days:
             left = max(left, (budget - spent) // 2)
         items = plan_day(req, slots, ws, we, pool, must - used, left, hotel)
         for p, s, e, name in items:
             if p.get("fixed"):
-                fixed.append({"day": d, "id": p["id"], "start": hhmm(s), "end": hhmm(e), "label": name})
+                fixed.append({"day": d, "id": p["id"], "start": hhmm(s), "end": hhmm(e), "label": name,
+                              "free": bool(p.get("free"))})
                 continue
             used.add(p["id"])
             spent += p["avg_price_vnd"] or 0
@@ -651,9 +805,17 @@ def fixed_ok(items: list, fixed: list, hotel) -> bool:
                 continue
             p = by_id[it["id"]]
             s, e = to_min(it["start"]), to_min(it["end"])
-            if not (e + _travel(p, hotel) <= fs or s >= fe + _travel(hotel, p)):
+            t_in, t_out = (0, 0) if f.get("free") else (_travel(p, hotel), _travel(hotel, p))
+            if not (e + t_in <= fs or s >= fe + t_out):
                 return False
     return True
+
+
+def user_kept(items: list, plan: list) -> bool:
+    """Lịch model trả giữ đúng các mục ở khung người dùng nêu (cùng nơi, cùng ngày, cùng giờ) như bản nháp."""
+    got = {(it["day"], it["id"], it["start"], it["end"]) for it in items}
+    return all((it["day"], it["id"], it["start"], it["end"]) in got
+               for it in plan if it.get("slot", "").startswith(USER_SLOT))
 
 
 # ---------------------------------------------------------------- B6–B9: model chọn, code kiểm, sửa một lần
@@ -686,10 +848,14 @@ def check(items, req, budget):
 
 
 def select(text, req, cands, plan, budget, calls, fixed=(), hotel=None):
-    blocks = "".join(f"\n- ngày {f['day']} {f['start']}-{f['end']}: {f['label']}" for f in fixed)
+    blocks = "".join(f"\n- ngày {f['day']} {f['start']}-{f['end']}: {f['label']}"
+                     f"{' (nhóm tự sắp xếp)' if f.get('free') else ' (ở khách sạn, chừa thời gian đi về)'}"
+                     for f in fixed)
+    mine = "".join(f"\n- ngày {it['day']} {it['start']}-{it['end']}: {it['code']} ({it['slot'][len(USER_SLOT):]})"
+                   for it in plan if it.get("slot", "").startswith(USER_SLOT))
     prompt = (f"Yêu cầu nhóm:\n{text}\n\nỨng viên (chỉ được dùng các mã này):\n{cand_table(cands)}\n\n" +
-              (f"Khối cố định ở khách sạn (giữ nguyên, không xếp mục nào chồng lên, chừa thời gian đi về):{blocks}\n\n"
-               if blocks else "") +
+              (f"Khối cố định (giữ nguyên, không xếp mục nào chồng lên):{blocks}\n\n" if blocks else "") +
+              (f"Mục nhóm nêu giờ cụ thể (giữ nguyên mã và giờ):{mine}\n\n" if mine else "") +
               f"Bản nháp do code xếp (đã hợp lệ):\n" +
               json.dumps([{k: it[k] for k in ("day", "code", "start", "end")} for it in plan], ensure_ascii=False) +
               "\n\nNếu bản nháp đã hợp lý, giữ nguyên. Nếu có thể hợp sở thích nhóm hơn, sửa lại. "
@@ -712,8 +878,14 @@ def select(text, req, cands, plan, budget, calls, fixed=(), hotel=None):
         res = check(items, req, budget) if items else {"valid": False}
     must = set(req["must_visit"])
     if res["valid"] and fixed and not fixed_ok(items, fixed, hotel):
-        note("B9: lịch của model chồng lên giờ nhận/trả phòng — giữ bản nháp của code")
+        note("B9: lịch của model chồng lên khối cố định — giữ bản nháp của code")
         return plan, None
+    if res["valid"] and not user_kept(items, plan):
+        note("B9: lịch của model đổi mục ở khung giờ nhóm nêu — giữ bản nháp của code")
+        return plan, None
+    slot = {(it["day"], it["id"]): it["slot"] for it in plan}
+    for it in items:
+        it["slot"] = slot.get((it["day"], it["id"]), "")
     if not res["valid"] or not must.issubset({it["id"] for it in items}) and must.issubset({it["id"] for it in plan}):
         note("B9: lịch của model vẫn chưa hợp lệ — giữ bản nháp của code")
         return plan, None
@@ -778,6 +950,9 @@ def render(req, plan, res, reasons, budget, cands, fixed=(), hotel=None, others=
         prev = None
         day_items = [x for x in plan if x["day"] == d] + [dict(x, fixed=True) for x in fixed if x["day"] == d]
         for it in sorted(day_items, key=lambda x: to_min(x["start"])):
+            if it.get("free"):
+                lines.append(f"- {it['start']}–{it['end']}  {it['label']} (theo yêu cầu, nhóm tự sắp xếp)")
+                continue
             p = hotel if it.get("fixed") else by_id[it["id"]]
             if prev:
                 lines.append(f"   ↓ di chuyển khoảng {_travel(prev, p)} phút")
@@ -803,6 +978,8 @@ def render(req, plan, res, reasons, budget, cands, fixed=(), hotel=None, others=
         why.append(f"kho chưa có quán hot ở {req['city']} nên xếp theo giờ mở cửa, món nhóm nêu, khu gần và giá")
     elif req["wants_hot"]:
         why.append("các quán hot trong kho không vừa giờ mở cửa hoặc ngân sách nên chưa xếp vào")
+    if req.get("user_blocks"):
+        why.append("giữ các khung giờ nhóm nêu, các khung mặc định trùng giờ được thay hoặc dời")
     if req["vegetarian"]:
         why.append("chỉ chọn nơi được ghi là có món chay")
     if req["areas"]:
@@ -1005,6 +1182,10 @@ def _item_json(it, p, hot: bool) -> dict:
 
 
 def _fixed_json(f, hotel, req) -> dict:
+    if f.get("free"):
+        return {"start": f["start"], "end": f["end"], "kind": "other", "name": f["label"], "place_id": None,
+                "address": None, "lat": None, "lng": None, "cost_per_person": None, "hours_unverified": False,
+                "price_unverified": False, "reason": "khung giờ nhóm nêu", "note": "nhóm tự sắp xếp", "sources": []}
     known = hotel.get("id") is not None
     std = not (req.get("checkin") or req.get("checkout"))
     sources = [{"type": "store", "ref": hotel["id"]}] if known else []

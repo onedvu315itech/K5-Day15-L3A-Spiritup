@@ -147,4 +147,4 @@ flowchart TD
 
 | Thời điểm | Đổi gì | Vì sao |
 |---|---|---|
-|  |  |  |
+| 28/11 chiều | Bản nháp bằng code (B5): câu không nêu giờ cho từng việc thì dùng khung giờ mặc định; câu nêu giờ ("9h-11h đi chợ", "12h ăn trưa ở …", "15h-17h tự do", "ngày 2 lúc …") thì code đọc bằng regex, thay khung mặc định cùng loại trùng giờ, cắt hoặc dời khung khác; model ở B6–B9 không được dời các mục này. Mô tả ở `docs/roa-agent-flow.md` mục 3 | Nhóm trưởng thường chốt sẵn vài mốc giờ; khung cố định bỏ qua các mốc đó. Kiểm hồi quy `eval/run-7.csv` (`gemini-3.8-flash`) 24/24 như run-5: không câu thử nào nêu giờ cho từng việc nên cách đọc khung ngày, sáng sớm (B03, B04, B05, B14, B16) giữ như cũ |

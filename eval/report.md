@@ -14,8 +14,9 @@
 | **1** *(nộp CP3)* | `run-4@20261128-093112` (`gpt-4o-mini`) | `11/24` | `46%` | `2/11` (`18%`) | `5/9` (`56%`) | `4/4` (`100%`) | chưa *(0 lỗi API)* |
 | **2** *(nộp CP4)* | `run-6@20261128-140113` (`gpt-4o-mini`) | `24/24` | `100%` | `11/11` (`100%`) | `9/9` (`100%`) | `4/4` (`100%`) | đạt *(0 lỗi API)* |
 | 2 *(bổ sung, model khác)* | `run-5@20261128-135617` (`gemini-3.8-flash` qua GWAI) | `24/24` | `100%` | `11/11` (`100%`) | `9/9` (`100%`) | `4/4` (`100%`) | đạt *(0 lỗi API)* |
+| sau CP4 *(kiểm hồi quy)* | `run-7@20261128-151436` (`gemini-3.8-flash` qua GWAI) | `24/24` | `100%` | `11/11` (`100%`) | `9/9` (`100%`) | `4/4` (`100%`) | đạt *(0 lỗi API)* |
 
-Kết quả từng câu: `eval/run-1.csv` … `eval/run-6.csv`. Trace: `traces/run-1.jsonl` … `traces/run-6.jsonl`.
+Kết quả từng câu: `eval/run-1.csv` … `eval/run-7.csv`. Trace: `traces/run-1.jsonl` … `traces/run-7.jsonl`.
 
 - **Lượt 1 là run-4** (Đức chạy, `gpt-4o-mini`, luồng agent của nhánh `docs/cp2-benchmark-datacard`). **Lượt 2 là run-6**: cùng `gpt-4o-mini`, cùng 24 câu, cùng cách chấm; chỉ khác agent (mục 3). Đây là phép so sánh chính.
 - **run-5** chạy cùng agent của Lượt 2 bằng `gemini-3.8-flash` để xem kết quả có phụ thuộc model không. Không có lượt `gemini-3.8-flash` nào trước cải tiến (run-1 là `gemini-3.5-flash` và gần hết câu lỗi `429`), nên run-5 không dùng để so Lượt 1 → Lượt 2.
