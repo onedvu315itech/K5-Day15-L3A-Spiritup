@@ -838,7 +838,7 @@ def infeasible_must(req, detail, best) -> str:
 def infeasible_budget(req, budget, cost, parts) -> str:
     return (f"Mình **không xếp được lịch {req['days'] or 1} ngày theo yêu cầu với {vnd(budget)}/người**.\n\n"
             f"Lý do: theo dữ liệu công cụ, chi phí tối thiểu đã là khoảng **{vnd(cost)}/người** — gồm {parts} — "
-            f"vượt ngân sách {vnd(cost - budget)}/người. Mình không hạ giá xuống cho vừa vì như vậy là bịa số.\n\n"
+            f"vượt ngân sách {vnd(budget)}/người khoảng {vnd(cost - budget)}. Mình không hạ giá xuống cho vừa vì như vậy là bịa số.\n\n"
             "Nhóm có thể chọn:\n"
             f"- tăng ngân sách lên khoảng {vnd(cost)}/người trở lên, hoặc\n"
             "- bớt mục: ít bữa ăn ngoài hơn, bỏ cafe, chọn điểm tham quan miễn phí.\n"
@@ -849,7 +849,7 @@ def infeasible_must_budget(budget, total, rows) -> str:
     return (f"Mình **không xếp được đủ các điểm nhóm chọn với ngân sách {vnd(budget)}/người**.\n\n"
             "Giá/người theo dữ liệu công cụ:\n" + "\n".join(f"- {r}" for r in rows) +
             f"\n\nRiêng các điểm này đã là **{' + '.join(r.rsplit(': ', 1)[1].split('/')[0] for r in rows)} = "
-            f"{vnd(total)}/người**, vượt ngân sách {vnd(total - budget)}/người — chưa tính các bữa khác. "
+            f"{vnd(total)}/người**, vượt ngân sách {vnd(budget)}/người khoảng {vnd(total - budget)} — chưa tính các bữa khác. "
             "Mình không hạ giá xuống cho vừa vì như vậy là bịa số.\n\n"
             f"Nhóm có thể chọn: nới ngân sách lên ít nhất {vnd(total)}/người, hoặc bớt điểm (giữ những nơi rẻ hơn). "
             "Nhóm trưởng chọn hướng nào thì mình xếp lại.")
