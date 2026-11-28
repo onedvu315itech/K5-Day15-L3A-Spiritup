@@ -238,6 +238,8 @@ Biến môi trường (giá trị giả trong `.env.example`):
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
+| `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
+| `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
 | `GEOAPIFY_API_KEY` | Backend | Places, Geocoding, Routing của Geoapify (đề xuất thay Google, chờ duyệt: `docs/roa-agent-design.md`) |
 | `CORS_ORIGINS` | Backend | Domain Vercel (production và preview) |
 | `NEXT_PUBLIC_API_BASE_URL` | Frontend | URL backend trên Render |
@@ -275,3 +277,5 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.3 | 2026-11-27 | Khương | `answer(text)` gọi `generate` (lát cắt nộp BTC); `generate` trả bản nháp, nhóm trưởng duyệt v1; phiếu chỉ ghi nhận, nhóm trưởng áp dụng / đóng; hạn tuỳ chọn; bỏ `PROPOSAL_TTL_HOURS`; chốt xác thực | OQ-19, ADR 0004, OQ-06 |
 | 0.4 | 2026-11-27 | Khương | Bỏ giới hạn thành phố demo: điểm đến bất kỳ trong Việt Nam; kho quán hot chỉ phủ một số điểm đến | OQ-09 |
 | 0.5 | 2026-11-28 | Khương | Bảng công cụ §3.3 khớp tên trong code và `spec.md` §4; Roa đọc kho file `data/places/`; luồng `generate` chi tiết tách sang `docs/roa-agent-flow.md` | Code nhánh `feat/kho-du-lieu-va-agent-roa` |
+| 0.6 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
+| 0.7 | 2026-11-28 | Khương | Gộp nhánh agent: lõi Roa đọc cả `data/places/` và `data/places_vn.json` (5 thành phố); bản chạy thử không gọi VIETMAP, Tavily, Google lúc chạy (chờ OQ-22), nên `VIETMAP_API_KEY`, `TAVILY_API_KEY` chưa dùng | Gộp `feat/kho-du-lieu-va-agent-roa` với `docs/cp2-benchmark-datacard` |

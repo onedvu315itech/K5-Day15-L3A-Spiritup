@@ -35,8 +35,9 @@ Tại CP2, hệ thống dùng bộ dữ liệu địa điểm Đà Lạt mẫu c
 
 | Lượt | Run ID | Model | Cấu hình (prompt / công cụ / thay đổi) | Đạt / tổng | % | Đạt chuẩn? |
 |---|---|---|---|---|---|---|
-| 1 | | | | __/__ | | |
-| 2 | | | | __/__ | | |
+| 1 | `run-1@20261128-033425` | `gemini-3.5-flash` | 24 câu, 8 công cụ, vòng lặp `MAX_STEPS=5` + chặn `check_itinerary` | `4/24` | `17%` | chưa *(20 câu lỗi `HTTP 429`)* |
+| 2 | `run-2@20261128-034607` | `openai/gpt-4o-mini` | 24 câu chạy đủ không lỗi API; lộ 8 lỗi JSON thừa `}` ở `get_travel_time` | `11/24` | `46%` | chưa |
+| 3 | `run-3@20261128-035701` | `openai/gpt-4o-mini` | Bật `json_object` trong `ai.py` + retry JSON lỗi & đệm di chuyển trong `agent.py` | `2/24` | `8%` | chưa *(21 câu lỗi `HTTP 402` hết credit)* |
 
 Lượt chạy lại vì lỗi kỹ thuật, lượt sau CP4: ghi thêm dòng, không sửa dòng cũ.
 

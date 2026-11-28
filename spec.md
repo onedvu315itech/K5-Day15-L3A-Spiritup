@@ -69,11 +69,13 @@ flowchart TD
 
   | Công cụ | Input | Output | Tác động ra ngoài? |
   |---|---|---|---|
-  | `search_places` | thành phố, sở thích/loại hình | danh sách địa điểm kèm mã, tên, khu vực, giá ước tính/người | Không (chỉ đọc) |
+  | `search_places` | thành phố, sở thích/loại hình | địa điểm trong kho file (`data/places/`, `data/places_vn.json`) lọc theo sở thích, loại; thành phố ngoài kho trả rỗng | Không (chỉ đọc) |
   | `get_trending_spots` | thành phố | danh sách quán hot từ kho thu trước | Không (chỉ đọc) |
   | `get_opening_hours` | danh sách mã địa điểm | giờ mở cửa, giờ đóng cửa của từng điểm | Không (chỉ đọc) |
-  | `get_travel_time` | mã địa điểm A, mã địa điểm B | thời gian đi xe máy ước tính (phút): theo toạ độ nếu có, không thì theo khu vực | Không (chỉ đọc) |
-  | `check_itinerary` | danh sách điểm theo khung giờ, ngân sách/người | danh sách vi phạm (đóng cửa, chồng giờ, vượt ngân sách) + tổng tiền tính bằng code | Không (chỉ đọc) |
+  | `get_travel_time` | mã địa điểm A, mã địa điểm B | số phút đi xe máy: theo toạ độ (Haversine × hệ số đường, cộng phút gửi xe) *(tự ước tính)*, không có toạ độ thì theo khu vực; mã lạ trả mức mặc định | Không (chỉ tính) |
+  | `analyze_plan_gaps` | các mục trong plan gốc (ngày, mã, giờ) | khoảng trống giữa hai mục liền nhau cùng ngày sau khi trừ thời gian đi, loại theo mốc 45, 90 phút và loại hoạt động hợp | Không (chỉ đọc) |
+  | `search_nearby` | mã điểm gốc, các loại, số phút tối đa (mặc định 15) | điểm cùng thành phố đúng loại, kèm phút đi, xếp gần trước | Không (chỉ đọc) |
+  | `check_itinerary` | các mục theo ngày và giờ, ngân sách/người, khung giờ nhóm nêu | vi phạm (đóng cửa, chồng giờ, không kịp di chuyển, ngoài khung giờ, vượt ngân sách), tổng tiền tính bằng code, `missing_data` cho nhãn `[Cần kiểm tra & điền tay]` | Không (chỉ đọc) |
 
 - **Mức tự động:** [x] AI gợi ý, người quyết · [ ] AI tự làm khi chắc, chuyển người khi không · [ ] AI tự làm — Lý do: nếu lịch sai giờ mở cửa hoặc vượt ngân sách, cả nhóm đi cùng sẽ bị mất thời gian, hụt quán và nhóm trưởng là người chịu trách nhiệm với bạn bè; do đó Roa chỉ tạo bản nháp, nhóm trưởng luôn là người duyệt cuối.
 - **Chỗ chặn rủi ro:** Rủi ro lớn nhất là **bịa địa điểm/giờ mở cửa/giá tiền** và **tính nhầm tổng tiền/lệch giờ**. Chặn bằng cách: (1) mọi địa điểm, giờ mở cửa, giá tiền đều lấy từ công cụ; nếu công cụ không tìm thấy thì báo rõ **"không biết / chưa có dữ liệu"** và gắn nhãn `[Cần kiểm tra & điền tay]` để người dùng tự kiểm tra và điền sau, (2) `check_itinerary` tính tổng tiền và kiểm tra giờ mở cửa/chồng giờ bằng **code Python**, không để model tự nhẩm.
@@ -109,8 +111,8 @@ flowchart TD
 
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 12 câu ở CP2 (thuong 5 · kho 5 · tu_choi 2; sẽ mở rộng lên 20–30 câu trước CP3) · metric: `eval/metric_spec.yaml` (4 metric)
-- **Chuẩn "đạt"** (chốt **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
-- Kết quả: lượt 1 __/__ (__%) · lượt 2 __/__ (__%) — run ID: __ / __ → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
+- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
 - Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
@@ -134,6 +136,10 @@ flowchart TD
 |---|---|---|
 | 28/11 sáng | Công cụ đọc kho file `data/places/da-lat.json` (94 nơi: 8 mẫu CP2 + 86 OSM) thay cho `MOCK_PLACES`; giờ tính theo phút; `get_travel_time` nhận mã địa điểm; `check_itinerary` kiểm thêm thời gian di chuyển giữa hai điểm và khung giờ người dùng nêu | B10 cần tính thời gian đi giữa các điểm; kho thật để câu thử `data_that` dùng được (Dataset 2) |
 | 28/11 sáng | `agent.py` thành luồng nhiều bước: model tách yêu cầu (regex dự phòng) → mẫu code cho từ chối, hỏi lại, chưa có dữ liệu, mâu thuẫn ngân sách → kiểm khả thi bằng code → code dựng bản nháp → model chọn lại theo mã ứng viên → `check_itinerary` → sửa một lần → code in kết quả | Bản CP2 chỉ gọi model một lần với lịch mẫu cứng, không kiểm được B06–B12; thiết kế ở `docs/roa-agent-design.md` mục 4 |
+| 28/11/2026 | Thêm tra cứu hai tầng, phân tích khoảng trống và tìm điểm gần vào bộ công cụ | B08 cần xử lý dữ liệu thiếu, B10 cần trừ thời gian đi trước khi xếp thêm điểm |
+| 28/11/2026 | Nối Gemini & OpenRouter vào `codebase/ai.py`, nâng cấp vòng lặp 8 công cụ trong `codebase/agent.py`, mở rộng `eval/benchmark.csv` lên 24 câu và chạy `eval/run-1.csv` | Hoàn thành lõi AI thật CP3, vá lỗi bỏ qua kiểm tra `check_itinerary` khi `valid=False` phát hiện ở `B01` |
+| 28/11/2026 | Chạy `eval/run-2.csv` (`openai/gpt-4o-mini`, `11/24`) & `simulate --try` (`10/10`); bật JSON mode trong `ai.py`, vá retry JSON lỗi + đệm di chuyển `fill_gaps` trong `agent.py` | Khắc phục lỗi thừa dấu `}` khi gọi `get_travel_time` ở 8/24 câu và lỗi 0 phút đệm di chuyển ở `B17`, `B18` |
+| 28/11 chiều | Gộp hai nhánh agent. Giữ luồng do code điều khiển (B1–B10): model chỉ tách yêu cầu và chọn mã ứng viên, code tính giờ, tiền và in kết quả. Nhận kho 5 thành phố `data/places_vn.json`, kho quán hot, bộ 24 câu và `ai.py` của nhánh kia. Thêm nhánh lấp khoảng trống cho plan gốc (`analyze_plan_gaps`, `search_nearby`, code tính giờ chèn, model chọn một mã, `check_itinerary` kiểm). Bỏ `lookup_place_details` và tra Google/VIETMAP lúc chạy | run-2 11/24 (thuong 1/11): model tự viết giờ, tiền và có thể trả lời khi `check` còn lỗi; run-3 2/24 do HTTP 402. B17, B18 cần chèn điểm vào plan gốc. Tra web lúc chạy chờ OQ-22 và trái B08, B21 ("chưa có dữ liệu") |
 
 **Sau CP4 (đến 23:59 Thứ Bảy 28/11)** (sửa theo góp ý — không sửa chuẩn "đạt", câu thử, số bằng chứng, kết quả các lượt đã chạy)
 

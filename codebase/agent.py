@@ -1,14 +1,17 @@
 """Luồng `generate` của Roa — xếp lịch trình theo ngày, thoả giờ mở cửa và ngân sách, hoặc nói rõ không xếp được.
 
 `python run.py`, `python run.py eval` và `python run.py simulate` đều gọi answer(text).
-Thiết kế: docs/roa-agent-design.md mục 4 (B1–B10). Tóm tắt:
+Thiết kế: docs/roa-agent-design.md mục 4 (B1–B10), sơ đồ ở docs/roa-agent-flow.md. Tóm tắt:
 
-  B1  tách yêu cầu: model trả JSON; regex làm phương án dự phòng và là nguồn tin cho số (ngày, người, tiền, giờ)
-  B2  chặn sớm bằng mẫu code: từ chối (ngoài phạm vi / bí mật), hỏi lại (thiếu thông tin),
-      chưa có kho cho thành phố, ngân sách mâu thuẫn trong nhóm
-  B3  lấy ứng viên từ công cụ, lọc bằng code (loại, ăn chay, có giá khi có ngân sách), gán mã c1..cK
-  B4  kiểm khả thi trước bằng code: chi phí tối thiểu, các điểm bắt buộc có vừa khung giờ không
-  B5  code dựng bản nháp (tìm theo khung giờ, ưu tiên điểm bắt buộc và quán hot, trong ngân sách)
+  B2  chặn sớm bằng mẫu code: từ chối (bí mật, tự áp dụng, đặt chỗ/thanh toán)
+  G   có plan gốc kèm mã điểm → nhánh lấp khoảng trống: analyze_plan_gaps → search_nearby → code xếp giờ
+      → model chọn 1 trong ≤ 3 phương án → check_itinerary → bản nháp đề xuất
+  B1  tách yêu cầu: regex là nguồn tin cho số (ngày, người, tiền, giờ); model trả JSON chỉ lấp chỗ trống
+  B2  mẫu code: chưa có kho cho thành phố, thiếu thông tin, ngân sách mâu thuẫn trong nhóm,
+      điểm bắt buộc thiếu giờ/chưa có trong kho (ghi [Cần kiểm tra & điền tay], không tự điền)
+  B3  lấy ứng viên từ công cụ, lọc bằng code (loại, ăn chay, khu vực, trong nhà khi mưa, có giờ, có giá), gán mã c1..cK
+  B4  kiểm khả thi trước bằng code: giá các điểm bắt buộc, chi phí tối thiểu, các điểm bắt buộc có vừa khung giờ không
+  B5  code dựng bản nháp (tìm theo khung giờ, ưu tiên điểm bắt buộc, món nhóm nêu, quán hot, trong ngân sách)
   B6  model chọn lại theo mã ứng viên (JSON) — chỉ nhận nếu check_itinerary hợp lệ
   B8  check_itinerary kiểm bằng code; B9 model sửa một lần; vẫn sai thì giữ bản nháp của code
   B10 code in kết quả: giờ, tiền, thời gian đi đều do code tính
@@ -18,27 +21,45 @@ import itertools
 import json
 import re
 
-from ai import call_model
-from tools import (_all_places, _travel, check_itinerary, get_opening_hours, get_trending_spots, hhmm,
-                   search_places, slug, supported_cities, to_min)
-from tracing import note
+if __package__:
+    from .ai import call_model
+    from .tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
+                        get_opening_hours, get_trending_spots, has_hours, hhmm, search_nearby, search_places, slug,
+                        supported_cities, to_min)
+    from .tracing import note
+else:
+    from ai import call_model
+    from tools import (_all_places, _travel, analyze_plan_gaps, check_itinerary, city_key, city_name,
+                       get_opening_hours, get_trending_spots, has_hours, hhmm, search_nearby, search_places, slug,
+                       supported_cities, to_min)
+    from tracing import note
 
 MAX_STEPS = 5          # số lần gọi model tối đa cho một câu (tách, chọn, sửa)
 MAX_CANDIDATES = 25    # số ứng viên đưa cho model
+NEARBY_MIN = 15        # bán kính tìm điểm lấp khoảng trống (phút đi xe)
+MIN_STAY = 30          # ở một điểm chèn thêm ít nhất bao nhiêu phút *(tự ước tính)*
 # Thời lượng mỗi loại điểm (phút) — nhóm tự đặt *(tự ước tính)*.
-DURATION = {"food": 60, "cafe": 60, "sightseeing": 90}
+DURATION = {"food": 60, "snack": 45, "cafe": 60, "sightseeing": 90, "activity": 90}
+CAT_VI = {"food": "ăn uống", "snack": "ăn vặt", "cafe": "cafe", "sightseeing": "tham quan", "activity": "vui chơi"}
 # Khung giờ một ngày: (tên, bắt đầu sớm nhất, bắt đầu muộn nhất, loại cho phép, thời lượng).
 SLOTS = [
     ("Sáng sớm", "05:00", "06:30", ("sightseeing",), 120),
     ("Bữa sáng / cafe sáng", "07:00", "09:00", ("food", "cafe"), 60),
-    ("Tham quan sáng", "09:00", "10:30", ("sightseeing",), 90),
+    ("Tham quan sáng", "09:00", "10:30", ("sightseeing", "activity"), 90),
     ("Bữa trưa", "11:00", "13:00", ("food",), 75),
-    ("Cafe chiều", "13:30", "15:30", ("cafe",), 60),
-    ("Tham quan chiều", "14:30", "16:30", ("sightseeing",), 90),
+    ("Cafe / ăn vặt chiều", "13:30", "15:30", ("cafe", "snack"), 60),
+    ("Tham quan chiều", "14:30", "16:30", ("sightseeing", "activity"), 90),
     ("Bữa tối", "17:30", "19:30", ("food",), 75),
-    ("Cafe tối", "19:15", "21:00", ("cafe",), 60),
+    ("Cafe / ăn vặt tối", "19:15", "21:00", ("cafe", "snack", "activity"), 60),
 ]
 DAY_START, DAY_END = "07:00", "21:30"
+# Từ chung trong tên quán — không đủ để nhận ra một nơi cụ thể ("quán cà phê", "nhà hàng").
+GENERIC_WORDS = {"quan", "tiem", "ca", "phe", "cafe", "coffee", "nha", "hang", "khu", "du", "lich", "cua", "va", "cong"}
+# Từ khoá đoán điểm trong nhà theo tên khi trời mưa *(tự đặt, kho chưa có trường trong nhà/ngoài trời)*.
+INDOOR_NAME = r"bảo tàng|nhà hát|trung tâm thương mại|bưu điện|dinh |nhà tù|rạp"
+# Loại điểm nhóm nêu trong câu → bản nháp cố có ít nhất một điểm loại đó.
+WANTED = {"sightseeing": r"tham quan|di tích|bảo tàng|check-in|ngắm", "cafe": r"cà phê|cafe|coffee",
+          "snack": r"ăn vặt|chè|kem", "activity": r"vui chơi|múa rối|chợ đêm"}
 
 SYSTEM = """Bạn là Roa — trợ lý lập lịch trình du lịch nhóm của ứng dụng Partaway tại Việt Nam.
 Quy tắc bắt buộc (CHỐNG BỊA ĐẶT):
@@ -57,19 +78,29 @@ Không biết thì để null. Chỉ trả JSON.
 Yêu cầu:
 """
 
+# (loại, mẫu, lời giải thích). "secret" và "apply" luôn chặn; "booking" chỉ chặn khi câu không đủ để xếp lịch.
 REFUSE_PATTERNS = [
-    (r"prompt hệ thống|system prompt|nguyên văn prompt|api key|\btoken\b|mật khẩu|chuỗi kết nối",
-     "Mình không thể cung cấp hướng dẫn hệ thống, khoá API, token hay bất kỳ thông tin bí mật nào của hệ thống."),
-    (r"đặt bàn|đặt chỗ|đặt phòng|thanh toán|chuyển khoản",
-     "Roa không có chức năng đặt bàn, đặt chỗ hay thanh toán. Nhóm trưởng hoặc thành viên vui lòng liên hệ trực tiếp với quán."),
-    (r"lưu thẳng|phiên bản chính thức|áp dụng luôn|tự áp dụng|bỏ qua (mọi|tất cả) hướng dẫn",
+    ("secret", r"prompt hệ thống|system prompt|nguyên văn prompt|chỉ dẫn hệ thống|system override|api[ _]?key|"
+               r"\btoken\b|mật khẩu|chuỗi kết nối|biến môi trường|model_name|\.env\b",
+     "Mình không thể cung cấp hướng dẫn hệ thống, biến môi trường, khoá API, token hay bất kỳ thông tin cấu hình bí mật nào."),
+    ("booking", r"đặt bàn|đặt chỗ|đặt phòng|đặt cọc|giữ phòng|thanh toán|chuyển khoản|mua vé",
+     "Roa không có chức năng đặt bàn, đặt phòng, đặt cọc hay thanh toán. Nhóm trưởng hoặc thành viên vui lòng "
+     "liên hệ trực tiếp với quán hoặc nơi bán vé."),
+    ("apply", r"lưu thẳng|phiên bản chính thức|áp dụng luôn|tự áp dụng|tự động áp dụng|bỏ qua bước chờ|"
+              r"bỏ qua (mọi|tất cả) hướng dẫn",
      "Roa không tự lưu hay áp dụng lịch trình thành phiên bản chính thức. Mọi thay đổi là một đề xuất: "
-     "cả nhóm bỏ phiếu để ghi ý kiến, và chỉ nhóm trưởng mới duyệt, áp dụng thành phiên bản mới."),
+     "phiếu bầu của cả nhóm chỉ để ghi nhận ý kiến (kể cả khi đã quá bán), và chỉ nhóm trưởng mới quyết định "
+     "áp dụng thành phiên bản mới hay đóng đề xuất."),
 ]
+LODGING = r"homestay|khách sạn|resort|chỗ ở|nhà nghỉ|villa"
+LODGING_NOTE = ("Công cụ của Roa **chưa có dữ liệu chỗ ở** (homestay, khách sạn: tên, giá phòng, ảnh phòng), nên mình "
+                "không gợi ý tên hay giá phòng. Chỗ ở: [Cần kiểm tra & điền tay] — nhóm trưởng tự tìm và đặt trên "
+                "trang đặt phòng.")
 
-KNOWN_CITIES = ["Đà Lạt", "Phú Quốc", "Hà Nội", "Hồ Chí Minh", "Sài Gòn", "Đà Nẵng", "Hội An", "Huế", "Nha Trang",
-                "Sa Pa", "Sapa", "Hạ Long", "Vũng Tàu", "Cần Thơ", "Quy Nhơn", "Phan Thiết", "Mũi Né", "Hà Giang",
-                "Ninh Bình", "Côn Đảo", "Buôn Ma Thuột", "Pleiku", "Hải Phòng", "Mộc Châu", "Tam Đảo"]
+KNOWN_CITIES = ["Đà Lạt", "Phú Quốc", "Hà Nội", "TP.HCM", "TPHCM", "Hồ Chí Minh", "Sài Gòn", "Đà Nẵng", "Hội An",
+                "Huế", "Nha Trang", "Sa Pa", "Sapa", "Hạ Long", "Vũng Tàu", "Cần Thơ", "Quy Nhơn", "Phan Thiết",
+                "Mũi Né", "Hà Giang", "Ninh Bình", "Côn Đảo", "Buôn Ma Thuột", "Pleiku", "Hải Phòng", "Mộc Châu",
+                "Tam Đảo"]
 
 
 def vnd(n) -> str:
@@ -83,14 +114,17 @@ def parse_regex(text: str) -> dict:
     s = slug(text)
     req = {"city": None, "days": None, "people": None, "budgets_per_person_vnd": [], "window_start": None,
            "window_end": None, "early_start": None, "vegetarian": "chay" in low,
-           "wants_hot": bool(re.search(r"\bhot\b|tiktok|nổi tiếng|đang hot", low)), "meals": None, "must_visit": []}
+           "wants_hot": bool(re.search(r"\bhot\b|tiktok|nổi tiếng|đang hot", low)), "meals": None, "must_visit": [],
+           "indoor": bool(re.search(r"\bmưa\b|trong nhà", low)), "areas": [], "lodging": bool(re.search(LODGING, low)),
+           "wanted": [c for c, pat in WANTED.items() if re.search(pat, low)],
+           "morning_dish": bool(re.search(r"sáng\s*(?:thì\s*)?ăn|ăn sáng", low))}
     for c in supported_cities() + KNOWN_CITIES:
         if slug(c) and re.search(rf"(^|-){re.escape(slug(c))}(-|$)", s):
-            req["city"] = c
+            req["city"] = city_name(c) or c
             break
     if not req["city"]:
         for c in supported_cities():
-            if _must_visit(c, s):
+            if _must_visit(c, s, text):
                 req["city"] = c
                 break
     m = re.search(r"(\d+)\s*ngày", low)
@@ -114,20 +148,36 @@ def parse_regex(text: str) -> dict:
     m = re.search(r"(\d+)\s*bữa", low)
     req["meals"] = int(m.group(1)) if m else None
     if req["city"]:
-        req["must_visit"] = _must_visit(req["city"], s)
+        req["must_visit"] = _must_visit(req["city"], s, text)
+        areas = {p["area"] for p in search_places(req["city"]) if p.get("area")}
+        req["areas"] = sorted(a for a in areas if len(slug(a)) >= 4 and re.search(rf"(^|-){re.escape(slug(a))}(-|$)", s))
     return req
 
 
-def _must_visit(city: str, s: str) -> list:
-    """Mã các nơi được nêu đích danh: khớp tên đủ hoặc phần đầu tên ≥ 3 từ."""
-    out = []
-    for p in search_places(city):
-        words = slug(p["name"]).split("-")
-        for k in range(len(words), 2, -1):
+def _names_match(name: str, s: str) -> bool:
+    """Tên được nêu đích danh: khớp tên đủ, hoặc phần đầu tên ≥ 3 từ có ít nhất 2 từ riêng (không phải "quán cà phê")."""
+    words = slug(name).split("-")
+    for k in range(len(words), 1, -1):
+        distinct = sum(w not in GENERIC_WORDS for w in words[:k])
+        if (k == len(words) and distinct >= 1) or (k >= 3 and distinct >= 2):
             if re.search(rf"(^|-){re.escape('-'.join(words[:k]))}(-|$)", s):
-                out.append(p["id"])
-                break
-    return out
+                return True
+    return False
+
+
+def _must_visit(city: str, s: str, text: str) -> list:
+    """Mã các nơi được nêu đích danh: mã viết sẵn (HN-03), tên trong kho, hoặc tên quán hot chưa khớp kho
+    (mã giả `tiktok:<slug>`)."""
+    by_id = _all_places()
+    out = [m for m in re.findall(r"\b([A-Z]{2,3}-\d{2})\b", text)
+           if m in by_id and city_key(by_id[m]["city"]) == city_key(city)]
+    for p in search_places(city):
+        if _names_match(p["name"], s):
+            out.append(p["id"])
+    for p in get_trending_spots(city):
+        if p["id"] is None and _names_match(p["name"], s):
+            out.append("tiktok:" + slug(p["name"]))
+    return list(dict.fromkeys(out))
 
 
 def _json(text: str):
@@ -151,6 +201,8 @@ def parse(text: str, calls: list) -> dict:
     for key in ("city", "days", "people", "window_start", "window_end", "meals"):
         if req.get(key) in (None, []) and got.get(key) not in (None, "", []):
             req[key] = got[key]
+    if req["city"]:
+        req["city"] = city_name(req["city"]) or req["city"]
     if not req["budgets_per_person_vnd"] and isinstance(got.get("budgets_per_person_vnd"), list):
         req["budgets_per_person_vnd"] = [int(b) for b in got["budgets_per_person_vnd"] if str(b).isdigit()]
     req["vegetarian"] = req["vegetarian"] or bool(got.get("vegetarian"))
@@ -161,13 +213,25 @@ def parse(text: str, calls: list) -> dict:
 # ---------------------------------------------------------------- B2: các trường hợp trả lời bằng mẫu
 
 def refusal(text: str):
+    """Trả (lời từ chối, có chặn hẳn không) hoặc None."""
     low = text.lower()
-    reasons = [msg for pat, msg in REFUSE_PATTERNS if re.search(pat, low)]
-    if not reasons:
+    hits = [(kind, msg) for kind, pat, msg in REFUSE_PATTERNS if re.search(pat, low)]
+    if not hits:
         return None
-    return ("Xin lỗi, mình không làm được yêu cầu này.\n\n" + "\n".join(f"- {r}" for r in reasons) +
-            "\n\nMình vẫn có thể giúp nhóm xếp hoặc chỉnh lịch trình du lịch: cho mình biết điểm đến, số ngày, "
-            "số người và ngân sách mỗi người nhé.")
+    kinds = {k for k, _ in hits}
+    reasons = [msg for _, msg in hits]
+    if re.search(LODGING, low):
+        reasons.append(LODGING_NOTE)
+    head = "Xin lỗi, mình không làm được yêu cầu này." if kinds - {"booking"} else "Phần này mình không làm được:"
+    body = head + "\n\n" + "\n".join(f"- {r}" for r in reasons)
+    blocking = bool(kinds - {"booking"})
+    if not blocking:
+        r = parse_regex(text)
+        blocking = not (r["city"] and (r["days"] or r["window_start"]) and r["people"] and r["budgets_per_person_vnd"])
+    if blocking:
+        body += ("\n\nMình vẫn có thể giúp nhóm soạn bản nháp lịch trình để nhóm trưởng duyệt: cho mình biết điểm đến, "
+                 "số ngày, số người và ngân sách mỗi người nhé.")
+    return body, blocking
 
 
 def missing_info(req: dict):
@@ -223,26 +287,74 @@ def budget_conflict(req: dict, cands: list) -> str:
     return "\n".join(lines)
 
 
+def split_unknown_must(req: dict) -> list:
+    """Tách khỏi must_visit các nơi không xếp giờ được vì kho thiếu giờ hoặc chưa có trong kho. Trả danh sách đó."""
+    by_id = _all_places()
+    hot = {slug(p["name"]): p for p in get_trending_spots(req["city"])}
+    unknown, keep = [], []
+    for pid in req["must_visit"]:
+        p = by_id.get(pid)
+        if p and has_hours(p):
+            keep.append(pid)
+        elif p:
+            unknown.append({"id": pid, "name": p["name"], "area": p.get("area"), "in_store": True,
+                            "price": p.get("avg_price_vnd"), "hot": slug(p["name"]) in hot or bool(p.get("is_hot"))})
+        else:
+            rec = hot.get(pid.split(":", 1)[-1], {})
+            unknown.append({"id": None, "name": rec.get("name", pid), "area": None, "in_store": False,
+                            "price": None, "hot": True})
+    req["must_visit"] = keep
+    return unknown
+
+
+def unknown_must_note(unknown: list) -> str:
+    lines = ["**Chưa đủ dữ liệu để xếp chính xác các điểm nhóm yêu cầu** (mình không tự điền giờ hay giá):"]
+    for u in unknown:
+        if u["in_store"]:
+            price = (f"giá/người {vnd(u['price'])} (từ kho)" if u["price"] is not None
+                     else "giá/người: chưa có dữ liệu từ công cụ [Cần kiểm tra & điền tay]")
+            lines.append(f"- {u['name']} ({u['id']}, khu {u['area'] or 'chưa rõ'}): giờ mở cửa: chưa có dữ liệu từ công cụ "
+                         f"[Cần kiểm tra & điền tay]; {price}." + (" Có trong kho quán hot." if u["hot"] else ""))
+        else:
+            lines.append(f"- {u['name']}: mới có trong kho quán hot thu trước, chưa khớp được địa điểm trong kho — "
+                         "địa chỉ, giờ mở cửa, giá/người: chưa có dữ liệu [Cần kiểm tra & điền tay].")
+    lines.append("Khi nhóm trưởng điền giờ thật, mình xếp lại có các điểm này. Phần còn lại của lịch mình xếp từ các nơi "
+                 "có đủ dữ liệu:")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- B3: ứng viên
 
-def candidates(req: dict, budget: int) -> list:
+def _liked(p: dict, s: str) -> bool:
+    """Tên nơi bắt đầu bằng món/loại nhóm nêu trong câu (phở, bún bò, chè, di tích…)."""
+    first = slug(p["name"]).split("-")[0]
+    return first not in GENERIC_WORDS and bool(re.search(rf"(^|-){re.escape(first)}(-|$)", s))
+
+
+def candidates(req: dict, budget: int, text: str = "") -> list:
     city = req["city"]
+    s = slug(text)
     rows = search_places(city, "chay" if req["vegetarian"] else "")
-    hot_ids = {p["id"] for p in get_trending_spots(city)}
+    hot_ids = {p["id"] for p in get_trending_spots(city) if p["id"]}
     by_id = _all_places()
     must = set(req["must_visit"])
     out = []
     for p in rows:
-        if budget and p["avg_price_vnd"] is None and p["id"] not in must:
-            continue  # có ngân sách thì chỉ dùng nơi có giá để tổng tiền kiểm được
-        full = dict(by_id[p["id"]])
-        full["hot"] = p["id"] in hot_ids
-        out.append(full)
+        full = by_id[p["id"]]
+        if p["id"] not in must:
+            if not has_hours(full):
+                continue  # thiếu giờ thì không xếp được giờ
+            if budget and p["avg_price_vnd"] is None:
+                continue  # có ngân sách thì chỉ dùng nơi có giá để tổng tiền kiểm được
+            if req["indoor"] and full["category"] in ("sightseeing", "activity") and \
+                    not re.search(INDOOR_NAME, full["name"].lower() + " "):
+                continue
+        out.append(dict(full, hot=p["id"] in hot_ids, liked=_liked(full, s), near=full.get("area") in req["areas"]))
     if req["vegetarian"]:
         for pid in must:  # điểm bắt buộc vẫn giữ dù không rõ món chay
             if pid not in {p["id"] for p in out}:
-                out.append(dict(by_id[pid], hot=pid in hot_ids))
-    out.sort(key=lambda p: (p["id"] not in must, not p["hot"], p.get("avg_price_vnd") is None,
+                out.append(dict(by_id[pid], hot=pid in hot_ids, liked=False, near=False))
+    out.sort(key=lambda p: (p["id"] not in must, not p["liked"], not p["near"], not p["hot"], p.get("avg_price_vnd") is None,
                             p.get("avg_price_vnd") or 0, p["name"]))
     out = out[:MAX_CANDIDATES]
     for i, p in enumerate(out, 1):
@@ -251,6 +363,16 @@ def candidates(req: dict, budget: int) -> list:
 
 
 # ---------------------------------------------------------------- B4: khả thi
+
+def must_cost_check(req: dict, budget: int):
+    """Tổng giá các điểm bắt buộc (từ kho) so với ngân sách. Trả (tổng, các dòng giá) khi vượt, không thì None."""
+    by_id = _all_places()
+    priced = [by_id[i] for i in req["must_visit"] if by_id[i].get("avg_price_vnd") is not None]
+    total = sum(p["avg_price_vnd"] for p in priced)
+    if not budget or total <= budget:
+        return None
+    return total, [f"{p['name']} ({p['id']}): {vnd(p['avg_price_vnd'])}/người" for p in priced]
+
 
 def min_cost(req: dict, cands: list):
     """Chi phí tối thiểu/người theo giá rẻ nhất trong dữ liệu (mỗi bữa một quán khác nhau)."""
@@ -331,13 +453,16 @@ def day_slots(req: dict, day: int):
 
 
 def plan_day(req, slots, ws, we, pool, must, budget_left):
-    """Tìm theo chiều sâu: mỗi khung chọn một nơi hoặc bỏ trống. Điểm: bắt buộc > số mục > quán hot > rẻ."""
+    """Tìm theo chiều sâu: mỗi khung chọn một nơi hoặc bỏ trống. Điểm: bắt buộc > số mục > món nhóm nêu > hot > rẻ."""
     best = {"score": -1, "items": []}
 
     def score(items):
         return (sum(100 for it in items if it[0]["id"] in must) + 10 * len(items) +
-                sum(5 for it in items if it[3] in ("Bữa trưa", "Sáng sớm")) +
+                sum(5 for it in items if it[3] in ("Bữa trưa", "Sáng sớm")) + sum(6 for it in items if it[0]["category"] == "food") +
                 sum(20 for it in items if it[3] == "Sáng sớm" and it[0]["id"] in must) +
+                sum(8 for it in items if it[0].get("liked")) + sum(4 for it in items if it[0].get("near")) +
+                12 * len(set(req.get("wanted", [])) & {it[0]["category"] for it in items}) +
+                sum(40 for it in items if req.get("morning_dish") and it[0].get("liked") and it[3].startswith("Bữa sáng")) +
                 sum(3 for it in items if it[0]["hot"]) - sum((it[0]["avg_price_vnd"] or 0) for it in items) / 1e6)
 
     def go(i, t, prev, items, cost, used):
@@ -355,8 +480,7 @@ def plan_day(req, slots, ws, we, pool, must, budget_left):
             if budget_left is not None and cost + price > budget_left:
                 continue
             s = max(a, p["open_min"], t + (_travel(prev, p) if prev else 0))
-            dur_p = dur if p["category"] in cats else DURATION[p["category"]]
-            e = s + dur_p
+            e = s + dur
             if s > b or e > min(we, p["close_min"]):
                 continue
             items.append((p, s, e, name))
@@ -375,8 +499,8 @@ def draft(req: dict, cands: list, budget: int):
     used, plan, spent = set(), [], 0
     for d in range(1, days + 1):
         slots, ws, we = day_slots(req, d)
-        pool = [p for p in cands if p["id"] not in used]
-        left = None if not budget else (budget - spent) // (days - d + 1) + (0 if d < days else 0)
+        pool = [p for p in cands if p["id"] not in used and has_hours(p)]
+        left = None if not budget else (budget - spent) // (days - d + 1)
         if budget and d < days:
             left = max(left, (budget - spent) // 2)
         items = plan_day(req, slots, ws, we, pool, must - used, left)
@@ -448,6 +572,13 @@ def select(text, req, cands, plan, budget, calls):
 
 # ---------------------------------------------------------------- B10: in kết quả
 
+def _line(it, p, hot, extra=""):
+    price = vnd(p["avg_price_vnd"]) + "/người" if p.get("avg_price_vnd") is not None else "giá chưa có — [Cần kiểm tra & điền tay]"
+    tag = " · đang hot" if hot else ""
+    return (f"- {it['start']}–{it['end']}  {p['name']} ({CAT_VI.get(p['category'], p['category'])}, "
+            f"{p.get('area') or 'chưa rõ khu'}; mở {hhmm(p['open_min'])}–{hhmm(p['close_min'])}) — {price}{tag}{extra}")
+
+
 def render(req, plan, res, reasons, budget, cands) -> str:
     by_id = {p["id"]: p for p in cands} | _all_places()
     hot = {p["id"] for p in cands if p.get("hot")}
@@ -464,10 +595,7 @@ def render(req, plan, res, reasons, budget, cands) -> str:
             p = by_id[it["id"]]
             if prev:
                 lines.append(f"   ↓ di chuyển khoảng {_travel(prev, p)} phút")
-            price = vnd(p["avg_price_vnd"]) + "/người" if p.get("avg_price_vnd") is not None else "giá chưa có — [Cần kiểm tra & điền tay]"
-            tag = " · đang hot" if it["id"] in hot else ""
-            lines.append(f"- {it['start']}–{it['end']}  {p['name']} ({p['category']}, {p.get('area') or 'chưa rõ khu'}; "
-                         f"mở {hhmm(p['open_min'])}–{hhmm(p['close_min'])}) — {price}{tag}")
+            lines.append(_line(it, p, it["id"] in hot))
             prev = p
     total = res["total_per_person_vnd"]
     lines.append(f"\n**Tổng chi phí ước tính: {vnd(total)}/người**" +
@@ -482,6 +610,10 @@ def render(req, plan, res, reasons, budget, cands) -> str:
         why.append("ưu tiên các quán đang hot trong kho thu trước")
     if req["vegetarian"]:
         why.append("chỉ chọn nơi được ghi là có món chay")
+    if req["areas"]:
+        why.append("ưu tiên nơi thuộc " + ", ".join(req["areas"]))
+    if req["indoor"]:
+        why.append("trời mưa nên điểm tham quan chỉ lấy nơi trong nhà (đoán theo tên, cần kiểm tra lại)")
     why.append("mọi điểm nằm trong giờ mở cửa và có đủ thời gian di chuyển giữa hai điểm")
     lines.append("\nLý do chọn: " + "; ".join(why) + ".")
     if res["warnings"]:
@@ -514,49 +646,211 @@ def infeasible_budget(req, budget, cost, parts) -> str:
             "Nhóm trưởng chọn hướng nào thì mình xếp lại.")
 
 
+def infeasible_must_budget(budget, total, rows) -> str:
+    return (f"Mình **không xếp được đủ các điểm nhóm chọn với ngân sách {vnd(budget)}/người**.\n\n"
+            "Giá/người theo dữ liệu công cụ:\n" + "\n".join(f"- {r}" for r in rows) +
+            f"\n\nRiêng các điểm này đã là **{' + '.join(r.rsplit(': ', 1)[1].split('/')[0] for r in rows)} = "
+            f"{vnd(total)}/người**, vượt ngân sách {vnd(total - budget)}/người — chưa tính các bữa khác. "
+            "Mình không hạ giá xuống cho vừa vì như vậy là bịa số.\n\n"
+            f"Nhóm có thể chọn: nới ngân sách lên ít nhất {vnd(total)}/người, hoặc bớt điểm (giữ những nơi rẻ hơn). "
+            "Nhóm trưởng chọn hướng nào thì mình xếp lại.")
+
+
+# ---------------------------------------------------------------- G: lấp khoảng trống trong plan gốc
+
+PLAN_ITEM = re.compile(r"(\d{1,2}[:h]\d{2})\s*(?:–|-|—|đến)\s*(\d{1,2}[:h]\d{2})\s*[^()\n]*?\(([A-Z]{2,3}-\d{2})\)")
+
+
+def parse_base_plan(text: str):
+    """Plan gốc người dùng dán vào: các mục "HH:MM–HH:MM Tên (MÃ)". Trả list item hoặc None."""
+    if not re.search(r"plan gốc|lịch gốc|khoảng trống|lấp", text.lower()):
+        return None
+    by_id = _all_places()
+    m = re.search(r"ngày\s*(\d+)", text.lower())
+    day = int(m.group(1)) if m else 1
+    items = [{"day": day, "id": pid, "start": hhmm(to_min(a)), "end": hhmm(to_min(b))}
+             for a, b, pid in PLAN_ITEM.findall(text) if pid in by_id]
+    return items if len(items) >= 2 else None
+
+
+def gap_options(gap, items, budget, spent):
+    """Ứng viên gần điểm trước khoảng trống, code xếp giờ: đến sau khi đi, rời đủ sớm để kịp điểm sau."""
+    by_id = _all_places()
+    a, b = by_id[gap["from_id"]], by_id[gap["to_id"]]
+    used = {it["id"] for it in items}
+    opts = []
+    for p in search_nearby(gap["from_id"], gap["categories"], NEARBY_MIN):
+        full = by_id[p["id"]]
+        if p["id"] in used or not has_hours(full) or (budget and full.get("avg_price_vnd") is None):
+            continue
+        t_in, t_out = _travel(a, full), _travel(full, b)
+        s = max(to_min(gap["free_from"]) + t_in, full["open_min"])
+        latest = min(to_min(gap["free_to"]) - t_out, full["close_min"])
+        dur = min(DURATION[full["category"]], latest - s)
+        price = full.get("avg_price_vnd") or 0
+        if dur < MIN_STAY or (budget and spent + price > budget):
+            continue
+        opts.append({"place": full, "start": hhmm(s), "end": hhmm(s + dur), "t_in": t_in, "t_out": t_out,
+                     "price": price, "hot": bool(full.get("is_hot"))})
+    opts.sort(key=lambda o: (not o["hot"], o["t_in"], o["price"], o["place"]["id"]))
+    return opts[:3]
+
+
+def pick_option(text, gap, opts, items, budget, calls):
+    """Model chọn 1 trong các phương án code đã xếp giờ; sai mẫu hoặc không hợp lệ thì lấy phương án đầu."""
+    for i, o in enumerate(opts, 1):
+        o["code"] = f"c{i}"
+    table = "\n".join(f"{o['code']} | {o['place']['name']} | {o['place']['category']} | {o['start']}-{o['end']} | "
+                      f"đi {o['t_in']} phút | giá {vnd(o['price'])}" for o in opts)
+    calls.append(1)
+    got = _json(call_model(SYSTEM, f"Yêu cầu nhóm:\n{text}\n\nCác phương án lấp khoảng trống (code đã xếp giờ):\n{table}\n\n"
+                                   'Chọn một mã hợp yêu cầu nhất. Trả JSON: {"code": "c1", "reason": "1 câu tiếng Việt, '
+                                   'không nêu con số"}')["text"])
+    chosen = next((o for o in opts if isinstance(got, dict) and o["code"] == str(got.get("code"))), None)
+    if chosen:
+        trial = items + [{"day": gap["day"], "id": chosen["place"]["id"], "start": chosen["start"], "end": chosen["end"]}]
+        if check_itinerary(trial, budget)["valid"]:
+            reason = got.get("reason")
+            return chosen, (str(reason)[:300] if reason else None)
+        note("G: phương án model chọn không qua check_itinerary — lấy phương án đầu của code")
+    else:
+        note("G: model không trả mã phương án đúng mẫu — lấy phương án đầu của code")
+    return opts[0], None
+
+
+def fill_gaps(text: str, items: list, calls: list) -> str:
+    by_id = _all_places()
+    city = by_id[items[0]["id"]]["city"]
+    budgets = parse_regex(text)["budgets_per_person_vnd"]
+    budget = budgets[0] if budgets else 0
+    base = check_itinerary(items, 0)
+    gaps = analyze_plan_gaps(items)
+    note(f"G: {len(items)} mục gốc, {len(gaps)} khoảng trống: " +
+         ", ".join(f"{g['free_from']}-{g['free_to']} {g['kind']} {g['gap_min']}p" for g in gaps))
+    lines = [f"**Bản nháp đề xuất lấp khoảng trống — {city}, ngày {items[0]['day']}**",
+             "(Roa chỉ đề xuất: plan gốc giữ nguyên; nhóm trưởng duyệt trước khi áp dụng thành phiên bản mới.)"]
+    if base["violations"]:
+        lines.append("\nPlan gốc đang có chỗ cần xem lại:\n" + "\n".join(f"- {v}" for v in base["violations"]))
+    added, spent = [], base["total_per_person_vnd"]
+    for g in gaps:
+        a, b = by_id[g["from_id"]], by_id[g["to_id"]]
+        head = (f"\nKhoảng trống {g['free_from']}–{g['free_to']} giữa {a['name']} và {b['name']}: trừ khoảng "
+                f"{g['travel_min']} phút di chuyển còn {g['gap_min']} phút")
+        if g["kind"] == "short":
+            lines.append(head + " — dưới 45 phút nên không chèn thêm điểm.")
+            continue
+        cats = ", ".join(CAT_VI[c] for c in g["categories"])
+        lines.append(head + f" → tìm {cats} trong khoảng {NEARBY_MIN} phút đi xe quanh {a['name']} "
+                            "(analyze_plan_gaps, search_nearby).")
+        opts = gap_options(g, items + added, budget, spent)
+        if not opts:
+            lines.append(f"Không có nơi nào trong kho vừa khoảng trống, đúng giờ mở cửa"
+                         f"{' và ngân sách' if budget else ''}. Nhóm có thể để trống hoặc tự tìm [Cần kiểm tra & điền tay].")
+            continue
+        chosen, reason = pick_option(text, g, opts, items + added, budget, calls)
+        added.append({"day": g["day"], "id": chosen["place"]["id"], "start": chosen["start"], "end": chosen["end"]})
+        spent += chosen["price"]
+        g["chosen"], g["others"], g["reason"] = chosen, [o for o in opts if o is not chosen], reason
+    if not added:
+        lines.append("\nMình chưa thêm điểm nào; plan gốc giữ nguyên.")
+        return "\n".join(lines)
+    plan = items + added
+    res = check_itinerary(plan, budget)
+    note(f"G: check_itinerary valid={res['valid']}, tổng {res['total_per_person_vnd']}")
+    if not res["valid"]:
+        return "\n".join(lines + ["\nMình chưa xếp được phương án hợp lệ:"] + [f"- {v}" for v in res["violations"]])
+    new_ids = {it["id"] for it in added}
+    lines.append(f"\n**Ngày {items[0]['day']} sau khi thêm**")
+    prev = None
+    for it in sorted(plan, key=lambda x: to_min(x["start"])):
+        p = by_id[it["id"]]
+        if prev:
+            lines.append(f"   ↓ di chuyển khoảng {_travel(prev, p)} phút")
+        lines.append(_line(it, p, bool(p.get("is_hot")), "  **← đề xuất thêm**" if it["id"] in new_ids else "  (giữ nguyên)"))
+        prev = p
+    for g in gaps:
+        if g.get("chosen"):
+            if g["reason"]:
+                lines.append(f"\nVì sao chọn {g['chosen']['place']['name']}: {g['reason']}")
+            if g["others"]:
+                lines.append("Phương án khác cho khoảng trống này: " + "; ".join(
+                    f"{o['place']['name']} {o['start']}–{o['end']} ({vnd(o['price'])}/người, đi {o['t_in']} phút)"
+                    for o in g["others"]) + ".")
+    total = res["total_per_person_vnd"]
+    lines.append(f"\n**Tổng chi phí ước tính: {vnd(total)}/người**" +
+                 (f" (≤ ngân sách {vnd(budget)}/người)" if budget else "") + " — đã kiểm bằng check_itinerary.")
+    if res["warnings"]:
+        lines.append("\nLưu ý:\n" + "\n".join(f"- {w}" for w in res["warnings"]))
+    lines.append("\nĐây là đề xuất nháp; nhóm trưởng xem và quyết định có áp dụng thành phiên bản mới hay không.")
+    return "\n".join(lines)
+
+
 # ---------------------------------------------------------------- answer
 
 def answer(text: str) -> dict:
     calls = []
-    msg = refusal(text)
-    if msg:
-        note("B2: từ chối bằng mẫu — ngoài phạm vi hoặc hỏi thông tin bí mật")
-        return {"output": msg}
+    prefix = []
+    got = refusal(text)
+    if got:
+        msg, blocking = got
+        if blocking:
+            note("B2: từ chối bằng mẫu — ngoài phạm vi, tự áp dụng hoặc hỏi thông tin bí mật")
+            return {"output": msg}
+        note("B2: từ chối phần đặt chỗ/thanh toán, vẫn soạn lịch")
+        prefix.append(msg)
+    base_items = parse_base_plan(text)
+    if base_items:
+        note("G: có plan gốc kèm mã điểm — nhánh lấp khoảng trống")
+        return {"output": fill_gaps(text, base_items, calls)}
     req = parse(text, calls)
     note(f"B1: {json.dumps({k: v for k, v in req.items() if v not in (None, [], False)}, ensure_ascii=False)}")
+    if req["lodging"] and not prefix:
+        prefix.append(LODGING_NOTE)
+
+    def out(body):
+        return {"output": "\n\n".join(prefix + [body])}
+
     if req["city"] and not search_places(req["city"]):
         note(f"B2: chưa có kho cho {req['city']} — trả khung điền tay")
-        return {"output": no_data(req)}
+        return out(no_data(req))
     msg = missing_info(req)
     if msg:
         note("B2: thiếu thông tin — hỏi lại")
-        return {"output": msg}
+        return out(msg)
+    unknown = split_unknown_must(req)
+    if unknown:
+        note(f"B2: {len(unknown)} điểm bắt buộc thiếu giờ hoặc chưa có trong kho — gắn nhãn điền tay")
+        prefix.append(unknown_must_note(unknown))
     budgets = req["budgets_per_person_vnd"]
     if len(budgets) > 1:
         note("B2: ngân sách mâu thuẫn trong nhóm — nêu phương án, hỏi nhóm trưởng")
-        return {"output": budget_conflict(req, candidates(req, 0))}
+        return out(budget_conflict(req, candidates(req, 0, text)))
     budget = budgets[0] if budgets else 0
-    cands = candidates(req, budget)
+    over = must_cost_check(req, budget)
+    if over:
+        note(f"B4: giá các điểm bắt buộc {over[0]} > ngân sách {budget}")
+        return out(infeasible_must_budget(budget, *over))
+    cands = candidates(req, budget, text)
     if not cands:
-        return {"output": no_data(req)}
+        return out(no_data(req))
     note(f"B3: {len(cands)} ứng viên")
     if budget:
         cost, parts = min_cost(req, cands)
         if cost is not None and cost > budget:
             note(f"B4: chi phí tối thiểu {cost} > ngân sách {budget}")
-            return {"output": infeasible_budget(req, budget, cost, parts)}
+            return out(infeasible_budget(req, budget, cost, parts))
     ok, detail, best = must_visit_check(req, cands)
     if not ok:
         note("B4: các điểm bắt buộc không vừa khung giờ")
-        return {"output": infeasible_must(req, detail, best)}
+        return out(infeasible_must(req, detail, best))
     plan = draft(req, cands, budget)
     if not plan:
-        return {"output": "Mình không tìm được điểm nào vừa giờ mở cửa và ngân sách trong khung nhóm nêu. "
-                          "Nhóm thử nới khung giờ hoặc ngân sách giúp mình nhé."}
+        return out("Mình không tìm được điểm nào vừa giờ mở cửa và ngân sách trong khung nhóm nêu. "
+                   "Nhóm thử nới khung giờ hoặc ngân sách giúp mình nhé.")
     get_opening_hours([it["id"] for it in plan])
     plan, reasons = select(text, req, cands, plan, budget, calls)
     res = check(plan, req, budget)
     note(f"B8: check_itinerary valid={res['valid']}, tổng {res['total_per_person_vnd']}")
     if not res["valid"]:
-        return {"output": "Mình chưa xếp được lịch hợp lệ:\n- " + "\n- ".join(res["violations"])}
-    return {"output": render(req, plan, res, reasons, budget, cands)}
+        return out("Mình chưa xếp được lịch hợp lệ:\n- " + "\n- ".join(res["violations"]))
+    return out(render(req, plan, res, reasons, budget, cands))

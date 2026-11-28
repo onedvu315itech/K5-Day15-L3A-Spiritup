@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Phiên bản | 0.1 |
+| Phiên bản | 0.2 |
 | Trạng thái | Nháp, mô tả code trên nhánh `feat/kho-du-lieu-va-agent-roa` |
 | Người phụ trách | Khương (agent, dữ liệu đầu ra) |
 | Cập nhật | 2026-11-28 |
-| Đi kèm | `ARCHITECTURE.md` §3.3, §7 · `docs/roa-agent-design.md` (thiết kế, phương án) · `spec.md` §4 · `data/DATA_CARD.md` Dataset 2 |
+| Đi kèm | `ARCHITECTURE.md` §3.3, §7 · `docs/roa-agent-design.md` (thiết kế, phương án) · `spec.md` §4 · `data/DATA_CARD.md` Dataset 2a, 2b, 3 |
 
 File này mô tả **Roa đang chạy thế nào trong code**: thành phần, luồng `generate`, ai gọi ai, số nào do code tính. Vì sao chọn cách này và các phương án còn bàn ở `docs/roa-agent-design.md`. Code là nguồn đúng; đổi code thì sửa file này trong cùng PR.
 
@@ -59,7 +59,9 @@ flowchart TB
 flowchart TD
   IN(["answer(text)"]) --> R{"B2 · Có ý từ chối?<br/>đặt bàn, lưu thẳng v2,<br/>prompt hệ thống, API key"}
   R -- có --> OUT_R["Mẫu từ chối<br/>+ nhắc phạm vi"]
-  R -- không --> P["B1 · Tách yêu cầu<br/>regex + model (JSON)"]
+  R -- không --> G{"Có plan gốc kèm mã<br/>và nhờ lấp khoảng trống?"}
+  G -- có --> OUT_G["Nhánh G · lấp khoảng trống<br/>(mục 2.1)"]
+  G -- không --> P["B1 · Tách yêu cầu<br/>regex + model (JSON)"]
   P --> C{"Thành phố có kho?"}
   C -- không --> OUT_N["Mẫu chưa có dữ liệu<br/>khung [Cần kiểm tra & điền tay]"]
   C -- có --> M{"Thiếu ngày / người / ngân sách?"}
@@ -102,6 +104,27 @@ flowchart TD
 | B10 in | `render`, `infeasible_*` | Code | Tổng tiền chỉ cộng mục có giá; nơi thuộc bộ mẫu CP2 ghi "chưa xác minh" |
 
 Số lần gọi model mỗi câu: 0 (từ chối), 1 (dừng sau B1), 2 (bình thường), 3 (có sửa). Giới hạn `MAX_STEPS = 5`.
+
+**Bổ sung khi gộp nhánh (28/11):**
+- Từ chối chia hai loại. Lộ prompt/key và tự áp dụng plan luôn chặn. Đặt chỗ, đặt cọc chỉ chặn khi câu thiếu thành phố, số ngày, số người hoặc ngân sách; đủ thì in câu "không có chức năng đặt" lên đầu rồi vẫn xếp lịch (B20). Hỏi chỗ ở thì nói rõ kho chưa có dữ liệu chỗ ở.
+- Điểm bắt buộc không có trong kho hoặc thiếu giờ (`split_unknown_must`) được tách ra mục `[Cần kiểm tra & điền tay]`, không xếp giờ cho nơi đó; phần còn lại vẫn xếp (B19).
+- `must_cost_check` (B22): cộng giá các điểm bắt buộc trước; đã vượt ngân sách thì báo không xếp được kèm số tiền, không dựng bản nháp.
+- Khu nhóm nêu ("Quận 1", "Phường …") là điểm cộng, không phải bộ lọc, để còn đủ quán ăn. Loại điểm nhóm nêu trong câu (`WANTED`: tham quan, cà phê, ăn vặt, vui chơi) và món sáng nêu rõ (B14: "sáng ăn phở") được cộng điểm khi dựng bản nháp.
+
+### 2.1 Nhánh G · lấp khoảng trống trong plan gốc (B17, B18)
+
+Chạy khi câu có từ "plan gốc", "lấp", "khoảng trống"… và ít nhất hai mục dạng `HH:MM–HH:MM Tên (MÃ)`. Plan gốc giữ nguyên, Roa chỉ đề xuất thêm.
+
+| Bước | Hàm | Ai làm |
+|---|---|---|
+| Đọc plan gốc | `parse_base_plan` | Code (regex), mã phải có trong kho |
+| Tìm khoảng trống | `analyze_plan_gaps` | Công cụ: trừ thời gian đi, < 45 phút không chèn, 45–90 ăn vặt/cà phê, > 90 thêm tham quan/vui chơi |
+| Ứng viên | `gap_options` → `search_nearby` (≤ 15 phút) | Code tính giờ chèn (sau khi đi tới, trước khi đi tiếp, ít nhất 30 phút, trong giờ mở cửa), giữ 3 phương án |
+| Chọn | `pick_option` | Model chọn một mã `c1..c3`; sai mẫu thì lấy phương án đầu |
+| Kiểm | `check_itinerary` trên plan gốc + mục mới | Công cụ; phương án nào làm hỏng lịch thì bỏ |
+| In | `fill_gaps` | Code: mục gốc ghi "(giữ nguyên)", mục mới "← đề xuất thêm", các phương án khác, tổng tiền, nhắc chỉ là bản nháp |
+
+Gọi model 0 lần (không có khoảng trống đủ dài) hoặc 1 lần.
 
 ### Ai gọi ai trong một câu bình thường
 
@@ -160,7 +183,11 @@ Mỗi ngày chia thành các khung. Mỗi khung chọn một nơi hợp loại h
 | `get_trending_spots` | `city` | nơi có `is_hot` | Không |
 | `get_opening_hours` | `place_ids` | `{id: {name, open, close}}` | Không |
 | `get_travel_time` | mã A, mã B | số phút xe máy | Không (ước tính bằng code, không gọi dịch vụ chỉ đường) |
-| `check_itinerary` | `items [{day, id, start, end}]`, `budget_per_person_vnd`, `window_start`, `window_end` | `{valid, total_per_person_vnd, unpriced, violations, warnings}` | Không |
+| `analyze_plan_gaps` | `items [{day, id, start, end}]` | mỗi khoảng trống: `from_id`, `to_id`, `free_from`, `free_to`, `travel_min`, `gap_min`, `kind` (short/medium/long), `categories` | Không |
+| `search_nearby` | `place_id`, `categories`, `max_travel_min` (15) | điểm cùng thành phố đúng loại, kèm `travel_min`, gần trước | Không |
+| `check_itinerary` | `items [{day, id, start, end}]`, `budget_per_person_vnd`, `window_start`, `window_end` | `{valid, total_per_person_vnd, unpriced, missing_data, violations, warnings}` | Không |
+
+Bản gộp đã gỡ `lookup_place_details` và phần tra Google, VIETMAP, Tavily lúc chạy của nhánh kia: tra web lúc chạy chờ OQ-22 và làm lệch nhánh "chưa có dữ liệu" (B08, B21). Mã lạ: `get_opening_hours` bỏ qua, `get_travel_time` trả mức mặc định.
 
 **Thời gian đi** (`_travel`):
 - Hai nơi cùng có toạ độ: đường chim bay × 1,7 ÷ 25 km/h + 5 phút gửi xe, tối thiểu 10 phút *(tự ước tính; hệ số 1,7 đo trên 2 chặng ở `docs/roa-agent-design.md` §2.1)*.
@@ -169,7 +196,7 @@ Mỗi ngày chia thành các khung. Mỗi khung chọn một nơi hợp loại h
 **Vi phạm cứng** (làm `valid = false`): ngoài giờ mở cửa · giờ kết thúc không sau giờ bắt đầu · chồng giờ · không đủ thời gian đi · ngoài khung giờ nhóm nêu · tổng tiền vượt ngân sách · mã không có trong kho.
 **Cảnh báo** (vẫn hợp lệ): nơi chưa có giá (không cộng vào tổng) · nơi thuộc bộ mẫu CP2.
 
-## 5. Kho địa điểm (`data/places/<slug>.json`)
+## 5. Kho địa điểm (`data/places/<slug>.json`, `data/places_vn.json`)
 
 ```json
 {
@@ -187,7 +214,11 @@ Mỗi ngày chia thành các khung. Mỗi khung chọn một nơi hợp loại h
 
 - Tên file là `slug(city)`: "Đà Lạt" → `da-lat.json`. Thêm thành phố = chạy lại `build_place_store.py` với `--city`, không sửa code.
 - Giờ tính theo phút từ 0h; đóng qua nửa đêm thì `close_min > 1440`.
-- Hiện có 94 nơi Đà Lạt (8 `mau_cp2`, 86 `osm_geoapify`). Chi tiết ở `data/DATA_CARD.md` Dataset 2.
+- `data/places/da-lat.json`: 94 nơi Đà Lạt (8 `mau_cp2`, 86 `osm_geoapify`), Dataset 2a.
+- `data/places_vn.json`: 66 nơi ở 5 thành phố (Đà Lạt 15, Hà Nội 13, Đà Nẵng 13, TP.HCM 13, Huế 12), có toạ độ và loại `snack`, `activity`; giờ `open_hour`/`close_hour` đổi sang phút khi nạp. Dataset 2b.
+- Công cụ nạp cả hai; trùng mã (`DL-01`–`DL-08`) thì bản ghi ở `places_vn.json` thắng. Tổng sau gộp: 152 nơi (Đà Lạt 101).
+- `data/trending_spots.json` (Dataset 3): quán hot thu trước; bản ghi chưa khớp địa điểm trong kho có `id = None` và chỉ được nêu tên, không xếp giờ.
+- Tên thành phố nhận cả không dấu và tên gọi khác ("Sài Gòn" → TP.HCM).
 
 ## 6. Nhánh trả lời ↔ bộ câu thử
 
@@ -199,7 +230,13 @@ Mỗi ngày chia thành các khung. Mỗi khung chọn một nơi hợp loại h
 | Chưa có dữ liệu | B08 | Khung `[Cần kiểm tra & điền tay]` |
 | Mâu thuẫn ngân sách | B09 | 3 phương án, hỏi nhóm trưởng |
 | Không xếp được, giờ | B10 | Lý do giờ mở cửa và thời gian đi, giữ 2 điểm |
-| Từ chối | B11, B12 | Mẫu từ chối |
+| Từ chối | B11, B12, B23, B24 | Mẫu từ chối, không gọi model |
+| Lịch thành phố khác | B13 (Đà Nẵng, có bảo tàng Chăm), B14 (Hà Nội, sáng phở), B15 (Huế chay), B16 (TP.HCM, Quận 1/3) | Ra lịch trong ngân sách |
+| Lấp khoảng trống | B17, B18 | Giữ plan gốc, chèn một món ăn vặt giữa hai mục |
+| Điểm bắt buộc thiếu dữ liệu | B19 | Mục `[Cần kiểm tra & điền tay]` rồi xếp phần còn lại |
+| Đặt chỗ + đủ thông tin | B20 | Câu từ chối đặt chỗ, nói chưa có dữ liệu chỗ ở, vẫn xếp lịch 2 ngày |
+| Chưa có dữ liệu | B21 | Như B08 |
+| Điểm bắt buộc vượt ngân sách | B22 | 400.000đ/người > 120.000đ, không xếp được |
 
 Kết quả trên chưa chấm cột `pass` và chưa có lượt model thật.
 
@@ -207,7 +244,7 @@ Kết quả trên chưa chấm cột `pass` và chưa có lượt model thật.
 
 | Giới hạn | Ảnh hưởng | Hướng xử lý | Ai |
 |---|---|---|---|
-| Chưa nối model thật (OQ-01) | B1 và B6 đang chạy dự phòng; chưa có `eval/run-1.csv` hợp lệ | Chốt OQ-01, viết `ai.py` | Toàn, Đức |
+| Chưa chốt model (OQ-01) | `ai.py` đã nối Gemini, OpenRouter nhưng run-1..3 chạy luồng cũ của nhánh kia; luồng gộp chưa có lượt model thật | Chốt OQ-01, chạy `python run.py eval` (tạo run-4) với key thật | Nhóm |
 | 86 nơi OSM chưa có giá | Câu có ngân sách gần như chỉ dùng 8 nơi mẫu | Tra giá theo đợt bằng Tavily (`docs/roa-agent-design.md` §3.1) | Khương, sau CP3 |
 | Độ hot chỉ có ở bộ mẫu | "Quán hot" chưa phản ánh dữ liệu thật | Đưa kết quả `spike_tiktok_trending.py` vào kho | Khương |
 | Chưa hiểu "trong thành phố" / "ngoại ô" | B02 có thể xếp Cầu Đất cho buổi chiều | Thêm cờ khu ngoại ô trong kho và lọc ở B3 | Khương |
@@ -219,3 +256,4 @@ Kết quả trên chưa chấm cột `pass` và chưa có lượt model thật.
 | Phiên bản | Ngày | Người sửa | Nội dung |
 |---|---|---|---|
 | 0.1 | 2026-11-28 | Khương | Bản đầu: kiến trúc lớp, luồng B1–B10, khung giờ, công cụ, kho, đối chiếu câu thử |
+| 0.2 | 2026-11-28 | Khương | Gộp nhánh `docs/cp2-benchmark-datacard`: nhánh G lấp khoảng trống, hai công cụ mới, kho 5 thành phố, từ chối hai loại, B13–B24 |
