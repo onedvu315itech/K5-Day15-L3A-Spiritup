@@ -84,14 +84,15 @@ Nhóm dùng stack khác (Node, Streamlit, notebook…): sửa hàm `run_app()` t
 
 | Thành phần | Thật / Giả | Ghi chú |
 |---|---|---|
-| Lời gọi AI ở quyết định trung tâm | **Thật** (bắt buộc từ CP3) | Model: ____ |
-|  |  |  |
+| Lời gọi AI ở quyết định trung tâm | **Thật** | Model: `gpt-4o-mini` (eval CP3/CP4) và `gemini-3.8-flash` (eval & `simulate-1`) |
+| Dữ liệu địa điểm & quán hot | **Thật** (kho thu trước đã làm sạch) | Dữ liệu địa điểm Việt Nam trong `data/` + tra cứu công cụ trong `codebase/tools.py` |
+| Đặt chỗ, đặt bàn, thanh toán | **Không làm** (chỉ tạo bản nháp) | Nhóm trưởng duyệt bản nháp; tự đặt ngoài ứng dụng |
 
 ## Dùng AI vào việc gì
 
 2–3 dòng (bắt buộc): nhóm dùng công cụ AI nào để làm gì, người kiểm lại phần nào. Chi tiết: [docs/ai-usage.md](docs/ai-usage.md). Coding agent đọc [AGENTS.md](AGENTS.md).
 
-____
+Nhóm sử dụng coding agent (Antigravity / Claude Code / Cursor) để hỗ trợ nối API model (`codebase/ai.py`), xây dựng vòng lặp agent + công cụ (`codebase/agent.py`, `tools.py`), mở rộng câu thử `eval/benchmark.csv` từ dữ liệu khảo sát và rà soát tài liệu CP1–CP4. Các thành viên kiểm tra lại toàn bộ bằng `unittest`/`pytest`, `python run.py check`, chấm tay từng câu trong `eval/run-*.csv` và đối chiếu số liệu từ `evidence/survey/results.csv`.
 
 ## File mẫu — điền ở bước nào
 

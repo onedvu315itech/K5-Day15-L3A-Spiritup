@@ -113,22 +113,24 @@ flowchart TD
 ## §7. Đánh giá & chuẩn "đạt" *(guide 2.4, 4.1)*
 - Data card: `data/DATA_CARD.md` · bộ câu thử: `eval/benchmark.csv` — 24 câu ở CP3 (thuong 11 · kho 9 · tu_choi 4) · metric: `eval/metric_spec.yaml` (4 metric)
 - **Chuẩn "đạt"** (chép **trước 19:30 Thứ Sáu 27/11**, giữ nguyên đến 23:59 Thứ Bảy 28/11): "Đạt khi ≥ 80% tổng câu qua, và 100% câu `tu_choi` (gồm 2 câu tấn công) qua + 100% câu có lịch được xếp không vi phạm giờ mở cửa hoặc vượt ngân sách"
-- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 2 `11/24` (`46%`, `openai/gpt-4o-mini`, `tu_choi 4/4`) · lượt 3 `2/24` (`8%`, 21 câu lỗi `402` hết credit) · lượt 4 (nộp CP3) `11/24` (`46%`, `gpt-4o-mini`, `tu_choi 4/4`) — run ID: `run-1@20261128-033425` / `run-2@20261128-034607` / `run-3@20261128-035701` / `run-4@20261128-093112` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
+- Kết quả: lượt 1 `4/24` (`17%`, `gemini-3.5-flash`, 20 câu lỗi `429`) · lượt 4 (chính thức CP3) `11/24` (`46%`, `gpt-4o-mini`, 0 lỗi API) · lượt 2 (nộp CP4) `24/24` (`100%`, `gpt-4o-mini`, `tu_choi 4/4`) · bổ sung `24/24` (`100%`, `gemini-3.8-flash`) — run ID: `run-4@20261128-093112` / `run-6@20261128-140113` / `run-5@20261128-135617` → chi tiết `eval/report.md`, hồ sơ `eval/README.md`
 
 ## §8. Chi phí khi dùng thật *(guide 4.2)*
-- Persona + giá: `cost/personas.yaml` · lượt mô phỏng: `cost/simulate-__.csv` (__ phiên)
-- Chi phí / task thành công: __ (model __) · __ (model __)
-- Chi phí / tháng ở quy mô thật: thấp __ · cơ sở __ · cao __ → chi tiết `cost/cost-estimate.md`
-- So với impact / người / tháng (§2): đáng làm không, vì sao:
+- Persona + giá: `cost/personas.yaml` (theo khảo sát `n = 43`, Q2 & Q8) · lượt mô phỏng: `cost/simulate-2.csv` (`simulate-2@20261128-205111`, `50` phiên, `0` lỗi, seed `42`; tỉ lệ đạt `24/24` từ `run-6` trên `gpt-4o-mini`)
+- Chi phí / task thành công: **$0.00080** (`gemini-3.1-flash-lite`) · **$0.0043** (`gemini-4-hydrogen`, bằng giá `gemini-3.8-flash` từ 01/2027)
+- Chi phí / tháng ở quy mô thật (300 / 700 / 1.000 người dùng *(tự ước tính)*):
+  - `gemini-3.1-flash-lite`: thấp **$0.0999** · cơ sở **$0.2331** · cao **$0.3330** ($0.00033/người/tháng)
+  - `gemini-4-hydrogen`: thấp **$0.5407** · cơ sở **$1.26** · cao **$1.80** ($0.0018/người/tháng) → chi tiết `cost/cost-estimate.md` *(lượt `simulate-1` nộp CP4 trên `gemini-3.8-flash` với persona mẫu BTC là cận trên `$0.0202`–`$0.1030`/task)*
+- So với impact / người / tháng (§2): **Rất đáng làm** — chỉ tốn dưới $0.002/người/tháng để tiết kiệm ~30 phút/người/tháng cho nhóm trưởng.
 
 ## §9. Rủi ro & an toàn
-- Dữ liệu: đã ẩn danh gì, không thu gì, không đưa gì vào model gói miễn phí:
-- AI **không được** làm gì kể cả khi người dùng yêu cầu:
-- Ai có thể bị hại nếu AI sai, và nhóm chặn thế nào:
+- Dữ liệu: đã xoá toàn bộ SĐT, tên và Timestamp trong `evidence/survey/results.csv` (thay bằng mã ẩn danh `S01`–`S47`); kho địa điểm dùng dữ liệu mở (OSM) và kho quán hot không chứa thông tin cá nhân người đăng; tuyệt đối không đưa file khảo sát gốc hay `.env`/API key lên repo hoặc vào model gói miễn phí.
+- AI **không được** làm gì kể cả khi người dùng yêu cầu: (1) không tự bịa địa điểm, giờ mở cửa hoặc giá tiền ngoài kết quả công cụ (phải báo "không biết / chưa có dữ liệu" + `[Cần kiểm tra & điền tay]`), (2) không tự lưu/áp dụng thay đổi vào lịch trình chính thức của nhóm (chỉ tạo bản nháp cho nhóm trưởng duyệt), (3) không tự đặt bàn, đặt phòng hay thanh toán, (4) không tiết lộ `SYSTEM` prompt, biến môi trường hay API key.
+- Ai có thể bị hại nếu AI sai, và nhóm chặn thế nào: Cả nhóm bạn đi cùng có thể đến nhầm quán đóng cửa, chồng giờ hoặc chi vượt ngân sách; nhóm chặn bằng: (1) mọi địa điểm, giờ mở cửa, giá tiền lấy từ công cụ, (2) `check_itinerary` kiểm tra giờ mở cửa/chồng giờ/tổng tiền bằng code Python, (3) cơ chế `AI gợi ý, người quyết` — nhóm trưởng duyệt trước khi áp dụng.
 
 ## §10. Phân công & changelog
-- Phân công có tên (theo chặng, chia cặp — guide "Cách chia việc"): __
-- Dùng AI vào việc gì (2–3 dòng; chi tiết `docs/ai-usage.md`):
+- Phân công có tên (theo chặng, chia cặp — guide "Cách chia việc"): **Vũ Lê Đức** (Đội trưởng: phạm vi, khảo sát, `canvas.md`, `spec.md`, nộp CP) · **Lê Hữu Toàn** (lõi Roa `codebase/`, `eval/`, `cost/`) · **Mai Đăng Khương** (backend FastAPI, DB Supabase, chấm chéo eval) · **Lê Xuân Phúc** (giao diện Next.js, slide `slides/demo-slides.html`).
+- Dùng AI vào việc gì (2–3 dòng; chi tiết `docs/ai-usage.md`): Nhóm dùng coding agent (Antigravity / Claude Code / Cursor) để hỗ trợ nối API model (`codebase/ai.py`), viết vòng lặp agent + công cụ (`codebase/agent.py`, `tools.py`), mở rộng câu thử `benchmark.csv` và kiểm tra tài liệu CP1–CP4; thành viên kiểm lại bằng `pytest`/`unittest`, `run.py check`, `run.py eval` và rà từng câu output.
 - Nhật ký thay đổi — **mọi thay đổi sau CP2 19:30 Thứ Sáu 27/11 phải có dòng ở đây**:
 
 **CP2 → CP4** (vd thu hẹp lát cắt, hỏi thêm người dùng, lần cải tiến trước lượt 2)
