@@ -237,7 +237,7 @@ Biến môi trường (giá trị giả trong `.env.example`):
 |---|---|---|
 | `DATABASE_URL` | Backend | Chuỗi kết nối Supabase (pooler) |
 | `MODEL_PROVIDER`, `MODEL_NAME`, `API_KEY` | Backend | LLM, dùng chung với khung BTC |
-| `GWAI_API_KEY` | Backend | Key riêng khi dùng `MODEL_PROVIDER=gwai`, gọi Chat Completions |
+| `GWAI_API_KEY` | Backend | Key riêng khi dùng `MODEL_PROVIDER=gwai`. `MODEL_NAME` bắt đầu bằng `gemini` thì gọi `generateContent` của GWAI, model khác gọi Chat Completions |
 | `GOOGLE_MAPS_API_KEY` | Backend | Places, Routes |
 | `VIETMAP_API_KEY` | Lõi Roa phía server | Tra điểm ngoài kho qua VIETMAP Autocomplete v4 và Place v4. Chưa dùng: bản chạy thử chỉ đọc kho file (chờ OQ-22) |
 | `TAVILY_API_KEY` | Lõi Roa phía server | Tra bổ sung giờ và giá/người theo tên, thành phố. Chưa dùng lúc chạy: theo `docs/roa-agent-design.md` chỉ tra theo đợt khi dựng kho |
@@ -280,3 +280,4 @@ Nhánh và deploy: `main` là bản demo; `develop` là nhánh tích hợp (`doc
 | 0.5 | 2026-11-28 | Khương | Bảng công cụ §3.3 khớp tên trong code và `spec.md` §4; Roa đọc kho file `data/places/`; luồng `generate` chi tiết tách sang `docs/roa-agent-flow.md` | Code nhánh `feat/kho-du-lieu-va-agent-roa` |
 | 0.6 | 2026-11-28 | Codex | Bổ sung cấu hình VIETMAP và Tavily cho công cụ của bản chạy thử | Yêu cầu triển khai công cụ Roa |
 | 0.7 | 2026-11-28 | Khương | Gộp nhánh agent: lõi Roa đọc cả `data/places/` và `data/places_vn.json` (5 thành phố); bản chạy thử không gọi VIETMAP, Tavily, Google lúc chạy (chờ OQ-22), nên `VIETMAP_API_KEY`, `TAVILY_API_KEY` chưa dùng | Gộp `feat/kho-du-lieu-va-agent-roa` với `docs/cp2-benchmark-datacard` |
+| 0.8 | 2026-11-28 | Khương | `GWAI_API_KEY`: model Gemini đi đường `generateContent` của GWAI | Chạy eval CP3 bằng `gemini-3.8-flash` |

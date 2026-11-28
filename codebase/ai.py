@@ -31,6 +31,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 GWAI_URL = "https://1gw.gwai.cloud/v1/chat/completions"
+GWAI_GEMINI_URL = "https://1gw.gwai.cloud/v1beta/models/{model}:generateContent"
 
 
 def load_env(path=os.path.join(ROOT, ".env")):
@@ -58,7 +59,8 @@ def post_json(url, headers, body, timeout=60):
         url,
         data=json.dumps(body).encode("utf-8"),
         method="POST",
-        headers={"Content-Type": "application/json", **headers},
+        # User-Agent riêng: một số cổng (Cloudflare) chặn "Python-urllib" mặc định với lỗi 1010.
+        headers={"Content-Type": "application/json", "User-Agent": "partaway-roa/0.1", **headers},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -67,21 +69,23 @@ def post_json(url, headers, body, timeout=60):
         raise RuntimeError("HTTP %d: %s" % (e.code, e.read().decode("utf-8", "replace")[:300]))
 
 
-def call_gemini(system: str, user: str) -> dict:
-    """Gọi Gemini REST API (generateContent), trả về text, tokens_in, tokens_out."""
+def call_gemini(system: str, user: str, url_tpl: str = GEMINI_URL, key: str = "") -> dict:
+    """Gọi Gemini REST API (generateContent), trả về text, tokens_in, tokens_out.
+    url_tpl, key: mặc định Google; GWAI dùng cùng định dạng ở cổng riêng (GWAI_GEMINI_URL)."""
+    key = key or API_KEY
     if not MODEL_NAME:
-        raise RuntimeError("Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER=gemini")
-    if not API_KEY:
-        raise RuntimeError("Thiếu API_KEY trong .env cho MODEL_PROVIDER=gemini")
+        raise RuntimeError(f"Thiếu MODEL_NAME trong .env cho MODEL_PROVIDER={MODEL_PROVIDER}")
+    if not key:
+        raise RuntimeError(f"Thiếu API key trong .env cho MODEL_PROVIDER={MODEL_PROVIDER}")
     model = MODEL_NAME.removeprefix("models/")
-    url = GEMINI_URL.format(model=model)
+    url = url_tpl.format(model=model)
     body = {
         "contents": [{"role": "user", "parts": [{"text": user}]}],
         "generationConfig": {"temperature": 0.2, "responseMimeType": "application/json"},
     }
     if system:
         body["systemInstruction"] = {"parts": [{"text": system}]}
-    data = post_json(url, {"x-goog-api-key": API_KEY}, body, timeout=120)
+    data = post_json(url, {"x-goog-api-key": key}, body, timeout=120)
     candidates = data.get("candidates") or []
     if not candidates:
         raise RuntimeError("Gemini không trả về candidate: %s" % json.dumps(data, ensure_ascii=False)[:300])
@@ -140,7 +144,10 @@ def call_model(system: str, user: str) -> dict:
             "tokens_out": int(r["tokens_out"]),
         }
     if MODEL_PROVIDER in ("openrouter", "gwai"):
-        if MODEL_PROVIDER == "gwai":
+        if MODEL_PROVIDER == "gwai" and MODEL_NAME.startswith("gemini"):
+            # Cổng GWAI chỉ nhận Gemini theo định dạng generateContent, không qua chat/completions.
+            r = call_gemini(system, user, GWAI_GEMINI_URL, os.getenv("GWAI_API_KEY", "").strip())
+        elif MODEL_PROVIDER == "gwai":
             r = call_chat_completions(system, user, GWAI_URL, os.getenv("GWAI_API_KEY", "").strip())
         else:
             r = call_openrouter(system, user)
