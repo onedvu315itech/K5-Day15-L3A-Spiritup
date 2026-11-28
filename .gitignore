@@ -11,6 +11,10 @@ __pycache__/
 .venv/
 venv/
 node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
 .DS_Store
 # Lượt KHÔNG được tính (không nộp). eval/run-1.csv, run-2.csv…, cost/simulate-N.csv, traces/run-N.jsonl PHẢI commit.
 eval/run-fake.csv
@@ -39,3 +43,5 @@ de-bai/data/
 # Zip đóng gói, cài đặt cục bộ của Claude Code
 dist/
 .claude/settings.local.json
+# Dữ liệu thô thu thử (caption, URL có handle người đăng): chỉ để trên máy
+data/raw/

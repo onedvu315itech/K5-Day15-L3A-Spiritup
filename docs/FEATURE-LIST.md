@@ -31,7 +31,6 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 | Bản đồ các điểm trong ngày | P1 | Sau CP3 | Phúc | — | Chưa làm |
 | Bình chọn tự do giữa nhiều phương án | P2 | — | — | — | Chờ OQ-05 |
 | Đăng nhập tài khoản | P2 | — | — | — | Không làm ở MVP: đã chốt link mời + token (OQ-06) |
-| Nhiều thành phố ngoài Đà Lạt | P2 | — | — | — | Chờ OQ-09 |
 
 ## Lịch sử thay đổi
 
@@ -39,4 +38,4 @@ Trạng thái spec: `docs/features/README.md`. Cột "Spec" trống nghĩa là c
 |---|---|---|---|---|
 | 0.1 | 2026-11-27 | Đức | Bản đầu | ADR 0002 |
 | 0.2 | 2026-11-27 | Khương | Thêm cột Giai đoạn; thêm lát cắt AI, eval, bằng chứng, duyệt v1 | OQ-19, OQ-20, ADR 0004 |
-| 0.3 | 2026-11-27 | Phúc | Gắn spec `docs/features/frontend-screens.md` cho các màn hình giao diện MVP | `docs/features/frontend-screens.md` |
+| 0.3 | 2026-11-27 | Phúc, Khương| Gắn spec `docs/features/frontend-screens.md` cho các màn hình giao diện MVP </br>Bỏ "Đà Lạt" khỏi kho quán hot; bỏ dòng "Nhiều thành phố ngoài Đà Lạt" vì điểm đến bất kỳ trong Việt Nam đã là mặc định | `docs/features/frontend-screens.md` </br>OQ-09 |

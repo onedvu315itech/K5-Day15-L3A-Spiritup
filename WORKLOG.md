@@ -7,11 +7,25 @@ Nhật ký việc của nhóm. Mỗi việc xong (hoặc dừng) một dòng, gh
 - **Thời gian:** thời gian làm thật; ước lượng thì thêm `~` (ví dụ `~1h`)
 - Việc do coding agent làm vẫn ghi tên người giao việc.
 
+## 2026-11-28
+
+| Thành viên | Task | Trạng thái | Output | Thời gian |
+|---|---|---|---|---|
+| Chờ điền tên người giao việc (cùng Antigravity) | Chạy `eval/run-2.csv` (`openai/gpt-4o-mini`, `11/24`), `simulate --try` (`10/10` thành công), vá JSON mode + retry JSON lỗi + đệm di chuyển `fill_gaps`, chạy `eval/run-3.csv` (`2/24`, 21 câu lỗi `HTTP 402`), cập nhật báo cáo & tổng hợp CP3 | ✅ | `eval/run-2.csv`, `eval/run-3.csv`, `cost/simulate-try.csv`, `codebase/ai.py`, `codebase/agent.py`, `tests/test_agent.py`, `eval/report.md`, `docs/cp3-toan-summary.md` | ~ |
+| Chờ điền tên người giao việc (cùng Antigravity) | Mở rộng `eval/benchmark.csv` lên 24 câu (12 nguồn thật từ khảo sát & `data/`), cập nhật `data/DATA_CARD.md`, rà trace `B01` và vá chặn `check_itinerary` trong `codebase/agent.py`, cập nhật `eval/report.md` và `docs/ai-usage.md` | ✅ | `eval/benchmark.csv`, `data/DATA_CARD.md`, `codebase/agent.py`, `tests/test_agent.py`, `eval/report.md`, `docs/ai-usage.md` | ~ |
+| Chờ điền tên người giao việc (cùng Antigravity) | Nối Gemini REST API vào `codebase/ai.py`, nâng cấp vòng lặp agent 8 công cụ trong `codebase/agent.py` và bổ sung test lấp khoảng trống | ✅ | `codebase/ai.py`, `codebase/agent.py`, `tests/test_agent.py`, `eval/run-try.csv` | ~ |
+| Chờ điền tên người giao việc (cùng Codex) | Cài công cụ tra cứu hai tầng, kiểm lịch, phân tích khoảng trống và tìm điểm gần | ✅ | `codebase/tools.py`, `tests/test_tools.py`, `spec.md` §4 | ~ |
+
 ## 2026-11-27
 
 | Thành viên | Task | Trạng thái | Output | Thời gian |
 |---|---|---|---|---|
 | Phúc | Cập nhật toàn bộ giao diện `frontend/` và `docs/features/frontend-screens.md` v0.2 theo `DESIGN.md` (Warm Paper `#f6f5f4`, `Inter`, `#0075de`, hero `#213183`, sticker palette) | ✅ | `frontend/`, `docs/features/frontend-screens.md` v0.2 (`tsc`, `lint`, `build` qua) | ~ |
 | Phúc | Viết spec màn hình frontend (`docs/features/frontend-screens.md`), cập nhật `docs/FEATURE-LIST.md` v0.3 và khởi tạo khung Next.js `frontend/` (4 route MVP + lớp API/mock theo `API_SPEC.md`) | ✅ | `docs/features/frontend-screens.md`, `frontend/` (`tsc`, `lint`, `build` qua) | ~ |
+| Khương | README: tên nhóm + lát cắt, xoá mục 0; trang HTML hướng dẫn nhóm (luồng sản phẩm, lát cắt AI, mốc CP, cách làm, cấu trúc repo); WORKFLOW: CP1 chỉ cần phần "Kiểm TEAMS.md" không báo gì | ✅ | `README.md`, `docs/huong-dan-nhom.html`, `docs/WORKFLOW.md` | ~ |
+| Khương | Chốt OQ-09: không giới hạn một thành phố, điểm đến bất kỳ trong Việt Nam; bỏ Đà Lạt khỏi canvas, AGENTS, ARCHITECTURE, FEATURE-LIST, WORKFLOW, trang hướng dẫn; OQ-11 cần quyết lại phạm vi kho quán hot | ✅ | `canvas.md`, `AGENTS.md`, `docs/OPEN-QUESTIONS.md`, `ARCHITECTURE.md`, `docs/FEATURE-LIST.md`, `docs/WORKFLOW.md`, `docs/huong-dan-nhom.html` | ~ |
 | Khương | Chốt OQ-02, 03, 06, 07, 13, 14, 17, 19, 20, 21 (chờ Đức xác nhận); ADR 0004; sửa tài liệu theo quyết định; WORKFLOW theo slide kickoff; `canvas.md` bản CP1; đưa khung ra gốc repo, đề BTC vào `de-bai/` | ✅ | `docs/OPEN-QUESTIONS.md` v0.3, `docs/adr/0004-…`, `canvas.md`, `docs/WORKFLOW.md` v0.3; `python run.py check` chạy được ở gốc (TEAMS OK) | ~ |
 | Khương | Dựng khung tài liệu kỹ thuật: AGENTS, ARCHITECTURE, DATABASE, API_SPEC, quy tắc, ADR, OQ, spec đề xuất và bỏ phiếu, quy trình | ✅ | Nhánh `docs/khung-tai-lieu`; `AGENTS.md`, `ARCHITECTURE.md`, `docs/` | ~1,5h |
+| Khương | Script thử thu quán hot TikTok (Tavily + Firecrawl) cho Đà Lạt, đối chiếu cột `trending_spots`: 23 video, có engagement 12/23, chưa có `name`, `place_id` | ✅ | `scripts/spike_tiktok_trending.py`, `data/raw/` (không commit) | ~ |
+| Khương | Script thử Google Places (Text Search) cho `search_places` và khớp quán TikTok sang `place_id`; chưa chạy vì `.env` chưa có `GOOGLE_MAPS_API_KEY` | 🟡 | `scripts/spike_google_places.py` | ~ |
+| Khương | Bản nháp thiết kế agent Roa với Geoapify (v0.3): công cụ, luồng `generate`, thu độ hot theo đợt (2 chiều), cache; chạy `spike_geoapify.py` cho Đà Lạt: 783 nơi, giờ mở cửa ≈11–15%, giá 0%, `name=` hỏng, khớp TikTok 1/6; script TikTok thêm chiều A (`--from-catalog`), câu tìm kết thúc bằng tên thành phố | 🟡 | `docs/roa-agent-design.md`, `scripts/spike_geoapify.py`, `scripts/spike_tiktok_trending.py`, `.env.example` | ~ |

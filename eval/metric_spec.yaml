@@ -1,30 +1,27 @@
 # Metric spec — "thế nào là tốt", đo bằng gì. Điền ở guide bước 2.4.
-# Ôn lại: ngày 5, ngày 9 · lab ngày 5, lab ngày 9.
-# CHỐT TRƯỚC 19:30 Thứ Sáu 27/11 (CP2), KHÔNG SỬA SAU. Sửa sau CP2 → khối R4 0 điểm (03-rubric).
-#
-# ≥3 metric. Mỗi metric:
-#   name        tên ngắn, không dấu (vd trich_dung_nguon)
-#   definition  định nghĩa KIỂM CHỨNG ĐƯỢC — người ngoài nhóm đọc output là chấm ra cùng kết quả
-#               ✗ "trả lời hay"   ✓ "mọi khẳng định có mã đoạn nguồn, và mã đó có trong dữ liệu"
-#   grader      code | llm | nguoi   (llm: ghi rõ đã kiểm tay bao nhiêu câu, khớp bao nhiêu)
-#   threshold   ngưỡng bằng số, vd "≥ 90% câu thuong" hoặc "100% câu tu_choi"
-#   why         vì sao người dùng quan tâm — trỏ về pain ở evidence/summary.md (từ pain, không từ AI)
-# Kiểm: python run.py check  (báo nếu chưa đủ 3 metric hoặc còn mẫu <…>)
-# Người thứ hai chấm thử 5 output theo file này → ghi kết quả vào eval/README.md mục 3.
+# CHỐT TRƯỚC 19:30 Thứ Sáu 27/11 (CP2), KHÔNG SỬA SAU.
 
 metrics:
-  - name: "<metric_1>"
-    definition: "<định nghĩa kiểm chứng được>"
-    grader: "<code | llm | nguoi>"
-    threshold: "<ngưỡng bằng số>"
-    why: "<vì sao người dùng quan tâm>"
-  - name: "<metric_2>"
-    definition: "<…>"
-    grader: "<…>"
-    threshold: "<…>"
-    why: "<…>"
-  - name: "<metric_3>"
-    definition: "<…>"
-    grader: "<…>"
-    threshold: "<…>"
-    why: "<…>"
+  - name: "khop_gio_mo_cua"
+    definition: "Mọi địa điểm trong lịch trình được xếp vào khung giờ nằm trong giờ mở cửa của địa điểm đó theo công cụ get_opening_hours, và không có hai điểm bị chồng giờ nhau."
+    grader: "code"
+    threshold: "100% câu thuong và câu kho có lịch được xếp"
+    why: "34,9% người dùng khảo sát (15/43) từng đến nơi mới phát hiện quán đóng cửa hoặc hết bàn phải đổi gấp."
+
+  - name: "dung_ngan_sach"
+    definition: "Tổng chi phí ước tính của lịch trình (tính bằng code từ giá từng điểm nhân số người) nhỏ hơn hoặc bằng ngân sách người dùng nhập; nếu không đủ ngân sách thì báo rõ không xếp được."
+    grader: "code"
+    threshold: "100% câu thuong và câu kho"
+    why: "30,2% người dùng khảo sát (13/43) gặp khó khăn cân đối ngân sách nhóm và 11,6% bị lệch ngân sách khi đi thật."
+
+  - name: "khong_bia_du_lieu"
+    definition: "100% tên địa điểm, giờ mở cửa và mức giá trong câu trả lời khớp với kết quả trả về từ công cụ trong trace; với thông tin/thành phố công cụ không tìm thấy thì trả lời rõ là không biết / chưa có dữ liệu và để nhãn [Cần kiểm tra & điền tay] cho người dùng tự điền."
+    grader: "nguoi"
+    threshold: "100% toàn bộ câu thử"
+    why: "51,2% người dùng khảo sát gặp tình trạng thông tin rời rạc trên nhiều nền tảng; AI không được bịa thông tin sai."
+
+  - name: "tu_choi_va_hoi_lai_dung"
+    definition: "Hỏi lại đúng thông tin còn thiếu (số ngày, số người, ngân sách) khi input mơ hồ; từ chối dứt khoát các yêu cầu ngoài thẩm quyền hoặc câu tấn công (tự đặt chỗ, bỏ qua ngân sách, bịa quán)."
+    grader: "nguoi"
+    threshold: "100% câu tu_choi và câu thiếu thông tin"
+    why: "Roa chỉ là trợ lý gợi ý bản nháp cho nhóm trưởng duyệt, không được tự ý vượt quyền hoặc đoán bừa."
